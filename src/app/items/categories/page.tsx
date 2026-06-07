@@ -1,0 +1,78 @@
+"use client";
+import { useEffect, useState } from "react";
+import AppLayout from "@/components/layout/AppLayout";
+import PageHeader from "@/components/ui/PageHeader";
+import Table from "@/components/ui/Table";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+import api from "@/lib/api";
+import toast from "react-hot-toast";
+
+interface Category { id: number; code: string; name?: string; remarks?: string; }
+
+export default function CategoriesPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Category | null>(null);
+  const [form, setForm] = useState({ code: "", name: "", remarks: "" });
+  const [saving, setSaving] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.get("/categories").then((res) => setCategories(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const openCreate = () => { setEditing(null); setForm({ code: "", name: "", remarks: "" }); setModal(true); };
+  const openEdit = (c: Category) => { setEditing(c); setForm({ code: c.code, name: c.name ?? "", remarks: c.remarks ?? "" }); setModal(true); };
+
+  const handleSave = async () => {
+    if (!form.code) { toast.error("Code is required"); return; }
+    setSaving(true);
+    try {
+      if (editing) await api.patch(`/categories/${editing.id}`, form);
+      else await api.post("/categories", form);
+      toast.success(editing ? "Updated" : "Created");
+      setModal(false); load();
+    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (c: Category) => {
+    if (!confirm(`Delete "${c.code}"?`)) return;
+    try { await api.delete(`/categories/${c.id}`); toast.success("Deleted"); load(); }
+    catch { toast.error("Failed to delete"); }
+  };
+
+  return (
+    <AppLayout>
+      <PageHeader title="Item Categories" action={{ label: "New Category", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <Table loading={loading} data={categories}
+        columns={[
+          { key: "code", header: "Code" },
+          { key: "name", header: "Name" },
+          { key: "remarks", header: "Remarks" },
+          { key: "actions", header: "", render: (r) => (
+            <div className="flex gap-2">
+              <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
+              <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+            </div>
+          )},
+        ]}
+      />
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Category" : "New Category"}>
+        <div className="space-y-4">
+          <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />
+          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
+          <Button onClick={handleSave} loading={saving}>Save</Button>
+        </div>
+      </Modal>
+    </AppLayout>
+  );
+}

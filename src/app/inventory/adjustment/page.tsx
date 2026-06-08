@@ -35,7 +35,7 @@ export default function StockAdjustmentPage() {
       await adjustStock({
         invNo, date,
         items: valid.map((l) => ({
-          itmOId: Number(l.itmOId),
+          itmOId: l.itmOId,
           reject: parseFloat(l.reject),
           excess: parseFloat(l.excess),
           short: parseFloat(l.short),

@@ -23,13 +23,13 @@ const unwrap = <T>(r: { data: { data?: T } | T }): T =>
   (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchRoles = () =>
-  api.get<{ data: Role[] } | Role[]>("/admin/roles").then(unwrap<Role[]>);
+  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrap<Role[]>);
 
 export const fetchMenus = () =>
-  api.get<{ data: Menu[] } | Menu[]>("/admin/menus").then(unwrap<Menu[]>);
+  api.get<{ data: Menu[] } | Menu[]>("/menus").then(unwrap<Menu[]>);
 
 export const fetchPermissions = (roleId: string) =>
-  api.get<{ data: Permission[] } | Permission[]>(`/admin/permissions?roleId=${roleId}`).then(unwrap<Permission[]>);
+  api.get<{ data: Permission[] } | Permission[]>(`/permissions/role/${roleId}`).then(unwrap<Permission[]>);
 
 export const savePermissions = (roleId: string, permissions: Permission[]) =>
-  api.post(`/admin/permissions/${roleId}`, permissions).then((r) => r.data);
+  api.post(`/permissions/role/${roleId}/bulk`, { permissions }).then((r) => r.data);

@@ -28,8 +28,8 @@ export const fetchPackets = () =>
 export const createPacket = (data: PacketPayload) =>
   api.post<Packet>("/packets", data).then((r) => r.data);
 
-export const updatePacket = (id: number, data: Partial<PacketPayload>) =>
-  api.patch<Packet>(`/packets/${id}`, data).then((r) => r.data);
+export const updatePacket = (code: string, data: Partial<PacketPayload>) =>
+  api.patch<Packet>(`/packets/${code}`, data).then((r) => r.data);
 
-export const deletePacket = (id: number) =>
-  api.delete(`/packets/${id}`).then((r) => r.data);
+export const deletePacket = (code: string) =>
+  api.delete(`/packets/${code}`).then((r) => r.data);

@@ -46,4 +46,4 @@ export const fetchCustomers = () =>
   api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrap<Customer[]>);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);

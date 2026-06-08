@@ -35,7 +35,7 @@ export default function CustomersPage() {
     if (!form.code || !form.name) { toast.error("Code and name are required"); return; }
     setSaving(true);
     try {
-      if (editing) await updateCustomer(editing.id, form);
+      if (editing) await updateCustomer(editing.code, form);
       else await createCustomer(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
@@ -44,7 +44,7 @@ export default function CustomersPage() {
 
   const handleDelete = async (c: Customer) => {
     if (!confirm(`Delete "${c.name}"?`)) return;
-    try { await deleteCustomer(c.id); toast.success("Deleted"); load(); }
+    try { await deleteCustomer(c.code); toast.success("Deleted"); load(); }
     catch { toast.error("Failed to delete"); }
   };
 

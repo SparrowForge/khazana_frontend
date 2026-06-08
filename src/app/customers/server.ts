@@ -26,8 +26,8 @@ export const fetchCustomers = (limit = 500) =>
 export const createCustomer = (data: CustomerPayload) =>
   api.post<Customer>("/customers", data).then((r) => r.data);
 
-export const updateCustomer = (id: number, data: Partial<CustomerPayload>) =>
-  api.patch<Customer>(`/customers/${id}`, data).then((r) => r.data);
+export const updateCustomer = (code: string, data: Partial<CustomerPayload>) =>
+  api.patch<Customer>(`/customers/${code}`, data).then((r) => r.data);
 
-export const deleteCustomer = (id: number) =>
-  api.delete(`/customers/${id}`).then((r) => r.data);
+export const deleteCustomer = (code: string) =>
+  api.delete(`/customers/${code}`).then((r) => r.data);

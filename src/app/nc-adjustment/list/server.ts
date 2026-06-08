@@ -12,4 +12,4 @@ const unwrap = <T>(r: { data: { data?: T } | T }): T =>
   (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchNcAdjustments = () =>
-  api.get<{ data: NC[] } | NC[]>("/nc").then(unwrap<NC[]>);
+  api.get<{ data: NC[] } | NC[]>("/nc-adjustment").then(unwrap<NC[]>);

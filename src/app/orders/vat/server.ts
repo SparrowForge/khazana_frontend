@@ -12,4 +12,4 @@ const unwrap = <T>(r: { data: { data?: T } | T }): T =>
   (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchVatOrders = () =>
-  api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat").then(unwrap<VatOrder[]>);
+  api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat/list").then(unwrap<VatOrder[]>);

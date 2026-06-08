@@ -30,13 +30,13 @@ const unwrap = <T>(r: { data: { data?: T } | T }): T =>
   (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchPrices = () =>
-  api.get<{ data: Price[] } | Price[]>("/prices").then(unwrap<Price[]>);
+  api.get<{ data: Price[] } | Price[]>("/pricing/prices").then(unwrap<Price[]>);
 
 export const createPrice = (data: PricePayload) =>
-  api.post<Price>("/prices", data).then((r) => r.data);
+  api.post<Price>("/pricing/prices", data).then((r) => r.data);
 
 export const updatePrice = (id: string, data: Partial<PricePayload>) =>
-  api.patch<Price>(`/prices/${id}`, data).then((r) => r.data);
+  api.patch<Price>(`/pricing/prices/${id}`, data).then((r) => r.data);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);

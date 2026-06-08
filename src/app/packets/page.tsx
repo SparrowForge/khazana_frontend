@@ -40,7 +40,7 @@ export default function PacketsPage() {
     setSaving(true);
     try {
       const payload = { ...form, weight: parseFloat(form.weight) || 0, rate: parseFloat(form.rate) || 0, isActive: parseInt(form.isActive) };
-      if (editing) await updatePacket(editing.id, payload);
+      if (editing) await updatePacket(editing.code, payload);
       else await createPacket(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
@@ -49,7 +49,7 @@ export default function PacketsPage() {
 
   const handleDelete = async (p: Packet) => {
     if (!confirm(`Delete "${p.code}"?`)) return;
-    try { await deletePacket(p.id); toast.success("Deleted"); load(); }
+    try { await deletePacket(p.code); toast.success("Deleted"); load(); }
     catch { toast.error("Failed to delete"); }
   };
 

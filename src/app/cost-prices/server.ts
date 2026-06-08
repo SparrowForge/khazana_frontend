@@ -26,13 +26,13 @@ const unwrap = <T>(r: { data: { data?: T } | T }): T =>
   (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCostPrices = () =>
-  api.get<{ data: CostPrice[] } | CostPrice[]>("/cost-prices").then(unwrap<CostPrice[]>);
+  api.get<{ data: CostPrice[] } | CostPrice[]>("/pricing/cost-prices").then(unwrap<CostPrice[]>);
 
 export const createCostPrice = (data: CostPricePayload) =>
-  api.post<CostPrice>("/cost-prices", data).then((r) => r.data);
+  api.post<CostPrice>("/pricing/cost-prices", data).then((r) => r.data);
 
 export const updateCostPrice = (id: string, data: Partial<CostPricePayload>) =>
-  api.patch<CostPrice>(`/cost-prices/${id}`, data).then((r) => r.data);
+  api.patch<CostPrice>(`/pricing/cost-prices/${id}`, data).then((r) => r.data);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);

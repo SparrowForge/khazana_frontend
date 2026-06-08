@@ -8,12 +8,9 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus } from "lucide-react";
-import api from "@/lib/api";
+import { fetchMoneyReceive, createMoneyReceive, fetchCustomers, type MoneyReceive, type Customer } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
-
-interface MoneyReceive { id: number; receiptNo: string; receiptDate: string; customerCode: string; amount: number; paymentMethod?: string; }
-interface Customer { id: number; code: string; name: string; }
 
 const emptyForm = { receiptNo: "", receiptDate: new Date().toISOString().split("T")[0], customerCode: "", amount: "", paymentMethod: "Cash", description: "" };
 
@@ -27,15 +24,15 @@ export default function MoneyReceivePage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/finance/money-receive").then((res) => setRecords(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchMoneyReceive().then(setRecords).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {}); }, []);
+  useEffect(() => { load(); fetchCustomers().then(setCustomers).catch(() => {}); }, []);
 
   const handleSave = async () => {
     if (!form.customerCode || !form.amount) { toast.error("Customer and amount are required"); return; }
     setSaving(true);
     try {
-      await api.post("/finance/money-receive", { ...form, amount: parseFloat(form.amount) });
+      await createMoneyReceive({ ...form, amount: parseFloat(form.amount) });
       toast.success("Money receive recorded");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

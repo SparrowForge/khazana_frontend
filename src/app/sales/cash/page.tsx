@@ -7,14 +7,14 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import api from "@/lib/api";
+import { fetchItems, createCashSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import toast from "react-hot-toast";
 
 export default function CashSalePage() {
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string; price?: number }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
@@ -23,9 +23,7 @@ export default function CashSalePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => {
-      setAvailableItems(res.data.data ?? res.data);
-    }).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const netAmount = items.reduce((s, i) => s + i.total, 0);
@@ -35,7 +33,7 @@ export default function CashSalePage() {
     if (!items.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/sales/cash", {
+      await createCashSale({
         invoiceNo, invoiceDate, paymentMethod, items,
         totalAmount: items.reduce((s, i) => s + i.rate * i.quantity, 0),
         totalDiscount: items.reduce((s, i) => s + i.discount, 0),

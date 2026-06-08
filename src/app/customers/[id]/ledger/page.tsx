@@ -5,11 +5,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Card from "@/components/ui/Card";
-import api from "@/lib/api";
+import { fetchCustomer, fetchLedger, type LedgerEntry, type CustomerInfo } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-interface LedgerEntry { id: number; date?: string; description?: string; debit?: number; credit?: number; balance?: number; }
-interface CustomerInfo { code: string; name: string; }
 
 export default function CustomerLedgerPage() {
   const { id } = useParams();
@@ -19,11 +16,8 @@ export default function CustomerLedgerPage() {
 
   useEffect(() => {
     if (!id) return;
-    api.get(`/customers/${id}`).then((res) => setCustomer(res.data)).catch(() => {});
-    api.get(`/customers/${id}/ledger`)
-      .then((res) => setLedger(res.data.data ?? res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchCustomer(id).then(setCustomer).catch(() => {});
+    fetchLedger(id).then(setLedger).catch(() => {}).finally(() => setLoading(false));
   }, [id]);
 
   const totalDebit = ledger.reduce((s, l) => s + (l.debit ?? 0), 0);

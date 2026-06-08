@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import api from "@/lib/api";
+import { fetchPackets, issuePackets, type PacketOption } from "./server";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -17,11 +17,11 @@ export default function PacketIssuePage() {
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
   const [issueType, setIssueType] = useState("Sale");
   const [lines, setLines] = useState<IssueLine[]>([{ code: "", qty: "1" }]);
-  const [packets, setPackets] = useState<{ id: number; code: string; name?: string }[]>([]);
+  const [packets, setPackets] = useState<PacketOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/packets?limit=500").then((res) => setPackets(res.data.data ?? res.data)).catch(() => {});
+    fetchPackets().then(setPackets).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { code: "", qty: "1" }]);
@@ -33,7 +33,7 @@ export default function PacketIssuePage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/packets/issue", { invoiceNo, issueDate, issueType, items: valid.map((l) => ({ code: l.code, qty: parseFloat(l.qty) })) });
+      await issuePackets({ invoiceNo, issueDate, issueType, items: valid.map((l) => ({ code: l.code, qty: parseFloat(l.qty) })) });
       toast.success("Packet issue saved");
       setLines([{ code: "", qty: "1" }]); setInvoiceNo("");
     } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }

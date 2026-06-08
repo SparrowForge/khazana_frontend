@@ -7,10 +7,9 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus, Edit2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchRoles, createRole, updateRole, type Role } from "./server";
 import toast from "react-hot-toast";
 
-interface Role { id: number; name: string; description?: string; }
 const emptyForm = { name: "", description: "" };
 
 export default function RolesPage() {
@@ -23,7 +22,7 @@ export default function RolesPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/admin/roles").then((res) => setRoles(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchRoles().then(setRoles).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -34,8 +33,8 @@ export default function RolesPage() {
     if (!form.name) { toast.error("Role name is required"); return; }
     setSaving(true);
     try {
-      if (editing) await api.patch(`/admin/roles/${editing.id}`, form);
-      else await api.post("/admin/roles", form);
+      if (editing) await updateRole(editing.id, form);
+      else await createRole(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

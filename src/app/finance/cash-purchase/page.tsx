@@ -7,11 +7,9 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus } from "lucide-react";
-import api from "@/lib/api";
+import { fetchCashPurchases, createCashPurchase, type CashPurchase } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
-
-interface CashPurchase { id: number; voucherNo: string; voucherDate: string; supplier?: string; amount: number; description?: string; }
 
 const emptyForm = { voucherNo: "", voucherDate: new Date().toISOString().split("T")[0], supplier: "", amount: "", description: "" };
 
@@ -24,7 +22,7 @@ export default function CashPurchasePage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/finance/cash-purchase").then((res) => setRecords(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchCashPurchases().then(setRecords).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -32,7 +30,7 @@ export default function CashPurchasePage() {
     if (!form.amount) { toast.error("Amount is required"); return; }
     setSaving(true);
     try {
-      await api.post("/finance/cash-purchase", { ...form, amount: parseFloat(form.amount) });
+      await createCashPurchase({ ...form, amount: parseFloat(form.amount) });
       toast.success("Cash purchase recorded");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

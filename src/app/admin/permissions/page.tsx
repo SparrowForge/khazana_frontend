@@ -4,12 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import api from "@/lib/api";
+import { fetchRoles, fetchMenus, fetchPermissions, savePermissions, type Role, type Menu, type Permission } from "./server";
 import toast from "react-hot-toast";
-
-interface Role { id: number; name: string; }
-interface Menu { id: number; menuName: string; controlName: string; }
-interface Permission { menuId: number; isEnable: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean; }
 
 export default function PermissionsPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -20,18 +16,18 @@ export default function PermissionsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get("/admin/roles").then((res) => setRoles(res.data.data ?? res.data)).catch(() => {});
-    api.get("/admin/menus").then((res) => setMenus(res.data.data ?? res.data)).catch(() => {});
+    fetchRoles().then(setRoles).catch(() => {});
+    fetchMenus().then(setMenus).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!selectedRole) return;
     setLoading(true);
-    api.get(`/admin/permissions?roleId=${selectedRole}`)
-      .then((res) => {
-        const perms: Record<number, Permission> = {};
-        (res.data.data ?? res.data).forEach((p: Permission & { menuId: number }) => { perms[p.menuId] = p; });
-        setPermissions(perms);
+    fetchPermissions(selectedRole)
+      .then((perms) => {
+        const permMap: Record<number, Permission> = {};
+        perms.forEach((p) => { permMap[p.menuId] = p; });
+        setPermissions(permMap);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -52,9 +48,9 @@ export default function PermissionsPage() {
       const payload = menus.map((m) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { menuId: _id, ...perms } = permissions[m.id] ?? {};
-        return { menuId: m.id, ...defaults, ...perms };
+        return { menuId: m.id, ...defaults, ...perms } as Permission;
       });
-      await api.post(`/admin/permissions/${selectedRole}`, payload);
+      await savePermissions(selectedRole, payload);
       toast.success("Permissions saved");
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }
   };

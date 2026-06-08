@@ -6,14 +6,14 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import api from "@/lib/api";
+import { fetchItems, createNcAdjustment, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import toast from "react-hot-toast";
 
 export default function NCAdjustmentPage() {
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string; price?: number }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [code, setCode] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [name, setName] = useState("");
@@ -22,7 +22,7 @@ export default function NCAdjustmentPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const netAmount = items.reduce((s, i) => s + i.total, 0);
@@ -31,7 +31,7 @@ export default function NCAdjustmentPage() {
     if (!items.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/nc", { code, date, name, contactNo, reference, items, netAmount });
+      await createNcAdjustment({ code, date, name, contactNo, reference, items, netAmount });
       toast.success("NC Adjustment saved");
       setItems([]);
       setCode(""); setName(""); setContactNo(""); setReference("");

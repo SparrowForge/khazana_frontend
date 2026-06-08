@@ -6,11 +6,8 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import api from "@/lib/api";
+import { fetchDailySummary, type DailySummary, type SaleRow } from "./server";
 import { formatCurrency } from "@/lib/utils";
-
-interface DailySummary { cashSales?: number; creditSales?: number; vatCashSales?: number; vatCreditSales?: number; totalSales?: number; totalRevenue?: number; }
-interface SaleRow { id: number; invNo?: string; type?: string; netAmount?: number; }
 
 export default function DailySummaryPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -21,8 +18,8 @@ export default function DailySummaryPage() {
 
   const runReport = () => {
     setLoading(true);
-    api.get(`/reports/daily?date=${date}`)
-      .then((res) => { setSummary(res.data.summary ?? null); setDetails(res.data.details ?? res.data.data ?? []); })
+    fetchDailySummary(date)
+      .then(({ summary: s, details: d }) => { setSummary(s); setDetails(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };

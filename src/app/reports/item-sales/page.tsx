@@ -4,10 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
-import api from "@/lib/api";
+import { fetchItemSalesReport, type ItemSalesRow } from "./server";
 import { formatCurrency } from "@/lib/utils";
-
-interface ItemSalesRow { id: number; itemCode?: string; itemName?: string; uom?: string; totalQty?: number; totalAmount?: number; }
 
 export default function ItemSalesReportPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -18,10 +16,7 @@ export default function ItemSalesReportPage() {
 
   const runReport = () => {
     setLoading(true);
-    api.get(`/reports/item-sales?from=${from}&to=${to}`)
-      .then((res) => setData(res.data.data ?? res.data))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+    fetchItemSalesReport(from, to).then(setData).catch(() => setData([])).finally(() => setLoading(false));
   };
 
   return (

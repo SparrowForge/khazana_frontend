@@ -3,17 +3,15 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
-import api from "@/lib/api";
+import { fetchNcAdjustments, type NC } from "./server";
 import { formatDate } from "@/lib/utils";
-
-interface NC { id: string; ncmstrCode?: string; ncmstrDate?: string; ncmstrName?: string; ncmstrContactNo?: string; }
 
 export default function NCAdjustmentListPage() {
   const [list, setList] = useState<NC[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/nc").then((res) => setList(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchNcAdjustments().then(setList).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   return (

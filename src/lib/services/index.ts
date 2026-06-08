@@ -1,0 +1,27 @@
+export * from "./auth.service";
+export * from "./items.service";
+export * from "./customers.service";
+export * from "./orders.service";
+export * from "./sales.service";
+export * from "./inventory.service";
+export * from "./prices.service";
+export * from "./packets.service";
+export * from "./assortment.service";
+export * from "./nc.service";
+export * from "./finance.service";
+export * from "./admin.service";
+export * from "./reports.service";
+
+export { authService } from "./auth.service";
+export { itemsService } from "./items.service";
+export { customersService } from "./customers.service";
+export { ordersService } from "./orders.service";
+export { salesService } from "./sales.service";
+export { inventoryService } from "./inventory.service";
+export { pricesService } from "./prices.service";
+export { packetsService } from "./packets.service";
+export { assortmentService } from "./assortment.service";
+export { ncService } from "./nc.service";
+export { financeService } from "./finance.service";
+export { adminService } from "./admin.service";
+export { reportsService } from "./reports.service";

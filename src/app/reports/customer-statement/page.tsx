@@ -5,11 +5,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
 import Select from "@/components/ui/Select";
-import api from "@/lib/api";
+import { fetchCustomers, fetchCustomerStatement, type Customer, type StatementRow } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-interface Customer { id: number; code: string; name: string; }
-interface StatementRow { id: number; date?: string; description?: string; invoiceNo?: string; debit?: number; credit?: number; balance?: number; }
 
 export default function CustomerStatementPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -21,15 +18,12 @@ export default function CustomerStatementPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {});
+    fetchCustomers().then(setCustomers).catch(() => {});
   }, []);
 
   const runReport = () => {
     setLoading(true);
-    api.get(`/reports/customer-statement?from=${from}&to=${to}&customerCode=${customerCode}`)
-      .then((res) => setData(res.data.data ?? res.data))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+    fetchCustomerStatement(from, to, customerCode).then(setData).catch(() => setData([])).finally(() => setLoading(false));
   };
 
   return (

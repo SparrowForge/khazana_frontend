@@ -4,10 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
-import api from "@/lib/api";
+import { fetchSalesReport, type SalesReportRow } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-interface SalesReportRow { id: number; invNo?: string; date?: string; customerName?: string; totalAmount?: number; discount?: number; netAmount?: number; saleType?: string; }
 
 export default function SalesReportPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -18,10 +16,7 @@ export default function SalesReportPage() {
 
   const runReport = () => {
     setLoading(true);
-    api.get(`/reports/sales?from=${from}&to=${to}`)
-      .then((res) => setData(res.data.data ?? res.data))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+    fetchSalesReport(from, to).then(setData).catch(() => setData([])).finally(() => setLoading(false));
   };
 
   const totalNet = data.reduce((s, r) => s + (r.netAmount ?? 0), 0);

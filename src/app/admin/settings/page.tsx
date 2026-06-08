@@ -5,10 +5,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import api from "@/lib/api";
+import { fetchSettings, updateSettings, type Settings } from "./server";
 import toast from "react-hot-toast";
-
-interface Settings { id?: number; companyName?: string; companyAddress?: string; companyUtility?: string; reportFooter?: string; }
 
 export default function SettingsPage() {
   const [form, setForm] = useState<Settings>({});
@@ -16,13 +14,13 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get("/admin/settings").then((res) => setForm(res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchSettings().then(setForm).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.patch("/admin/settings", form);
+      await updateSettings(form);
       toast.success("Settings saved");
     } catch { toast.error("Failed to save settings"); } finally { setSaving(false); }
   };

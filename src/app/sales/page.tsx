@@ -4,21 +4,9 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
-import api from "@/lib/api";
+import { fetchSales, type Sale } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
-
-interface Sale {
-  id: string | number;
-  invoiceNo?: string;
-  invNo?: string;
-  date?: string;
-  somstrDate?: string;
-  invDate?: string;
-  netAmount?: number;
-  somstrNetAmt?: number;
-  type?: string;
-}
 
 export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -26,7 +14,7 @@ export default function SalesListPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api.get("/sales").then((res) => setSales(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchSales().then(setSales).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const filtered = sales.filter((s) => {

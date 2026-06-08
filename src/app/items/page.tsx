@@ -8,20 +8,10 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchItems, createItem, updateItem, deleteItem, type Item, type ItemPayload } from "./server";
 import toast from "react-hot-toast";
 
-interface Item {
-  id: number;
-  itmCode: string;
-  itmName?: string;
-  itmCategory?: string;
-  itmType?: string;
-  itmUOM?: string;
-  isActive?: string;
-}
-
-const emptyItem = { itmCode: "", itmName: "", itmCategory: "", itmType: "", itmUOM: "", isActive: "Y" };
+const emptyItem: ItemPayload = { itmCode: "", itmName: "", itmCategory: "", itmType: "", itmUOM: "", isActive: "Y" };
 
 export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -29,12 +19,12 @@ export default function ItemsPage() {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
-  const [form, setForm] = useState(emptyItem);
+  const [form, setForm] = useState<ItemPayload>(emptyItem);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
-    api.get("/items?limit=500").then((res) => setItems(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchItems().then(setItems).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -49,8 +39,8 @@ export default function ItemsPage() {
     if (!form.itmCode) { toast.error("Item code is required"); return; }
     setSaving(true);
     try {
-      if (editing) await api.patch(`/items/${editing.id}`, form);
-      else await api.post("/items", form);
+      if (editing) await updateItem(editing.id, form);
+      else await createItem(form);
       toast.success(editing ? "Item updated" : "Item created");
       setModal(false);
       load();
@@ -64,7 +54,7 @@ export default function ItemsPage() {
   const handleDelete = async (item: Item) => {
     if (!confirm(`Delete item "${item.itmCode}"?`)) return;
     try {
-      await api.delete(`/items/${item.id}`);
+      await deleteItem(item.id);
       toast.success("Item deleted");
       load();
     } catch {
@@ -105,10 +95,10 @@ export default function ItemsPage() {
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Item" : "New Item"}>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Item Code *" value={form.itmCode} onChange={(e) => setForm({ ...form, itmCode: e.target.value })} disabled={!!editing} />
-          <Input label="Item Name" value={form.itmName} onChange={(e) => setForm({ ...form, itmName: e.target.value })} />
-          <Input label="Category" value={form.itmCategory} onChange={(e) => setForm({ ...form, itmCategory: e.target.value })} />
-          <Input label="UOM" value={form.itmUOM} onChange={(e) => setForm({ ...form, itmUOM: e.target.value })} />
-          <Select label="Active" value={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.value })} options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]} />
+          <Input label="Item Name" value={form.itmName ?? ""} onChange={(e) => setForm({ ...form, itmName: e.target.value })} />
+          <Input label="Category" value={form.itmCategory ?? ""} onChange={(e) => setForm({ ...form, itmCategory: e.target.value })} />
+          <Input label="UOM" value={form.itmUOM ?? ""} onChange={(e) => setForm({ ...form, itmUOM: e.target.value })} />
+          <Select label="Active" value={form.isActive ?? "Y"} onChange={(e) => setForm({ ...form, isActive: e.target.value })} options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]} />
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>

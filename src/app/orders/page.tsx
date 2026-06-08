@@ -8,18 +8,16 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Trash2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchOrders, createOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-interface Order { id: number; serialNo?: string; clientCode?: string; orderDate?: string; deliveryDate?: string; totalPrice?: number; isActive?: number; }
-interface Customer { id: number; code: string; name: string; }
 interface OrderLine { itemCode: string; qty: string; unitPrice: string; }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [lines, setLines] = useState<OrderLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
@@ -28,12 +26,12 @@ export default function OrdersPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/orders").then((res) => setOrders(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchOrders().then(setOrders).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
-    api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {});
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
+    fetchCustomers().then(setCustomers).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
@@ -48,7 +46,7 @@ export default function OrdersPage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSaving(true);
     try {
-      await api.post("/orders", {
+      await createOrder({
         ...form,
         advance: parseFloat(form.advance),
         discount: parseFloat(form.discount),

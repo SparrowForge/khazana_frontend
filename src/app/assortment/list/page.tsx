@@ -3,17 +3,15 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
-import api from "@/lib/api";
+import { fetchAssortments, type Assortment } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-interface Assortment { id: string; code?: string; date?: string; type?: string; netAmt?: number; }
 
 export default function AssortmentListPage() {
   const [list, setList] = useState<Assortment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/assortment").then((res) => setList(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchAssortments().then(setList).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   return (

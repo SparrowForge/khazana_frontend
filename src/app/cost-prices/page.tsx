@@ -8,17 +8,16 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchCostPrices, createCostPrice, updateCostPrice, fetchItems, type CostPrice, type AvailableItem } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-interface CostPrice { priceOId: string; priceItemOId?: string; priceFromDate?: string; priceToDate?: string; priceListPrice?: number; item?: { itmCode?: string; itmName?: string }; }
 type FormState = { priceItemOId: string; priceFromDate: string; priceToDate: string; priceListPrice: string; };
 const emptyForm: FormState = { priceItemOId: "", priceFromDate: new Date().toISOString().split("T")[0], priceToDate: "2099-12-31", priceListPrice: "0" };
 
 export default function CostPricesPage() {
   const [prices, setPrices] = useState<CostPrice[]>([]);
-  const [items, setItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
+  const [items, setItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<CostPrice | null>(null);
@@ -27,9 +26,9 @@ export default function CostPricesPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/cost-prices").then((res) => setPrices(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchCostPrices().then(setPrices).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); api.get("/items?limit=500").then((res) => setItems(res.data.data ?? res.data)).catch(() => {}); }, []);
+  useEffect(() => { load(); fetchItems().then(setItems).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (p: CostPrice) => {
@@ -43,8 +42,8 @@ export default function CostPricesPage() {
     setSaving(true);
     try {
       const payload = { ...form, priceListPrice: parseFloat(form.priceListPrice) };
-      if (editing) await api.patch(`/cost-prices/${editing.priceOId}`, payload);
-      else await api.post("/cost-prices", payload);
+      if (editing) await updateCostPrice(editing.priceOId, payload);
+      else await createCostPrice(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

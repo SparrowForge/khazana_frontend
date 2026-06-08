@@ -1,20 +1,21 @@
-export interface User {
-  id: number;
-  name: string | null;
-  userName: string;
-  branchId: number;
-  branch?: Branch;
-  isActive?: string;
-  userRoles?: UserRole[];
-}
-
-export interface UserRole {
+export interface UserPermission {
   userId: string;
   controlName: string;
   isEnable?: string;
   addAccess?: string;
   editAccess?: string;
   deleteAccess?: string;
+}
+
+export interface User {
+  id: string;
+  name: string | null;
+  userName: string;
+  branchId: string;
+  branchName?: string;
+  branch?: Branch;
+  isActive?: string;
+  permissions?: UserPermission[];
 }
 
 export interface Branch {

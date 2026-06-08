@@ -7,11 +7,9 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus, Edit2, Trash2, Eye } from "lucide-react";
-import api from "@/lib/api";
+import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
 import toast from "react-hot-toast";
 import Link from "next/link";
-
-interface Customer { id: number; code: string; name: string; mobile?: string; address?: string; email?: string; }
 
 const emptyForm = { code: "", name: "", mobile: "", address: "", email: "" };
 
@@ -26,7 +24,7 @@ export default function CustomersPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchCustomers().then(setCustomers).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -37,8 +35,8 @@ export default function CustomersPage() {
     if (!form.code || !form.name) { toast.error("Code and name are required"); return; }
     setSaving(true);
     try {
-      if (editing) await api.patch(`/customers/${editing.id}`, form);
-      else await api.post("/customers", form);
+      if (editing) await updateCustomer(editing.id, form);
+      else await createCustomer(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }
@@ -46,7 +44,7 @@ export default function CustomersPage() {
 
   const handleDelete = async (c: Customer) => {
     if (!confirm(`Delete "${c.name}"?`)) return;
-    try { await api.delete(`/customers/${c.id}`); toast.success("Deleted"); load(); }
+    try { await deleteCustomer(c.id); toast.success("Deleted"); load(); }
     catch { toast.error("Failed to delete"); }
   };
 

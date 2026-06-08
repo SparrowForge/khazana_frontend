@@ -8,12 +8,9 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus } from "lucide-react";
-import api from "@/lib/api";
+import { fetchPayments, createPayment, fetchCustomers, type Payment, type Customer } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
-
-interface Payment { id: bigint | number; clientCode?: string; paymentDate?: string; paymentAmount?: number; tType?: string; moneyReceptNo?: string; bankName?: string; }
-interface Customer { id: number; code: string; name: string; }
 
 const emptyForm = { clientCode: "", paymentDate: new Date().toISOString().split("T")[0], paymentAmount: "", tType: "Cash", moneyReceptNo: "", bankName: "" };
 
@@ -27,18 +24,18 @@ export default function CustomerPaymentsPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/customers/payments").then((res) => setPayments(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchPayments().then(setPayments).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
-    api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {});
+    fetchCustomers().then(setCustomers).catch(() => {});
   }, []);
 
   const handleSave = async () => {
     if (!form.clientCode || !form.paymentAmount) { toast.error("Customer and amount are required"); return; }
     setSaving(true);
     try {
-      await api.post("/customers/payments", { ...form, paymentAmount: parseFloat(form.paymentAmount) });
+      await createPayment({ ...form, paymentAmount: parseFloat(form.paymentAmount) });
       toast.success("Payment recorded");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

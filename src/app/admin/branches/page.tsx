@@ -7,10 +7,9 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus, Edit2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchBranches, createBranch, updateBranch, type Branch } from "./server";
 import toast from "react-hot-toast";
 
-interface Branch { id: number; branchCode: string; branchName: string; address?: string; vatNo?: string; mobileNo?: string; }
 const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "" };
 
 export default function BranchesPage() {
@@ -23,7 +22,7 @@ export default function BranchesPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/admin/branches").then((res) => setBranches(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchBranches().then(setBranches).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -34,8 +33,8 @@ export default function BranchesPage() {
     if (!form.branchCode || !form.branchName) { toast.error("Code and name are required"); return; }
     setSaving(true);
     try {
-      if (editing) await api.patch(`/admin/branches/${editing.id}`, form);
-      else await api.post("/admin/branches", form);
+      if (editing) await updateBranch(editing.id, form);
+      else await createBranch(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

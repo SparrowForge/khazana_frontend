@@ -1,25 +1,70 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import Sidebar from "./Sidebar";
 
+// Order matters: more specific paths must come before their prefixes
+const ROUTE_CONTROL_MAP: Array<[string, string]> = [
+  ["/sales/vat/cash", "VatCashSales"],
+  ["/sales/vat/credit", "VatCreditSales"],
+  ["/sales/cash", "CashSales"],
+  ["/sales/credit", "CreditSales"],
+  ["/sales", "Sales"],
+  ["/nc-adjustment", "NCAdjustment"],
+  ["/assortment", "Assortment"],
+  ["/inventory/receive", "StockReceive"],
+  ["/inventory/issue", "StockIssue"],
+  ["/inventory/transfer", "StockTransfer"],
+  ["/inventory/adjustment", "StockAdjustment"],
+  ["/inventory", "StockView"],
+  ["/items", "Items"],
+  ["/packets", "Packets"],
+  ["/customers", "Customers"],
+  ["/prices", "Pricing"],
+  ["/cost-prices", "Pricing"],
+  ["/orders", "Orders"],
+  ["/finance", "Finance"],
+  ["/reports", "Reports"],
+  ["/admin/users", "Users"],
+  ["/admin/roles", "RolesPermissions"],
+  ["/admin/permissions", "RolesPermissions"],
+  ["/admin", "Admin"],
+];
+
 interface AppLayoutProps {
   children: React.ReactNode;
-  title?: string;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) {
       router.push("/login");
+      return;
     }
-  }, [isAuthenticated, router]);
+    const match = ROUTE_CONTROL_MAP.find(
+      ([route]) => pathname === route || pathname.startsWith(route + "/")
+    );
+    if (match) {
+      const controlName = match[1];
+      const perm = user?.permissions?.find((p) => p.controlName === controlName);
+      if (!perm || perm.isEnable !== "Y") {
+        router.push("/");
+      }
+    }
+  }, [hydrated, isAuthenticated, pathname, router, user]);
 
-  if (!isAuthenticated) return null;
+  if (!hydrated || !isAuthenticated) return null;
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">

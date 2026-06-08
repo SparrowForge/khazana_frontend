@@ -4,10 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
-import api from "@/lib/api";
+import { fetchAuditLog, type AuditLog } from "./server";
 import { formatDateTime } from "@/lib/utils";
-
-interface AuditLog { serialNo: number; actionPage?: string; actionDone?: string; userName?: string; date?: string; module?: string; ipAddress?: string; }
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -15,7 +13,7 @@ export default function AuditLogPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api.get("/admin/audit-log").then((res) => setLogs(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchAuditLog().then(setLogs).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const filtered = logs.filter((l) =>

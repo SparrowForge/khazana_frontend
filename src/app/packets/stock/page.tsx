@@ -3,17 +3,15 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
-import api from "@/lib/api";
+import { fetchPacketStock, type PacketStock } from "./server";
 import { formatCurrency } from "@/lib/utils";
-
-interface PacketStock { id: number; code: string; name?: string; totalReceived?: number; totalIssued?: number; balance?: number; }
 
 export default function PacketStockPage() {
   const [stock, setStock] = useState<PacketStock[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/packets/stock").then((res) => setStock(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchPacketStock().then(setStock).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   return (

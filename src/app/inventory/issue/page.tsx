@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import api from "@/lib/api";
+import { fetchItems, issueStock, type AvailableItem } from "./server";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -16,11 +16,11 @@ export default function StockIssuePage() {
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
   const [lines, setLines] = useState<IssueLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
@@ -33,7 +33,7 @@ export default function StockIssuePage() {
     if (!valid.length) { toast.error("Add at least one valid line"); return; }
     setSubmitting(true);
     try {
-      await api.post("/inventory/issue", {
+      await issueStock({
         voucherNo, issueDate,
         items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
       });

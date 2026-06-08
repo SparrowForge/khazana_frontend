@@ -5,8 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import api from "@/lib/api";
+import { fetchItems, adjustStock, type AvailableItem } from "./server";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -16,11 +15,11 @@ export default function StockAdjustmentPage() {
   const [invNo, setInvNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [lines, setLines] = useState<AdjLine[]>([{ itmOId: "", reject: "0", excess: "0", short: "0", assort: "0" }]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { itmOId: "", reject: "0", excess: "0", short: "0", assort: "0" }]);
@@ -33,7 +32,7 @@ export default function StockAdjustmentPage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/inventory/adjustment", {
+      await adjustStock({
         invNo, date,
         items: valid.map((l) => ({
           itmOId: Number(l.itmOId),

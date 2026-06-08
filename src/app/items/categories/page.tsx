@@ -7,10 +7,8 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus, Edit2, Trash2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchCategories, createCategory, updateCategory, deleteCategory, type Category } from "./server";
 import toast from "react-hot-toast";
-
-interface Category { id: number; code: string; name?: string; remarks?: string; }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -22,7 +20,7 @@ export default function CategoriesPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/categories").then((res) => setCategories(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchCategories().then(setCategories).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -33,8 +31,8 @@ export default function CategoriesPage() {
     if (!form.code) { toast.error("Code is required"); return; }
     setSaving(true);
     try {
-      if (editing) await api.patch(`/categories/${editing.id}`, form);
-      else await api.post("/categories", form);
+      if (editing) await updateCategory(editing.id, form);
+      else await createCategory(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }
@@ -42,7 +40,7 @@ export default function CategoriesPage() {
 
   const handleDelete = async (c: Category) => {
     if (!confirm(`Delete "${c.code}"?`)) return;
-    try { await api.delete(`/categories/${c.id}`); toast.success("Deleted"); load(); }
+    try { await deleteCategory(c.id); toast.success("Deleted"); load(); }
     catch { toast.error("Failed to delete"); }
   };
 

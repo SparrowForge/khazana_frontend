@@ -8,30 +8,28 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchUsers, createUser, updateUser, fetchBranches, type AdminUser, type Branch } from "./server";
 import toast from "react-hot-toast";
 
-interface User { id: number; name?: string; userName: string; branchId: number; isActive?: string; branch?: { branchName: string }; }
-interface Branch { id: number; branchName: string; }
 const emptyForm = { name: "", userName: "", password: "", branchId: "", isActive: "Y" };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<User | null>(null);
+  const [editing, setEditing] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
-    api.get("/admin/users").then((res) => setUsers(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchUsers().then(setUsers).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); api.get("/admin/branches").then((res) => setBranches(res.data.data ?? res.data)).catch(() => {}); }, []);
+  useEffect(() => { load(); fetchBranches().then(setBranches).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
-  const openEdit = (u: User) => {
+  const openEdit = (u: AdminUser) => {
     setEditing(u);
     setForm({ name: u.name ?? "", userName: u.userName, password: "", branchId: String(u.branchId), isActive: u.isActive ?? "Y" });
     setModal(true);
@@ -42,11 +40,12 @@ export default function UsersPage() {
     if (!editing && !form.password) { toast.error("Password is required for new users"); return; }
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { name: form.name, branchId: Number(form.branchId), isActive: form.isActive };
-      if (!editing) { payload.userName = form.userName; payload.password = form.password; }
-      if (form.password && editing) payload.password = form.password;
-      if (editing) await api.patch(`/admin/users/${editing.id}`, payload);
-      else await api.post("/admin/users", payload);
+      const base = { name: form.name, branchId: Number(form.branchId), isActive: form.isActive };
+      if (editing) {
+        await updateUser(editing.id, form.password ? { ...base, password: form.password } : base);
+      } else {
+        await createUser({ ...base, userName: form.userName, password: form.password });
+      }
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

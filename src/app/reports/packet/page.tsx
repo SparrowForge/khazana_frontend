@@ -4,10 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
-import api from "@/lib/api";
+import { fetchPacketReport, type PacketRow } from "./server";
 import { formatCurrency } from "@/lib/utils";
-
-interface PacketRow { id: number; code?: string; name?: string; received?: number; issued?: number; balance?: number; }
 
 export default function PacketAnalysisPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -18,10 +16,7 @@ export default function PacketAnalysisPage() {
 
   const runReport = () => {
     setLoading(true);
-    api.get(`/reports/packet?from=${from}&to=${to}`)
-      .then((res) => setData(res.data.data ?? res.data))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+    fetchPacketReport(from, to).then(setData).catch(() => setData([])).finally(() => setLoading(false));
   };
 
   return (

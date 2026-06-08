@@ -8,17 +8,16 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-interface Price { priceOId: string; priceItemOId?: string; priceFromDate?: string; priceToDate?: string; priceListPrice?: number; priceVatPercent?: number; priceIsActive?: number; item?: { itmCode?: string; itmName?: string }; }
 type FormState = { priceItemOId: string; priceFromDate: string; priceToDate: string; priceListPrice: string; priceVatPercent: string; priceIsActive: string; };
 const emptyForm: FormState = { priceItemOId: "", priceFromDate: new Date().toISOString().split("T")[0], priceToDate: "2099-12-31", priceListPrice: "0", priceVatPercent: "0", priceIsActive: "1" };
 
 export default function PricesPage() {
   const [prices, setPrices] = useState<Price[]>([]);
-  const [items, setItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
+  const [items, setItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Price | null>(null);
@@ -27,9 +26,9 @@ export default function PricesPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/prices").then((res) => setPrices(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchPrices().then(setPrices).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); api.get("/items?limit=500").then((res) => setItems(res.data.data ?? res.data)).catch(() => {}); }, []);
+  useEffect(() => { load(); fetchItems().then(setItems).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (p: Price) => {
@@ -43,8 +42,8 @@ export default function PricesPage() {
     setSaving(true);
     try {
       const payload = { ...form, priceListPrice: parseFloat(form.priceListPrice), priceVatPercent: parseFloat(form.priceVatPercent), priceIsActive: parseInt(form.priceIsActive) };
-      if (editing) await api.patch(`/prices/${editing.priceOId}`, payload);
-      else await api.post("/prices", payload);
+      if (editing) await updatePrice(editing.priceOId, payload);
+      else await createPrice(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }

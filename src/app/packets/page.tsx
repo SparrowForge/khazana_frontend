@@ -8,11 +8,10 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
-import api from "@/lib/api";
+import { fetchPackets, createPacket, updatePacket, deletePacket, type Packet } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-interface Packet { id: number; code: string; name?: string; uom?: string; weight?: number; rate?: number; isActive?: number; }
 const emptyForm = { code: "", name: "", uom: "pcs", weight: "", rate: "", isActive: "1" };
 
 export default function PacketsPage() {
@@ -25,7 +24,7 @@ export default function PacketsPage() {
 
   const load = () => {
     setLoading(true);
-    api.get("/packets").then((res) => setPackets(res.data.data ?? res.data)).catch(() => {}).finally(() => setLoading(false));
+    fetchPackets().then(setPackets).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -41,8 +40,8 @@ export default function PacketsPage() {
     setSaving(true);
     try {
       const payload = { ...form, weight: parseFloat(form.weight) || 0, rate: parseFloat(form.rate) || 0, isActive: parseInt(form.isActive) };
-      if (editing) await api.patch(`/packets/${editing.id}`, payload);
-      else await api.post("/packets", payload);
+      if (editing) await updatePacket(editing.id, payload);
+      else await createPacket(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }
@@ -50,7 +49,7 @@ export default function PacketsPage() {
 
   const handleDelete = async (p: Packet) => {
     if (!confirm(`Delete "${p.code}"?`)) return;
-    try { await api.delete(`/packets/${p.id}`); toast.success("Deleted"); load(); }
+    try { await deletePacket(p.id); toast.success("Deleted"); load(); }
     catch { toast.error("Failed to delete"); }
   };
 

@@ -7,7 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import api from "@/lib/api";
+import { fetchItems, createVatCashSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import toast from "react-hot-toast";
@@ -16,7 +16,7 @@ const VAT_RATE = 0.15;
 
 export default function VatCashSalePage() {
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string; price?: number }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [vatClnNo, setVatClnNo] = useState("");
@@ -25,7 +25,7 @@ export default function VatCashSalePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
 
   const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
@@ -39,7 +39,7 @@ export default function VatCashSalePage() {
     if (!items.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/sales/vat/cash", {
+      await createVatCashSale({
         invoiceNo, invoiceDate, vatClnNo, paymentMethod, items,
         totalAmount: subtotal, totalDiscount, totalVat: vat, netAmount,
         paidAmount: parseFloat(paidAmount), changeAmount: Math.max(0, change),

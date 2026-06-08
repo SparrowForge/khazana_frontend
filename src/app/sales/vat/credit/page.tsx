@@ -7,17 +7,17 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import api from "@/lib/api";
+import { fetchItems, fetchCustomers, createVatCreditSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
-import { SaleItem, Customer } from "@/types";
+import { SaleItem } from "@/types";
 import toast from "react-hot-toast";
 
 const VAT_RATE = 0.15;
 
 export default function VatCreditSalePage() {
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string; price?: number }[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
+  const [customers, setCustomers] = useState<{ id: number; code: string; name: string }[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [clientCode, setClientCode] = useState("");
@@ -25,8 +25,8 @@ export default function VatCreditSalePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
-    api.get("/customers?limit=500").then((res) => setCustomers(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
+    fetchCustomers().then(setCustomers).catch(() => {});
   }, []);
 
   const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
@@ -40,7 +40,7 @@ export default function VatCreditSalePage() {
     if (!clientCode) { toast.error("Select a customer"); return; }
     setSubmitting(true);
     try {
-      await api.post("/sales/vat/credit", {
+      await createVatCreditSale({
         invoiceNo, invoiceDate, clientCode, vatClnNo, items,
         totalAmount: subtotal, totalDiscount, totalVat: vat, netAmount,
       });

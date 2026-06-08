@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import api from "@/lib/api";
+import { fetchItems, fetchBranches, transferStock, type AvailableItem, type BranchOption } from "./server";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -18,13 +18,13 @@ export default function StockTransferPage() {
   const [issueBranchId, setIssueBranchId] = useState("");
   const [receiveBranchId, setReceiveBranchId] = useState("");
   const [lines, setLines] = useState<TransferLine[]>([{ itemCode: "", qty: "1" }]);
-  const [availableItems, setAvailableItems] = useState<{ id: number; itmCode: string; itmName?: string }[]>([]);
-  const [branches, setBranches] = useState<{ id: number; branchName: string }[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/items?limit=500").then((res) => setAvailableItems(res.data.data ?? res.data)).catch(() => {});
-    api.get("/admin/branches").then((res) => setBranches(res.data.data ?? res.data)).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
+    fetchBranches().then(setBranches).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1" }]);
@@ -38,7 +38,7 @@ export default function StockTransferPage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await api.post("/inventory/transfer", {
+      await transferStock({
         voucherNo, issueDate,
         issueBranchId: Number(issueBranchId),
         receiveBranchId: Number(receiveBranchId),

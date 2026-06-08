@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
-import api from "@/lib/api";
+import { login } from "./server";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
@@ -17,15 +17,15 @@ type LoginForm = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { login: storeLogin } = useAuthStore();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      const res = await api.post("/auth/login", data);
-      login(res.data.user, res.data.access_token);
+      const res = await login(data);
+      storeLogin(res.user as Parameters<typeof storeLogin>[0], res.accessToken);
       router.push("/");
     } catch {
       toast.error("Invalid username or password");

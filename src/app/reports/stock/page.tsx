@@ -4,10 +4,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
-import api from "@/lib/api";
+import { fetchStockReport, type StockRow } from "./server";
 import { formatCurrency } from "@/lib/utils";
-
-interface StockRow { id: number; itemCode?: string; itemName?: string; uom?: string; openingQty?: number; inwardQty?: number; outwardQty?: number; closingQty?: number; }
 
 export default function StockReportPage() {
   const [data, setData] = useState<StockRow[]>([]);
@@ -15,10 +13,7 @@ export default function StockReportPage() {
 
   const runReport = () => {
     setLoading(true);
-    api.get("/reports/stock")
-      .then((res) => setData(res.data.data ?? res.data))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+    fetchStockReport().then(setData).catch(() => setData([])).finally(() => setLoading(false));
   };
 
   return (

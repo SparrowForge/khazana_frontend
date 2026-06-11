@@ -1,38 +1,48 @@
 import api from "@/lib/api";
 
 export interface AdminUser {
-  id: number;
+  id: string;
   name?: string;
   userName: string;
-  branchId: number;
+  email?: string;
+  branchId: string;
   isActive?: string;
+  isVerified?: boolean;
   branch?: { branchName: string };
 }
 
 export interface AdminUserPayload {
   name?: string;
   userName?: string;
+  email?: string;
   password?: string;
-  branchId: number;
+  branchId: string;
   isActive?: string;
 }
 
 export interface Branch {
-  id: number;
+  id: string;
   branchName: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
+// Handles both paginated { data: { items: [] } } and legacy { data: [] } envelopes
+function extractItems<T>(res: { data: Record<string, unknown> }): T[] {
+  const d = res.data;
+  const nested = d?.data as Record<string, unknown> | undefined;
+  if (nested?.items && Array.isArray(nested.items)) return nested.items as T[];
+  if (Array.isArray(nested)) return nested as T[];
+  if (Array.isArray(d)) return d as unknown as T[];
+  return [];
+}
 
 export const fetchUsers = () =>
-  api.get<{ data: AdminUser[] } | AdminUser[]>("/users").then(unwrap<AdminUser[]>);
+  api.get("/users").then((r) => extractItems<AdminUser>(r));
 
 export const createUser = (data: AdminUserPayload) =>
   api.post<AdminUser>("/users", data).then((r) => r.data);
 
-export const updateUser = (id: number, data: Partial<AdminUserPayload>) =>
+export const updateUser = (id: string, data: Partial<AdminUserPayload>) =>
   api.patch<AdminUser>(`/users/${id}`, data).then((r) => r.data);
 
 export const fetchBranches = () =>
-  api.get<{ data: Branch[] } | Branch[]>("/admin/branches").then(unwrap<Branch[]>);
+  api.get("/admin/branches").then((r) => extractItems<Branch>(r));

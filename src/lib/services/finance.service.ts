@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface MoneyReceive {
   id: number;
@@ -36,18 +37,16 @@ export interface CashPurchasePayload {
   paymentMethod?: string;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const financeService = {
   listMoneyReceive: () =>
-    api.get<{ data: MoneyReceive[] } | MoneyReceive[]>("/finance/money-receive").then(unwrap<MoneyReceive[]>),
+    api.get<{ data: MoneyReceive[] } | MoneyReceive[]>("/finance/money-receive").then(unwrapList<MoneyReceive>),
 
   createMoneyReceive: (data: MoneyReceivePayload) =>
     api.post<MoneyReceive>("/finance/money-receive", data).then((r) => r.data),
 
   listCashPurchase: () =>
-    api.get<{ data: CashPurchase[] } | CashPurchase[]>("/finance/cash-purchase").then(unwrap<CashPurchase[]>),
+    api.get<{ data: CashPurchase[] } | CashPurchase[]>("/finance/cash-purchase").then(unwrapList<CashPurchase>),
 
   createCashPurchase: (data: CashPurchasePayload) =>
     api.post<CashPurchase>("/finance/cash-purchase", data).then((r) => r.data),

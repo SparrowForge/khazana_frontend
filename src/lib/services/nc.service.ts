@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface NcAdjustment {
@@ -21,12 +22,10 @@ export interface NcPayload {
   netAmount: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const ncService = {
   list: () =>
-    api.get<{ data: NcAdjustment[] } | NcAdjustment[]>("/nc").then(unwrap<NcAdjustment[]>),
+    api.get<{ data: NcAdjustment[] } | NcAdjustment[]>("/nc").then(unwrapList<NcAdjustment>),
 
   create: (data: NcPayload) =>
     api.post("/nc", data).then((r) => r.data),

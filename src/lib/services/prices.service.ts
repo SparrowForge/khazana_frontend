@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Price {
   priceOId: string;
@@ -36,12 +37,10 @@ export interface CostPricePayload {
   priceListPrice: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const pricesService = {
   list: () =>
-    api.get<{ data: Price[] } | Price[]>("/prices").then(unwrap<Price[]>),
+    api.get<{ data: Price[] } | Price[]>("/prices").then(unwrapList<Price>),
 
   create: (data: PricePayload) =>
     api.post<Price>("/prices", data).then((r) => r.data),
@@ -50,7 +49,7 @@ export const pricesService = {
     api.patch<Price>(`/prices/${id}`, data).then((r) => r.data),
 
   listCost: () =>
-    api.get<{ data: CostPrice[] } | CostPrice[]>("/cost-prices").then(unwrap<CostPrice[]>),
+    api.get<{ data: CostPrice[] } | CostPrice[]>("/cost-prices").then(unwrapList<CostPrice>),
 
   createCost: (data: CostPricePayload) =>
     api.post<CostPrice>("/cost-prices", data).then((r) => r.data),

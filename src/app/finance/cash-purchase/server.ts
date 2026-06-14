@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface CashPurchase {
   id: number;
@@ -17,11 +18,9 @@ export interface CashPurchasePayload {
   description?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCashPurchases = () =>
-  api.get<{ data: CashPurchase[] } | CashPurchase[]>("/finance/cash-purchase").then(unwrap<CashPurchase[]>);
+  api.get<{ data: CashPurchase[] } | CashPurchase[]>("/finance/cash-purchase").then(unwrapList<CashPurchase>);
 
 export const createCashPurchase = (data: CashPurchasePayload) =>
   api.post<CashPurchase>("/finance/cash-purchase", data).then((r) => r.data);

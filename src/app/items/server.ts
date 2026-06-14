@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Item {
   id: number;
@@ -19,11 +20,9 @@ export interface ItemPayload {
   isActive?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchItems = (limit = 500) =>
-  api.get<{ data: Item[] } | Item[]>(`/inventory/items?limit=${limit}`).then(unwrap<Item[]>);
+  api.get<{ data: Item[] } | Item[]>(`/inventory/items?limit=${limit}`).then(unwrapList<Item>);
 
 export const createItem = (data: ItemPayload) =>
   api.post<Item>("/inventory/items", data).then((r) => r.data);

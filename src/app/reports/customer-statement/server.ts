@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Customer {
   id: number;
@@ -16,12 +17,10 @@ export interface StatementRow {
   balance?: number;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrap<Customer[]>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
 
 export const fetchCustomerStatement = (from: string, to: string, customerCode: string) =>
   api.get<{ data: StatementRow[] } | StatementRow[]>(`/reports/customer-statement?from=${from}&to=${to}&customerCode=${customerCode}`)
-    .then(unwrap<StatementRow[]>);
+    .then(unwrapList<StatementRow>);

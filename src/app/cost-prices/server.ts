@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface CostPrice {
   priceOId: string;
@@ -22,11 +23,9 @@ export interface AvailableItem {
   itmName?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCostPrices = () =>
-  api.get<{ data: CostPrice[] } | CostPrice[]>("/pricing/cost-prices").then(unwrap<CostPrice[]>);
+  api.get<{ data: CostPrice[] } | CostPrice[]>("/pricing/cost-prices").then(unwrapList<CostPrice>);
 
 export const createCostPrice = (data: CostPricePayload) =>
   api.post<CostPrice>("/pricing/cost-prices", data).then((r) => r.data);
@@ -35,4 +34,4 @@ export const updateCostPrice = (id: string, data: Partial<CostPricePayload>) =>
   api.patch<CostPrice>(`/pricing/cost-prices/${id}`, data).then((r) => r.data);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);

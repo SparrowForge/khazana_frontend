@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Role {
   id: number;
@@ -11,11 +12,9 @@ export interface RolePayload {
   description?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchRoles = () =>
-  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrap<Role[]>);
+  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrapList<Role>);
 
 export const createRole = (data: RolePayload) =>
   api.post<Role>("/roles", data).then((r) => r.data);

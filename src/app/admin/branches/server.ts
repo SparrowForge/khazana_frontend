@@ -17,11 +17,8 @@ export interface BranchPayload {
   mobileNo?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
-
 export const fetchBranches = () =>
-  api.get<{ data: Branch[] } | Branch[]>("/admin/branches").then(unwrap<Branch[]>);
+  api.get<{ data: { items: Branch[] } }>("/admin/branches").then((r) => r.data.data.items ?? []);
 
 export const createBranch = (data: BranchPayload) =>
   api.post<Branch>("/admin/branches", data).then((r) => r.data);

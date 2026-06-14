@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface ItemSalesRow {
   id: number;
@@ -9,8 +10,6 @@ export interface ItemSalesRow {
   totalAmount?: number;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchItemSalesReport = (from: string, to: string) =>
-  api.get<{ data: ItemSalesRow[] } | ItemSalesRow[]>(`/reports/item-sales?from=${from}&to=${to}`).then(unwrap<ItemSalesRow[]>);
+  api.get<{ data: ItemSalesRow[] } | ItemSalesRow[]>(`/reports/item-sales?from=${from}&to=${to}`).then(unwrapList<ItemSalesRow>);

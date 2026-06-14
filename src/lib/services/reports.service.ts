@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface SalesReportRow {
   id: number;
@@ -49,27 +50,25 @@ export interface PacketReportRow {
   balance?: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const reportsService = {
   sales: (from: string, to: string) =>
-    api.get<{ data: SalesReportRow[] } | SalesReportRow[]>(`/reports/sales?from=${from}&to=${to}`).then(unwrap<SalesReportRow[]>),
+    api.get<{ data: SalesReportRow[] } | SalesReportRow[]>(`/reports/sales?from=${from}&to=${to}`).then(unwrapList<SalesReportRow>),
 
   stock: () =>
-    api.get<{ data: StockReportRow[] } | StockReportRow[]>("/reports/stock").then(unwrap<StockReportRow[]>),
+    api.get<{ data: StockReportRow[] } | StockReportRow[]>("/reports/stock").then(unwrapList<StockReportRow>),
 
   customerStatement: (from: string, to: string, customerCode: string) =>
     api.get<{ data: CustomerStatementRow[] } | CustomerStatementRow[]>(
       `/reports/customer-statement?from=${from}&to=${to}&customerCode=${customerCode}`
-    ).then(unwrap<CustomerStatementRow[]>),
+    ).then(unwrapList<CustomerStatementRow>),
 
   daily: (date: string) =>
-    api.get<{ data: DailySummaryRow[] } | DailySummaryRow[]>(`/reports/daily?date=${date}`).then(unwrap<DailySummaryRow[]>),
+    api.get<{ data: DailySummaryRow[] } | DailySummaryRow[]>(`/reports/daily?date=${date}`).then(unwrapList<DailySummaryRow>),
 
   itemSales: (from: string, to: string) =>
-    api.get<{ data: ItemSalesRow[] } | ItemSalesRow[]>(`/reports/item-sales?from=${from}&to=${to}`).then(unwrap<ItemSalesRow[]>),
+    api.get<{ data: ItemSalesRow[] } | ItemSalesRow[]>(`/reports/item-sales?from=${from}&to=${to}`).then(unwrapList<ItemSalesRow>),
 
   packet: (from: string, to: string) =>
-    api.get<{ data: PacketReportRow[] } | PacketReportRow[]>(`/reports/packet?from=${from}&to=${to}`).then(unwrap<PacketReportRow[]>),
+    api.get<{ data: PacketReportRow[] } | PacketReportRow[]>(`/reports/packet?from=${from}&to=${to}`).then(unwrapList<PacketReportRow>),
 };

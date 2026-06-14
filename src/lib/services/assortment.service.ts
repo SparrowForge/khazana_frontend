@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface Assortment {
@@ -21,12 +22,10 @@ export interface AssortmentPayload {
   change: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const assortmentService = {
   list: () =>
-    api.get<{ data: Assortment[] } | Assortment[]>("/assortment").then(unwrap<Assortment[]>),
+    api.get<{ data: Assortment[] } | Assortment[]>("/assortment").then(unwrapList<Assortment>),
 
   create: (data: AssortmentPayload) =>
     api.post("/assortment", data).then((r) => r.data),

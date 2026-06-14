@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface AdminUser {
   id: number;
@@ -77,12 +78,10 @@ export interface AuditLog {
   user?: { userName: string };
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const adminService = {
   listUsers: () =>
-    api.get<{ data: AdminUser[] } | AdminUser[]>("/admin/users").then(unwrap<AdminUser[]>),
+    api.get<{ data: AdminUser[] } | AdminUser[]>("/admin/users").then(unwrapList<AdminUser>),
 
   createUser: (data: AdminUserPayload) =>
     api.post<AdminUser>("/admin/users", data).then((r) => r.data),
@@ -91,7 +90,7 @@ export const adminService = {
     api.patch<AdminUser>(`/admin/users/${id}`, data).then((r) => r.data),
 
   listBranches: () =>
-    api.get<{ data: Branch[] } | Branch[]>("/admin/branches").then(unwrap<Branch[]>),
+    api.get<{ data: Branch[] } | Branch[]>("/admin/branches").then(unwrapList<Branch>),
 
   createBranch: (data: BranchPayload) =>
     api.post<Branch>("/admin/branches", data).then((r) => r.data),
@@ -100,7 +99,7 @@ export const adminService = {
     api.patch<Branch>(`/admin/branches/${id}`, data).then((r) => r.data),
 
   listRoles: () =>
-    api.get<{ data: Role[] } | Role[]>("/admin/roles").then(unwrap<Role[]>),
+    api.get<{ data: Role[] } | Role[]>("/admin/roles").then(unwrapList<Role>),
 
   createRole: (data: RolePayload) =>
     api.post<Role>("/admin/roles", data).then((r) => r.data),
@@ -109,10 +108,10 @@ export const adminService = {
     api.patch<Role>(`/admin/roles/${id}`, data).then((r) => r.data),
 
   listMenus: () =>
-    api.get<{ data: Menu[] } | Menu[]>("/admin/menus").then(unwrap<Menu[]>),
+    api.get<{ data: Menu[] } | Menu[]>("/admin/menus").then(unwrapList<Menu>),
 
   getPermissions: (roleId: number | string) =>
-    api.get<{ data: Permission[] } | Permission[]>(`/admin/permissions?roleId=${roleId}`).then(unwrap<Permission[]>),
+    api.get<{ data: Permission[] } | Permission[]>(`/admin/permissions?roleId=${roleId}`).then(unwrapList<Permission>),
 
   savePermissions: (roleId: number | string, permissions: Omit<Permission, "menuId"> & { menuId: number }[]) =>
     api.post(`/admin/permissions/${roleId}`, permissions).then((r) => r.data),
@@ -124,5 +123,5 @@ export const adminService = {
     api.patch<Settings>("/admin/settings", data).then((r) => r.data),
 
   listAuditLog: () =>
-    api.get<{ data: AuditLog[] } | AuditLog[]>("/admin/audit-log").then(unwrap<AuditLog[]>),
+    api.get<{ data: AuditLog[] } | AuditLog[]>("/admin/audit-log").then(unwrapList<AuditLog>),
 };

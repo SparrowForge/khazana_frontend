@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface MoneyReceive {
   id: number;
@@ -24,14 +25,12 @@ export interface Customer {
   name: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchMoneyReceive = () =>
-  api.get<{ data: MoneyReceive[] } | MoneyReceive[]>("/finance/money-receive").then(unwrap<MoneyReceive[]>);
+  api.get<{ data: MoneyReceive[] } | MoneyReceive[]>("/finance/money-receive").then(unwrapList<MoneyReceive>);
 
 export const createMoneyReceive = (data: MoneyReceivePayload) =>
   api.post<MoneyReceive>("/finance/money-receive", data).then((r) => r.data);
 
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrap<Customer[]>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);

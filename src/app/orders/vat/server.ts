@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface VatOrder {
   id: number;
@@ -8,8 +9,6 @@ export interface VatOrder {
   deliveryDate?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchVatOrders = () =>
-  api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat/list").then(unwrap<VatOrder[]>);
+  api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat/list").then(unwrapList<VatOrder>);

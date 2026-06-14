@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface Sale {
@@ -62,12 +63,10 @@ export interface VatCreditSalePayload {
   netAmount: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const salesService = {
   list: () =>
-    api.get<{ data: Sale[] } | Sale[]>("/sales").then(unwrap<Sale[]>),
+    api.get<{ data: Sale[] } | Sale[]>("/sales").then(unwrapList<Sale>),
 
   createCash: (data: CashSalePayload) =>
     api.post("/sales/cash", data).then((r) => r.data),

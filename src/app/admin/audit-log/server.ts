@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface AuditLog {
   serialNo: number;
@@ -10,8 +11,6 @@ export interface AuditLog {
   ipAddress?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchAuditLog = () =>
-  api.get<{ data: AuditLog[] } | AuditLog[]>("/admin/audit-log").then(unwrap<AuditLog[]>);
+  api.get<{ data: AuditLog[] } | AuditLog[]>("/admin/audit-log").then(unwrapList<AuditLog>);

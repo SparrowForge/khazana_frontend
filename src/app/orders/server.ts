@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Order {
   id: number;
@@ -33,17 +34,15 @@ export interface OrderPayload {
   items: { itemCode: string; qty: number; unitPrice: number }[];
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchOrders = () =>
-  api.get<{ data: Order[] } | Order[]>("/orders").then(unwrap<Order[]>);
+  api.get<{ data: Order[] } | Order[]>("/orders").then(unwrapList<Order>);
 
 export const createOrder = (data: OrderPayload) =>
   api.post<Order>("/orders", data).then((r) => r.data);
 
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrap<Customer[]>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);

@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface NC {
   id: string;
@@ -8,8 +9,6 @@ export interface NC {
   ncmstrContactNo?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchNcAdjustments = () =>
-  api.get<{ data: NC[] } | NC[]>("/nc-adjustment").then(unwrap<NC[]>);
+  api.get<{ data: NC[] } | NC[]>("/nc-adjustment").then(unwrapList<NC>);

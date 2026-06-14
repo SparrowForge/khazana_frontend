@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Role {
   id: number;
@@ -19,17 +20,15 @@ export interface Permission {
   canDelete: boolean;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchRoles = () =>
-  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrap<Role[]>);
+  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrapList<Role>);
 
 export const fetchMenus = () =>
-  api.get<{ data: Menu[] } | Menu[]>("/menus").then(unwrap<Menu[]>);
+  api.get<{ data: Menu[] } | Menu[]>("/menus").then(unwrapList<Menu>);
 
 export const fetchPermissions = (roleId: string) =>
-  api.get<{ data: Permission[] } | Permission[]>(`/permissions/role/${roleId}`).then(unwrap<Permission[]>);
+  api.get<{ data: Permission[] } | Permission[]>(`/permissions/role/${roleId}`).then(unwrapList<Permission>);
 
 export const savePermissions = (roleId: string, permissions: Permission[]) =>
   api.post(`/permissions/role/${roleId}/bulk`, { permissions }).then((r) => r.data);

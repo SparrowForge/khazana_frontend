@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Customer {
   id: number;
@@ -17,11 +18,9 @@ export interface CustomerPayload {
   email?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCustomers = (limit = 500) =>
-  api.get<{ data: Customer[] } | Customer[]>(`/customers?limit=${limit}`).then(unwrap<Customer[]>);
+  api.get<{ data: Customer[] } | Customer[]>(`/customers?limit=${limit}`).then(unwrapList<Customer>);
 
 export const createCustomer = (data: CustomerPayload) =>
   api.post<Customer>("/customers", data).then((r) => r.data);

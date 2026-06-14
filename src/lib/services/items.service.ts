@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Item {
   id: number;
@@ -31,12 +32,10 @@ export interface CategoryPayload {
   description?: string;
 }
 
-const unwrap = <T>(res: { data: { data?: T; } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const itemsService = {
   list: (limit = 500) =>
-    api.get<{ data: Item[] } | Item[]>(`/items?limit=${limit}`).then(unwrap<Item[]>),
+    api.get<{ data: Item[] } | Item[]>(`/items?limit=${limit}`).then(unwrapList<Item>),
 
   create: (data: ItemPayload) =>
     api.post<Item>("/items", data).then((r) => r.data),
@@ -48,7 +47,7 @@ export const itemsService = {
     api.delete(`/items/${id}`).then((r) => r.data),
 
   listCategories: () =>
-    api.get<{ data: Category[] } | Category[]>("/categories").then(unwrap<Category[]>),
+    api.get<{ data: Category[] } | Category[]>("/categories").then(unwrapList<Category>),
 
   createCategory: (data: CategoryPayload) =>
     api.post<Category>("/categories", data).then((r) => r.data),

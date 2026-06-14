@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,10 +7,13 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { login } from "./server";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
+import { fetchBranches, type Branch } from "@/app/admin/branches/server";
 
 const schema = z.object({
+  branchId: z.string().min(1, "Branch is required"),
   userName: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
@@ -18,9 +22,13 @@ type LoginForm = z.infer<typeof schema>;
 export default function LoginPage() {
   const router = useRouter();
   const { login: storeLogin } = useAuthStore();
+  const [branches, setBranches] = useState<Branch[]>([]);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
+    defaultValues: { branchId: "", userName: "", password: "" },
   });
+
+  useEffect(() => { fetchBranches().then(setBranches).catch(() => {}); }, []);
 
   const onSubmit = async (data: LoginForm) => {
     try {
@@ -28,7 +36,7 @@ export default function LoginPage() {
       storeLogin(res.user as Parameters<typeof storeLogin>[0], res.accessToken);
       router.push("/");
     } catch {
-      toast.error("Invalid username or password");
+      toast.error("Invalid credentials or unauthorized branch");
     }
   };
 
@@ -40,6 +48,7 @@ export default function LoginPage() {
           <p className="text-gray-500 text-sm mt-1">Point of Sale System</p>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          
           <Input
             id="userName"
             label="Username"
@@ -54,6 +63,14 @@ export default function LoginPage() {
             placeholder="Enter your password"
             error={errors.password?.message}
             {...register("password")}
+          />
+          <Select
+            id="branchId"
+            label="Branch"
+            error={errors.branchId?.message}
+            placeholder="-- Select Branch --"
+            options={branches.map((b) => ({ value: String(b.id), label: b.branchName ?? b.branchCode }))}
+            {...register("branchId")}
           />
           <Button type="submit" className="w-full" loading={isSubmitting}>
             Sign In

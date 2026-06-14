@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface StockItem {
   id: number;
@@ -43,12 +44,10 @@ export interface AdjustmentPayload {
   items: AdjustmentItem[];
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const inventoryService = {
   listStock: () =>
-    api.get<{ data: StockItem[] } | StockItem[]>("/inventory").then(unwrap<StockItem[]>),
+    api.get<{ data: StockItem[] } | StockItem[]>("/inventory").then(unwrapList<StockItem>),
 
   receive: (data: ReceivePayload) =>
     api.post("/inventory/receive", data).then((r) => r.data),

@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Category {
   id: number;
@@ -13,11 +14,9 @@ export interface CategoryPayload {
   remarks?: string;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchCategories = () =>
-  api.get<{ data: Category[] } | Category[]>("/categories").then(unwrap<Category[]>);
+  api.get<{ data: Category[] } | Category[]>("/categories").then(unwrapList<Category>);
 
 export const createCategory = (data: CategoryPayload) =>
   api.post<Category>("/categories", data).then((r) => r.data);

@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Order {
   id: number;
@@ -38,16 +39,14 @@ export interface VatOrder {
   totalPrice?: number;
 }
 
-const unwrap = <T>(res: { data: { data?: T } | T }): T =>
-  (res.data as { data?: T }).data ?? (res.data as T);
 
 export const ordersService = {
   list: () =>
-    api.get<{ data: Order[] } | Order[]>("/orders").then(unwrap<Order[]>),
+    api.get<{ data: Order[] } | Order[]>("/orders").then(unwrapList<Order>),
 
   create: (data: OrderPayload) =>
     api.post<Order>("/orders", data).then((r) => r.data),
 
   listVat: () =>
-    api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat").then(unwrap<VatOrder[]>),
+    api.get<{ data: VatOrder[] } | VatOrder[]>("/orders/vat").then(unwrapList<VatOrder>),
 };

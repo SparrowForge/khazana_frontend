@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface Assortment {
   id: string;
@@ -8,8 +9,6 @@ export interface Assortment {
   netAmt?: number;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchAssortments = () =>
-  api.get<{ data: Assortment[] } | Assortment[]>("/assortment").then(unwrap<Assortment[]>);
+  api.get<{ data: Assortment[] } | Assortment[]>("/assortment").then(unwrapList<Assortment>);

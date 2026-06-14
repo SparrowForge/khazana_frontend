@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface AvailableItem {
@@ -20,11 +21,9 @@ export interface AssortmentPayload {
   change: number;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrap<AvailableItem[]>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items").then(unwrapList<AvailableItem>);
 
 export const createAssortment = (data: AssortmentPayload) =>
   api.post("/assortment", data).then((r) => r.data);

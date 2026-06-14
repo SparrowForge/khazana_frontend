@@ -1,4 +1,5 @@
-import api from "@/lib/api";
+﻿import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 export interface PacketStock {
   id: number;
@@ -9,8 +10,6 @@ export interface PacketStock {
   balance?: number;
 }
 
-const unwrap = <T>(r: { data: { data?: T } | T }): T =>
-  (r.data as { data?: T }).data ?? (r.data as T);
 
 export const fetchPacketStock = () =>
-  api.get<{ data: PacketStock[] } | PacketStock[]>("/packets/stock").then(unwrap<PacketStock[]>);
+  api.get<{ data: PacketStock[] } | PacketStock[]>("/packets/stock").then(unwrapList<PacketStock>);

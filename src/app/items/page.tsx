@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchItems, createItem, updateItem, deleteItem, type Item, type ItemPayload } from "./server";
+import { fetchCategories, type Category } from "./categories/server";
 import toast from "react-hot-toast";
 
 const emptyItem: ItemPayload = { itmCode: "", itmName: "", itmCategory: "", itmType: "", itmUOM: "", isActive: "Y" };
@@ -21,12 +22,14 @@ export default function ItemsPage() {
   const [editing, setEditing] = useState<Item | null>(null);
   const [form, setForm] = useState<ItemPayload>(emptyItem);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const load = () => {
     setLoading(true);
     fetchItems().then(setItems).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
+  useEffect(() => { fetchCategories().then(setCategories).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyItem); setModal(true); };
   const openEdit = (item: Item) => {
@@ -96,7 +99,12 @@ export default function ItemsPage() {
         <div className="grid grid-cols-2 gap-4">
           <Input label="Item Code *" value={form.itmCode} onChange={(e) => setForm({ ...form, itmCode: e.target.value })} disabled={!!editing} />
           <Input label="Item Name" value={form.itmName ?? ""} onChange={(e) => setForm({ ...form, itmName: e.target.value })} />
-          <Input label="Category" value={form.itmCategory ?? ""} onChange={(e) => setForm({ ...form, itmCategory: e.target.value })} />
+          <Select
+            label="Category"
+            value={form.itmCategory ?? ""}
+            onChange={(e) => setForm({ ...form, itmCategory: e.target.value })}
+            options={[{ value: "", label: "-- Select Category --" }, ...categories.map((c) => ({ value: c.name ?? c.code, label: c.name ? `${c.code} - ${c.name}` : c.code }))]}
+          />
           <Input label="UOM" value={form.itmUOM ?? ""} onChange={(e) => setForm({ ...form, itmUOM: e.target.value })} />
           <Select label="Active" value={form.isActive ?? "Y"} onChange={(e) => setForm({ ...form, isActive: e.target.value })} options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]} />
         </div>

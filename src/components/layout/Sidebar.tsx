@@ -6,6 +6,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
   Layers, Settings, ChevronDown, ChevronRight, BarChart2,
   DollarSign, Warehouse, FileText, UserCog, LogOut, RefreshCw,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
@@ -22,6 +23,13 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: <LayoutDashboard size={18} />, controlName: "Dashboard" },
+  {
+    label: "POS Billing", icon: <Receipt size={18} />,
+    children: [
+      { label: "POS Terminal", href: "/pos", icon: <ShoppingCart size={16} /> },
+      { label: "POS Sales", href: "/pos/sales", icon: <FileText size={16} /> },
+    ],
+  },
   {
     label: "Sales", icon: <ShoppingCart size={18} />, controlName: "Sales",
     children: [

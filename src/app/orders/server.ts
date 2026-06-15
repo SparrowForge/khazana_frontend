@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Order {
   id: number;
@@ -34,15 +34,14 @@ export interface OrderPayload {
   items: { itemCode: string; qty: number; unitPrice: number }[];
 }
 
-
-export const fetchOrders = () =>
-  api.get<{ data: Order[] } | Order[]>("/orders").then(unwrapList<Order>);
+export const fetchOrders = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Order>> =>
+  api.get(`/orders?page=${page}&limit=${limit}`).then(unwrapPaginated<Order>);
 
 export const createOrder = (data: OrderPayload) =>
   api.post<Order>("/orders", data).then((r) => r.data);
 
-export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
+export const fetchCustomers = (): Promise<Customer[]> =>
+  api.get("/customers?limit=500").then(unwrapList<Customer>);
 
-export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+export const fetchItems = (): Promise<AvailableItem[]> =>
+  api.get("/inventory/items?limit=100").then(unwrapList<AvailableItem>);

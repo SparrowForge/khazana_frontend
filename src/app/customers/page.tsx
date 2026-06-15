@@ -6,8 +6,10 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2, Eye } from "lucide-react";
 import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -21,12 +23,16 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchCustomers().then(setCustomers).catch(() => {}).finally(() => setLoading(false));
+    fetchCustomers({ page, limit })
+      .then(({ items, meta }) => { setCustomers(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };
@@ -48,6 +54,8 @@ export default function CustomersPage() {
     catch { toast.error("Failed to delete"); }
   };
 
+  const handleSearch = (val: string) => { setSearch(val); resetPage(); };
+
   const filtered = customers.filter((c) =>
     c.code.toLowerCase().includes(search.toLowerCase()) ||
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -58,7 +66,7 @@ export default function CustomersPage() {
     <AppLayout>
       <PageHeader title="Customers" action={{ label: "New Customer", onClick: openCreate, icon: <Plus size={16} /> }} />
       <div className="mb-4">
-        <Input placeholder="Search by code, name, or mobile..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder="Search by code, name, or mobile..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
       </div>
       <Table loading={loading} data={filtered}
         columns={[
@@ -75,6 +83,7 @@ export default function CustomersPage() {
           )},
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Customer" : "New Customer"}>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />

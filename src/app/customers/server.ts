@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Customer {
   id: number;
@@ -18,9 +18,11 @@ export interface CustomerPayload {
   email?: string;
 }
 
+export const fetchCustomers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Customer>> =>
+  api.get(`/customers?page=${page}&limit=${limit}`).then(unwrapPaginated<Customer>);
 
-export const fetchCustomers = (limit = 500) =>
-  api.get<{ data: Customer[] } | Customer[]>(`/customers?limit=${limit}`).then(unwrapList<Customer>);
+export const fetchAllCustomers = (limit = 500): Promise<Customer[]> =>
+  api.get(`/customers?limit=${limit}`).then(unwrapList<Customer>);
 
 export const createCustomer = (data: CustomerPayload) =>
   api.post<Customer>("/customers", data).then((r) => r.data);

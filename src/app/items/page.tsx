@@ -7,9 +7,11 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchItems, createItem, updateItem, deleteItem, type Item, type ItemPayload } from "./server";
-import { fetchCategories, type Category } from "./categories/server";
+import { fetchAllCategories, type Category } from "./categories/server";
+import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
 const emptyItem: ItemPayload = { itmCode: "", itmName: "", itmCategory: "", itmType: "", itmUOM: "", isActive: "Y" };
@@ -23,13 +25,17 @@ export default function ItemsPage() {
   const [form, setForm] = useState<ItemPayload>(emptyItem);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchItems().then(setItems).catch(() => {}).finally(() => setLoading(false));
+    fetchItems({ page, limit })
+      .then(({ items, meta }) => { setItems(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
-  useEffect(() => { fetchCategories().then(setCategories).catch(() => {}); }, []);
+  useEffect(load, [page, limit, refreshKey]);
+  useEffect(() => { fetchAllCategories().then(setCategories).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyItem); setModal(true); };
   const openEdit = (item: Item) => {
@@ -65,6 +71,8 @@ export default function ItemsPage() {
     }
   };
 
+  const handleSearch = (val: string) => { setSearch(val); resetPage(); };
+
   const filtered = items.filter((i) =>
     i.itmCode.toLowerCase().includes(search.toLowerCase()) ||
     (i.itmName ?? "").toLowerCase().includes(search.toLowerCase())
@@ -74,7 +82,7 @@ export default function ItemsPage() {
     <AppLayout>
       <PageHeader title="Items" subtitle="Manage product master" action={{ label: "New Item", onClick: openCreate, icon: <Plus size={16} /> }} />
       <div className="mb-4">
-        <Input placeholder="Search by code or name..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder="Search by code or name..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
       </div>
       <Table
         loading={loading} data={filtered}
@@ -95,6 +103,7 @@ export default function ItemsPage() {
           },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Item" : "New Item"}>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Item Code *" value={form.itmCode} onChange={(e) => setForm({ ...form, itmCode: e.target.value })} disabled={!!editing} />

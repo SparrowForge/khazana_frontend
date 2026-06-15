@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Price {
   priceOId: string;
@@ -27,9 +27,8 @@ export interface AvailableItem {
   itmName?: string;
 }
 
-
-export const fetchPrices = () =>
-  api.get<{ data: Price[] } | Price[]>("/pricing/prices").then(unwrapList<Price>);
+export const fetchPrices = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Price>> =>
+  api.get(`/pricing/prices?page=${page}&limit=${limit}`).then(unwrapPaginated<Price>);
 
 export const createPrice = (data: PricePayload) =>
   api.post<Price>("/pricing/prices", data).then((r) => r.data);
@@ -37,5 +36,5 @@ export const createPrice = (data: PricePayload) =>
 export const updatePrice = (id: string, data: Partial<PricePayload>) =>
   api.patch<Price>(`/pricing/prices/${id}`, data).then((r) => r.data);
 
-export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+export const fetchItems = (): Promise<AvailableItem[]> =>
+  api.get("/inventory/items?limit=100").then(unwrapList<AvailableItem>);

@@ -7,8 +7,10 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -23,12 +25,17 @@ export default function PricesPage() {
   const [editing, setEditing] = useState<Price | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchPrices().then(setPrices).catch(() => {}).finally(() => setLoading(false));
+    fetchPrices({ page, limit })
+      .then(({ items, meta }) => { setPrices(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); fetchItems().then(setItems).catch(() => {}); }, []);
+  useEffect(load, [page, limit, refreshKey]);
+  useEffect(() => { fetchItems().then(setItems).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (p: Price) => {
@@ -63,6 +70,7 @@ export default function PricesPage() {
           { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Price" : "New Price"}>
         <div className="grid grid-cols-2 gap-4">
           <Select label="Item *" value={form.priceItemOId} onChange={(e) => setForm({ ...form, priceItemOId: e.target.value })}

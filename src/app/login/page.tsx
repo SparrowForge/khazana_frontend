@@ -28,7 +28,7 @@ export default function LoginPage() {
     defaultValues: { branchId: "", userName: "", password: "" },
   });
 
-  useEffect(() => { fetchBranches().then(setBranches).catch(() => {}); }, []);
+  useEffect(() => { fetchBranches({ limit: 100 }).then((r) => setBranches(r.items)).catch(() => {}); }, []);
 
   const onSubmit = async (data: LoginForm) => {
     try {

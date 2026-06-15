@@ -4,7 +4,9 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { fetchSales, type Sale } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 
@@ -12,10 +14,18 @@ export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
 
-  useEffect(() => {
-    fetchSales().then(setSales).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const load = () => {
+    setLoading(true);
+    fetchSales({ page, limit })
+      .then(({ items, meta }) => { setSales(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [page, limit, refreshKey]);
+
+  const handleSearch = (val: string) => { setSearch(val); resetPage(); };
 
   const filtered = sales.filter((s) => {
     const inv = s.invNo ?? s.invoiceNo ?? "";
@@ -29,7 +39,7 @@ export default function SalesListPage() {
         action={{ label: "New Cash Sale", onClick: () => window.location.href = "/sales/cash" }}
       />
       <div className="mb-4">
-        <Input placeholder="Search by invoice no..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder="Search by invoice no..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
       </div>
       <Table
         loading={loading}
@@ -47,6 +57,7 @@ export default function SalesListPage() {
           },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
     </AppLayout>
   );
 }

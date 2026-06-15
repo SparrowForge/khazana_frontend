@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface CashPurchase {
   id: number;
@@ -18,9 +18,8 @@ export interface CashPurchasePayload {
   description?: string;
 }
 
-
-export const fetchCashPurchases = () =>
-  api.get<{ data: CashPurchase[] } | CashPurchase[]>("/finance/cash-purchase").then(unwrapList<CashPurchase>);
+export const fetchCashPurchases = ({ page = 1, limit = 10 } = {}): Promise<Paginated<CashPurchase>> =>
+  api.get(`/finance/cash-purchase?page=${page}&limit=${limit}`).then(unwrapPaginated<CashPurchase>);
 
 export const createCashPurchase = (data: CashPurchasePayload) =>
   api.post<CashPurchase>("/finance/cash-purchase", data).then((r) => r.data);

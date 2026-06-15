@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Branch {
   id: number;
@@ -17,8 +18,8 @@ export interface BranchPayload {
   mobileNo?: string;
 }
 
-export const fetchBranches = () =>
-  api.get<{ data: { items: Branch[] } }>("/admin/branches").then((r) => r.data.data.items ?? []);
+export const fetchBranches = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Branch>> =>
+  api.get(`/admin/branches?page=${page}&limit=${limit}`).then(unwrapPaginated<Branch>);
 
 export const createBranch = (data: BranchPayload) =>
   api.post<Branch>("/admin/branches", data).then((r) => r.data);

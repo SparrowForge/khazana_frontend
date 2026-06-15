@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface MoneyReceive {
   id: number;
@@ -25,12 +25,11 @@ export interface Customer {
   name: string;
 }
 
-
-export const fetchMoneyReceive = () =>
-  api.get<{ data: MoneyReceive[] } | MoneyReceive[]>("/finance/money-receive").then(unwrapList<MoneyReceive>);
+export const fetchMoneyReceive = ({ page = 1, limit = 10 } = {}): Promise<Paginated<MoneyReceive>> =>
+  api.get(`/finance/money-receive?page=${page}&limit=${limit}`).then(unwrapPaginated<MoneyReceive>);
 
 export const createMoneyReceive = (data: MoneyReceivePayload) =>
   api.post<MoneyReceive>("/finance/money-receive", data).then((r) => r.data);
 
-export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
+export const fetchCustomers = (): Promise<Customer[]> =>
+  api.get("/customers?limit=500").then(unwrapList<Customer>);

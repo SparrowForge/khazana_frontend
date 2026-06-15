@@ -6,8 +6,10 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchRoles, createRole, updateRole, type Role } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
 const emptyForm = { name: "", description: "" };
@@ -19,12 +21,16 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<Role | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchRoles().then(setRoles).catch(() => {}).finally(() => setLoading(false));
+    fetchRoles({ page, limit })
+      .then(({ items, meta }) => { setRoles(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (r: Role) => { setEditing(r); setForm({ name: r.name, description: r.description ?? "" }); setModal(true); };
@@ -50,6 +56,7 @@ export default function RolesPage() {
           { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Role" : "New Role"}>
         <div className="space-y-4">
           <Input label="Role Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

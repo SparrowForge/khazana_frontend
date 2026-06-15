@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface AdminUser {
   id: string;
@@ -25,18 +26,8 @@ export interface Branch {
   branchName: string;
 }
 
-// Handles both paginated { data: { items: [] } } and legacy { data: [] } envelopes
-function extractItems<T>(res: { data: Record<string, unknown> }): T[] {
-  const d = res.data;
-  const nested = d?.data as Record<string, unknown> | undefined;
-  if (nested?.items && Array.isArray(nested.items)) return nested.items as T[];
-  if (Array.isArray(nested)) return nested as T[];
-  if (Array.isArray(d)) return d as unknown as T[];
-  return [];
-}
-
-export const fetchUsers = () =>
-  api.get("/users").then((r) => extractItems<AdminUser>(r));
+export const fetchUsers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<AdminUser>> =>
+  api.get(`/users?page=${page}&limit=${limit}`).then(unwrapPaginated<AdminUser>);
 
 export const createUser = (data: AdminUserPayload) =>
   api.post<AdminUser>("/users", data).then((r) => r.data);
@@ -44,5 +35,5 @@ export const createUser = (data: AdminUserPayload) =>
 export const updateUser = (id: string, data: Partial<AdminUserPayload>) =>
   api.patch<AdminUser>(`/users/${id}`, data).then((r) => r.data);
 
-export const fetchBranches = () =>
-  api.get("/admin/branches").then((r) => extractItems<Branch>(r));
+export const fetchBranches = (): Promise<Branch[]> =>
+  api.get("/admin/branches").then(unwrapList<Branch>);

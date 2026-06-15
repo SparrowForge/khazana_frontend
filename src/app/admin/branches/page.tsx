@@ -6,8 +6,10 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchBranches, createBranch, updateBranch, type Branch } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
 const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "" };
@@ -19,12 +21,16 @@ export default function BranchesPage() {
   const [editing, setEditing] = useState<Branch | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchBranches().then(setBranches).catch(() => {}).finally(() => setLoading(false));
+    fetchBranches({ page, limit })
+      .then(({ items, meta }) => { setBranches(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "" }); setModal(true); };
@@ -53,6 +59,7 @@ export default function BranchesPage() {
           { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Branch" : "New Branch"}>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Branch Code *" value={form.branchCode} onChange={(e) => setForm({ ...form, branchCode: e.target.value })} disabled={!!editing} />

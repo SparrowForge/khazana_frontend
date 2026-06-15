@@ -6,8 +6,10 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchCategories, createCategory, updateCategory, deleteCategory, type Category } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
 export default function CategoriesPage() {
@@ -17,12 +19,16 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState({ code: "", name: "", remarks: "" });
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchCategories().then(setCategories).catch(() => {}).finally(() => setLoading(false));
+    fetchCategories({ page, limit })
+      .then(({ items, meta }) => { setCategories(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm({ code: "", name: "", remarks: "" }); setModal(true); };
   const openEdit = (c: Category) => { setEditing(c); setForm({ code: c.code, name: c.name ?? "", remarks: c.remarks ?? "" }); setModal(true); };
@@ -60,6 +66,7 @@ export default function CategoriesPage() {
           )},
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Category" : "New Category"}>
         <div className="space-y-4">
           <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />

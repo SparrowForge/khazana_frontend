@@ -22,7 +22,7 @@ export interface CreditSalePayload {
 
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
 
 export const fetchCustomers = () =>
   api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers?limit=500")

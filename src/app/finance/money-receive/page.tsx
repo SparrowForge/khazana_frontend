@@ -7,8 +7,10 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Pagination from "@/components/ui/Pagination";
 import { Plus } from "lucide-react";
 import { fetchMoneyReceive, createMoneyReceive, fetchCustomers, type MoneyReceive, type Customer } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -21,12 +23,17 @@ export default function MoneyReceivePage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchMoneyReceive().then(setRecords).catch(() => {}).finally(() => setLoading(false));
+    fetchMoneyReceive({ page, limit })
+      .then(({ items, meta }) => { setRecords(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); fetchCustomers().then(setCustomers).catch(() => {}); }, []);
+  useEffect(load, [page, limit, refreshKey]);
+  useEffect(() => { fetchCustomers().then(setCustomers).catch(() => {}); }, []);
 
   const handleSave = async () => {
     if (!form.customerCode || !form.amount) { toast.error("Customer and amount are required"); return; }
@@ -50,6 +57,7 @@ export default function MoneyReceivePage() {
           { key: "amount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.amount)}`, className: "text-right" },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title="New Money Receive">
         <div className="grid grid-cols-2 gap-4">
           <Input label="Receipt No" value={form.receiptNo} onChange={(e) => setForm({ ...form, receiptNo: e.target.value })} />

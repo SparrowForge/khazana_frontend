@@ -1,5 +1,5 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Item {
   id: number;
@@ -20,9 +20,11 @@ export interface ItemPayload {
   isActive?: string;
 }
 
+export const fetchItems = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Item>> =>
+  api.get(`/inventory/items?page=${page}&limit=${limit}`).then(unwrapPaginated<Item>);
 
-export const fetchItems = (limit = 500) =>
-  api.get<{ data: Item[] } | Item[]>(`/inventory/items?limit=${limit}`).then(unwrapList<Item>);
+export const fetchAllItems = (limit = 500): Promise<Item[]> =>
+  api.get(`/inventory/items?limit=${limit}`).then(unwrapList<Item>);
 
 export const createItem = (data: ItemPayload) =>
   api.post<Item>("/inventory/items", data).then((r) => r.data);

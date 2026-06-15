@@ -6,8 +6,10 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Pagination from "@/components/ui/Pagination";
 import { Plus } from "lucide-react";
 import { fetchCashPurchases, createCashPurchase, type CashPurchase } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -19,12 +21,16 @@ export default function CashPurchasePage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchCashPurchases().then(setRecords).catch(() => {}).finally(() => setLoading(false));
+    fetchCashPurchases({ page, limit })
+      .then(({ items, meta }) => { setRecords(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const handleSave = async () => {
     if (!form.amount) { toast.error("Amount is required"); return; }
@@ -48,6 +54,7 @@ export default function CashPurchasePage() {
           { key: "description", header: "Description" },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title="New Cash Purchase">
         <div className="grid grid-cols-2 gap-4">
           <Input label="Voucher No" value={form.voucherNo} onChange={(e) => setForm({ ...form, voucherNo: e.target.value })} />

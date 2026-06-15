@@ -15,7 +15,7 @@ export interface IssuePayload {
 
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
 
 export const issueStock = (data: IssuePayload) =>
   api.post("/inventory/issue", data).then((r) => r.data);

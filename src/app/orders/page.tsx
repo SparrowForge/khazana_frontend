@@ -7,8 +7,10 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2 } from "lucide-react";
 import { fetchOrders, createOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
+import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -23,16 +25,21 @@ export default function OrdersPage() {
   const [lines, setLines] = useState<OrderLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
   const [form, setForm] = useState({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
     setLoading(true);
-    fetchOrders().then(setOrders).catch(() => {}).finally(() => setLoading(false));
+    fetchOrders({ page, limit })
+      .then(({ items, meta }) => { setOrders(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
     fetchCustomers().then(setCustomers).catch(() => {});
     fetchItems().then(setAvailableItems).catch(() => {});
   }, []);
+  useEffect(load, [page, limit, refreshKey]);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -70,6 +77,7 @@ export default function OrdersPage() {
           { key: "totalPrice", header: "Total", render: (r) => `৳ ${formatCurrency(r.totalPrice ?? 0)}`, className: "text-right" },
         ]}
       />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title="New Order" size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <Select label="Customer *" value={form.clientCode} onChange={(e) => setForm({ ...form, clientCode: e.target.value })}

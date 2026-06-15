@@ -1,5 +1,5 @@
 ﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Sale {
   id: string | number;
@@ -13,6 +13,5 @@ export interface Sale {
   type?: string;
 }
 
-
-export const fetchSales = () =>
-  api.get<{ data: Sale[] } | Sale[]>("/sales").then(unwrapList<Sale>);
+export const fetchSales = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Sale>> =>
+  api.get(`/sales?page=${page}&limit=${limit}`).then(unwrapPaginated<Sale>);

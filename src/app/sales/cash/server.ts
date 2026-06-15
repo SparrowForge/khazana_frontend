@@ -24,7 +24,7 @@ export interface CashSalePayload {
 
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
 
 export const createCashSale = (data: CashSalePayload) =>
   api.post("/sales/cash", data).then((r) => r.data);

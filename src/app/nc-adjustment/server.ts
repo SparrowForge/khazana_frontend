@@ -21,7 +21,7 @@ export interface NcPayload {
 
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=500").then(unwrapList<AvailableItem>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
 
 export const createNcAdjustment = (data: NcPayload) =>
   api.post("/nc-adjustment", data).then((r) => r.data);

@@ -44,4 +44,4 @@ export const fetchCustomers = (): Promise<Customer[]> =>
   api.get("/customers?limit=500").then(unwrapList<Customer>);
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
-  api.get("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
+  api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);

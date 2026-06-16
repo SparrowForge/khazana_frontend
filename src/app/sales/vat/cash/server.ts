@@ -25,7 +25,7 @@ export interface VatCashSalePayload {
 
 
 export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
+  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
 export const createVatCashSale = (data: VatCashSalePayload) =>
   api.post("/sales/vat/cash", data).then((r) => r.data);

@@ -10,7 +10,7 @@ import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchItems, createItem, updateItem, deleteItem, type Item, type ItemPayload } from "./server";
-import { fetchAllCategories, type Category } from "./categories/server";
+import { fetchAllCategories, type Category } from "../categories/server";
 import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 

@@ -56,9 +56,9 @@ const navItems: NavItem[] = [
   },
   {
     label: "Inventory", icon: <Warehouse size={18} />, controlName: "Inventory",
-    children: [
-      { label: "Items", href: "/items", icon: <Package size={16} />, controlName: "Items" },
-      { label: "Categories", href: "/items/categories", icon: <Layers size={16} />, controlName: "Items" },
+    children: [     
+      { label: "Categories", href: "/inventory/categories", icon: <Layers size={16} />, controlName: "Items" },
+      { label: "Items", href: "/inventory/items", icon: <Package size={16} />, controlName: "Items" },
       { label: "Stock View", href: "/inventory", icon: <BarChart2 size={16} />, controlName: "StockView" },
       { label: "Stock Receive", href: "/inventory/receive", icon: <FileText size={16} />, controlName: "StockReceive" },
       { label: "Stock Issue", href: "/inventory/issue", icon: <FileText size={16} />, controlName: "StockIssue" },

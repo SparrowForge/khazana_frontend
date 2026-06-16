@@ -23,7 +23,7 @@ export interface ItemPayload {
 export const fetchItems = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Item>> =>
   api.get(`/inventory/items?page=${page}&limit=${limit}`).then(unwrapPaginated<Item>);
 
-export const fetchAllItems = (limit = 500): Promise<Item[]> =>
+export const fetchAllItems = (limit = 100): Promise<Item[]> =>
   api.get(`/inventory/items?limit=${limit}`).then(unwrapList<Item>);
 
 export const createItem = (data: ItemPayload) =>

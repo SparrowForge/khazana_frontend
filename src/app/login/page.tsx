@@ -28,15 +28,16 @@ export default function LoginPage() {
     defaultValues: { branchId: "", userName: "", password: "" },
   });
 
-  useEffect(() => { fetchBranches({ limit: 100 }).then((r) => setBranches(r.items)).catch(() => {}); }, []);
+  useEffect(() => { fetchBranches().then((r) => setBranches(r.items)).catch(() => {}); }, []);
 
   const onSubmit = async (data: LoginForm) => {
     try {
       const res = await login(data);
       storeLogin(res.user as Parameters<typeof storeLogin>[0], res.accessToken);
       router.push("/");
-    } catch {
-      toast.error("Invalid credentials or unauthorized branch");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Login failed");
     }
   };
 

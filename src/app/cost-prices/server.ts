@@ -33,4 +33,4 @@ export const updateCostPrice = (id: string, data: Partial<CostPricePayload>) =>
   api.patch<CostPrice>(`/pricing/cost-prices/${id}`, data).then((r) => r.data);
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
-  api.get("/inventory/items?limit=100").then(unwrapList<AvailableItem>);
+  api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);

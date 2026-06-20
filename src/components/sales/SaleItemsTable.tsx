@@ -78,7 +78,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
         <div className="w-24">
           <label className="text-xs font-medium text-gray-600 mb-1 block">Qty</label>
           <input
-            type="number" min="0.01" step="0.01"
+            type="number" min="1" step="1"
             value={qty} onChange={(e) => setQty(e.target.value)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
           />
@@ -120,7 +120,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
                 <td className="px-3 py-2 text-right">{formatCurrency(item.rate)}</td>
                 <td className="px-3 py-2 text-right">
                   <input
-                    type="number" min="0.01" step="0.01"
+                    type="number" min="1" step="1"
                     value={item.quantity}
                     onChange={(e) => updateItem(i, "quantity", parseFloat(e.target.value) || 0)}
                     className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"

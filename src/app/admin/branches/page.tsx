@@ -30,7 +30,7 @@ export default function BranchesPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "" }); setModal(true); };

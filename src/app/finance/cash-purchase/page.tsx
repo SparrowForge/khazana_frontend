@@ -30,7 +30,7 @@ export default function CashPurchasePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const handleSave = async () => {
     if (!form.amount) { toast.error("Amount is required"); return; }

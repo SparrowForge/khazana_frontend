@@ -32,7 +32,7 @@ export default function MoneyReceivePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
   useEffect(() => { fetchCustomers().then(setCustomers).catch(() => {}); }, []);
 
   const handleSave = async () => {

@@ -28,7 +28,7 @@ export default function CategoriesPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => { setEditing(null); setForm({ code: "", name: "", remarks: "" }); setModal(true); };
   const openEdit = (c: Category) => { setEditing(c); setForm({ code: c.code, name: c.name ?? "", remarks: c.remarks ?? "" }); setModal(true); };

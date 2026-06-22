@@ -34,12 +34,9 @@ export default function OrdersPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(() => {
-    load();
-    fetchCustomers().then(setCustomers).catch(() => {});
-    fetchItems().then(setAvailableItems).catch(() => {});
-  }, []);
-  useEffect(load, [page, limit, refreshKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); fetchCustomers().then(setCustomers).catch(() => {}); fetchItems().then(setAvailableItems).catch(() => {}); }, []);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));

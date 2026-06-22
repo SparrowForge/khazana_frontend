@@ -34,7 +34,7 @@ export default function CostPricesPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
   useEffect(() => { fetchItems().then(setItems).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };

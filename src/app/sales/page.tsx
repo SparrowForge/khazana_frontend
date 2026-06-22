@@ -23,7 +23,7 @@ export default function SalesListPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const handleSearch = (val: string) => { setSearch(val); resetPage(); };
 

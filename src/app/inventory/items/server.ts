@@ -1,14 +1,18 @@
 import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+export type { MediaFile } from "@/lib/upload";
+export { uploadFile } from "@/lib/upload";
 
 export interface Item {
-  id: number;
+  id: string;
   itmCode: string;
   itmName?: string;
   itmCategory?: string;
   itmType?: string;
   itmUOM?: string;
   itmRemarks?: string;
+  imageId?: string | null;
+  image?: import("@/lib/upload").MediaFile | null;
   isActive?: string;
 }
 
@@ -19,6 +23,7 @@ export interface ItemPayload {
   itmType?: string;
   itmUOM?: string;
   itmRemarks?: string;
+  imageId?: string;
   isActive?: string;
 }
 
@@ -31,8 +36,8 @@ export const fetchAllItems = (limit = 100): Promise<Item[]> =>
 export const createItem = (data: ItemPayload) =>
   api.post<Item>("/inventory/items", data).then((r) => r.data);
 
-export const updateItem = (id: number, data: Partial<ItemPayload>) =>
+export const updateItem = (id: string, data: Partial<ItemPayload>) =>
   api.patch<Item>(`/inventory/items/${id}`, data).then((r) => r.data);
 
-export const deleteItem = (id: number) =>
+export const deleteItem = (id: string) =>
   api.delete(`/inventory/items/${id}`).then((r) => r.data);

@@ -32,7 +32,7 @@ export default function CustomersPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey]);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };

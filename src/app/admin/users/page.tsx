@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -8,7 +8,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Edit2, CheckCircle, XCircle } from "lucide-react";
+import Image from "next/image";
+import { Plus, Edit2, CheckCircle, XCircle, Camera } from "lucide-react";
 import {
   fetchUsers,
   createUser,
@@ -17,6 +18,7 @@ import {
   type AdminUser,
   type Branch,
 } from "./server";
+import { uploadFile } from "@/lib/upload";
 import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
@@ -27,6 +29,7 @@ const emptyForm = {
   password: "",
   branchIds: [] as string[],
   isActive: "Y",
+  mediaFileId: "",
 };
 
 export default function UsersPage() {
@@ -36,6 +39,12 @@ export default function UsersPage() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(emptyForm);
+
+  // Avatar upload state
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
@@ -47,15 +56,14 @@ export default function UsersPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
-    fetchBranches().then(setBranches).catch(() => {});
-  }, []);
-  useEffect(load, [page, limit, refreshKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); fetchBranches().then(setBranches).catch(() => {}); }, []);
+  useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm);
+    setPreviewUrl("");
     setModal(true);
   };
 
@@ -68,8 +76,37 @@ export default function UsersPage() {
       password: "",
       branchIds: u.branchMappings?.map((m) => m.branch.id) ?? [],
       isActive: u.isActive ?? "Y",
+      mediaFileId: u.mediaFileId ?? "",
     });
+    setPreviewUrl(u.profileImage?.fileUrl ?? "");
     setModal(true);
+  };
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5 MB");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const mediaFile = await uploadFile(file);
+      setForm((f) => ({ ...f, mediaFileId: mediaFile.id }));
+      setPreviewUrl(mediaFile.fileUrl);
+      toast.success("Avatar uploaded");
+    } catch {
+      toast.error("Avatar upload failed");
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const toggleBranch = (id: string) => {
@@ -93,11 +130,12 @@ export default function UsersPage() {
         email: form.email || undefined,
         branchIds: form.branchIds,
         isActive: form.isActive,
+        mediaFileId: form.mediaFileId || undefined,
       };
       if (editing) {
         await updateUser(editing.id, form.password ? { ...base, password: form.password } : base);
       } else {
-        await createUser({ ...base, userName: form.userName, email: form.email, password: form.password });
+        await createUser({ ...base, userName: form.userName, email: form.email!, password: form.password });
       }
       toast.success(editing ? "User updated" : "User created — verification email sent");
       setModal(false);
@@ -116,13 +154,34 @@ export default function UsersPage() {
     return <span title={names.join(", ")}>{names.join(", ")}</span>;
   };
 
+  const UserAvatar = ({ user, size = 8 }: { user: AdminUser; size?: number }) =>
+    user.profileImage?.fileUrl ? (
+      <Image
+        src={user.profileImage.fileUrl}
+        alt={user.name ?? user.userName}
+        width={size * 4}
+        height={size * 4}
+        className="rounded-full object-cover"
+        style={{ width: `${size * 0.25}rem`, height: `${size * 0.25}rem` }}
+      />
+    ) : (
+      <div className={`w-${size} h-${size} rounded-full bg-primary-100 flex items-center justify-center text-primary-800 text-xs font-semibold`}>
+        {(user.name ?? user.userName).slice(0, 2).toUpperCase()}
+      </div>
+    );
+
   return (
     <AppLayout>
       <PageHeader title="Users" action={{ label: "New User", onClick: openCreate, icon: <Plus size={16} /> }} />
+
       <Table
         loading={loading}
         data={users}
         columns={[
+          {
+            key: "avatar", header: "",
+            render: (r) => <UserAvatar user={r} size={8} />,
+          },
           { key: "userName", header: "Username" },
           { key: "name", header: "Name" },
           { key: "email", header: "Email", render: (r) => r.email ?? <span className="text-gray-400 text-xs">—</span> },
@@ -135,6 +194,59 @@ export default function UsersPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit User" : "New User"}>
+        {/* Avatar uploader — full-width centered at the top */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="relative group">
+            {uploadingAvatar ? (
+              <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+                <svg className="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              </div>
+            ) : previewUrl ? (
+              <Image
+                src={previewUrl}
+                alt="Avatar preview"
+                width={96}
+                height={96}
+                className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 shadow"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-400">
+                {form.name || form.userName
+                  ? <span className="text-2xl font-semibold text-gray-500">{(form.name || form.userName).slice(0, 2).toUpperCase()}</span>
+                  : <Camera size={28} />
+                }
+              </div>
+            )}
+
+            {/* Hover overlay — click to trigger file input */}
+            {!uploadingAvatar && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Camera size={18} className="text-white" />
+                <span className="text-white text-xs mt-1">Change</span>
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-400 mt-2">
+            {previewUrl ? "Hover to change photo" : "Click avatar to upload photo"}
+          </p>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={handleAvatarSelect}
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Username *"

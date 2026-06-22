@@ -25,59 +25,67 @@ export default function LoginPage() {
   const { login: storeLogin } = useAuthStore();
 
   const [branches, setBranches] = useState<UserBranch[]>([]);
-  const [branchesReady, setBranchesReady] = useState(false);
-  const [loadingBranches, setLoadingBranches] = useState(false);
+  // "idle"    → username not yet checked — branch dropdown is hidden
+  // "loading" → API in flight — dropdown visible with loading placeholder
+  // "done"    → API returned — dropdown visible with options (or empty notice)
+  const [branchLoadState, setBranchLoadState] = useState<"idle" | "loading" | "done">("idle");
 
-  // Holds the pending debounce timer so onChange can cancel it on the next keystroke
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
     defaultValues: { userName: "", password: "", branchId: "" },
   });
 
+  // Derive canSubmit from live field values — all three must be non-empty
+  const [watchedUserName, watchedPassword, watchedBranchId] = watch([
+    "userName",
+    "password",
+    "branchId",
+  ]);
+  const canSubmit =
+    watchedUserName.trim().length > 0 &&
+    watchedPassword.length > 0 &&
+    watchedBranchId.length > 0;
+
   const loadBranches = useCallback(
     async (userName: string) => {
       const trimmed = userName.trim();
       if (!trimmed) {
-        // Username cleared — reset branch state
+        // Username cleared — hide dropdown and reset selection
         setBranches([]);
-        setBranchesReady(false);
+        setBranchLoadState("idle");
         setValue("branchId", "");
         return;
       }
-      setLoadingBranches(true);
-      setBranchesReady(false);
+      setBranchLoadState("loading");
       setValue("branchId", "");
       try {
         const { branches: list } = await getUserBranches(trimmed);
         setBranches(list);
-        setBranchesReady(true);
-        // Auto-select when the user has exactly one branch
+        setBranchLoadState("done");
+        // Auto-select when the user belongs to exactly one branch
         if (list.length === 1) {
           setValue("branchId", list[0].id, { shouldValidate: true });
         }
       } catch {
         setBranches([]);
-        setBranchesReady(true);
-      } finally {
-        setLoadingBranches(false);
+        setBranchLoadState("done");
       }
     },
     [setValue],
   );
 
-  // onChange: debounce so we don't fire on every keystroke
+  // Debounced onChange — fires 600 ms after the user stops typing
   const handleUserNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Let react-hook-form track the value
       register("userName").onChange(e);
-
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         loadBranches(e.target.value);
@@ -86,11 +94,10 @@ export default function LoginPage() {
     [register, loadBranches],
   );
 
-  // onBlur: cancel pending debounce and load immediately
+  // onBlur — cancel the pending debounce and fire immediately
   const handleUserNameBlur = useCallback(
     (e: React.FocusEvent<HTMLInputElement>) => {
       register("userName").onBlur(e);
-
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
@@ -106,18 +113,18 @@ export default function LoginPage() {
       storeLogin(res.user as Parameters<typeof storeLogin>[0], res.accessToken);
       router.push("/");
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(msg ?? "Login failed");
     }
   };
 
-  const branchPlaceholder = loadingBranches
-    ? "Loading branches…"
-    : branchesReady
-      ? branches.length === 0
+  const branchPlaceholder =
+    branchLoadState === "loading"
+      ? "Loading branches…"
+      : branches.length === 0
         ? "No branches assigned"
-        : "— Select Branch —"
-      : "Enter username first";
+        : "— Select Branch —";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center p-4">
@@ -128,6 +135,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Step 1 — always visible */}
           <Input
             id="userName"
             label="Username"
@@ -138,6 +146,7 @@ export default function LoginPage() {
             onBlur={handleUserNameBlur}
           />
 
+          {/* Step 1 — always visible */}
           <Input
             id="password"
             type="password"
@@ -147,20 +156,29 @@ export default function LoginPage() {
             {...register("password")}
           />
 
-          <Select
-            id="branchId"
-            label="Branch"
-            placeholder={branchPlaceholder}
-            error={errors.branchId?.message}
-            disabled={!branchesReady || loadingBranches || branches.length === 0}
-            options={branches.map((b) => ({
-              value: b.id,
-              label: b.branchName ?? b.branchCode ?? b.id,
-            }))}
-            {...register("branchId")}
-          />
+          {/* Step 2 — revealed only once the username API call is triggered */}
+          {branchLoadState !== "idle" && (
+            <Select
+              id="branchId"
+              label="Branch"
+              placeholder={branchPlaceholder}
+              error={errors.branchId?.message}
+              disabled={branchLoadState === "loading" || branches.length === 0}
+              options={branches.map((b) => ({
+                value: b.id,
+                label: b.branchName ?? b.branchCode ?? b.id,
+              }))}
+              {...register("branchId")}
+            />
+          )}
 
-          <Button type="submit" className="w-full" loading={isSubmitting}>
+          {/* Step 3 — disabled until username + password + branch are all filled */}
+          <Button
+            type="submit"
+            className="w-full"
+            loading={isSubmitting}
+            disabled={!canSubmit}
+          >
             Sign In
           </Button>
 

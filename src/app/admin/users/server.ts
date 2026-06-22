@@ -10,6 +10,8 @@ export interface AdminUser {
   email?: string;
   isActive?: string;
   isVerified?: boolean;
+  validUntil?: string | null;
+  remarks?: string | null;
   mediaFileId?: string | null;
   profileImage?: MediaFile | null;
   branchMappings?: { branch: { id: string; branchName: string | null; branchCode: string | null } }[];
@@ -22,6 +24,8 @@ export interface AdminUserPayload {
   password?: string;
   branchIds: string[];
   isActive?: string;
+  validUntil?: string;
+  remarks?: string;
   mediaFileId?: string;
 }
 

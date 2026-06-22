@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
 import Pagination from "@/components/ui/Pagination";
 import Image from "next/image";
 import { Plus, Edit2, CheckCircle, XCircle, Camera } from "lucide-react";
@@ -29,6 +30,8 @@ const emptyForm = {
   password: "",
   branchIds: [] as string[],
   isActive: "Y",
+  validUntil: "",
+  remarks: "",
   mediaFileId: "",
 };
 
@@ -76,6 +79,8 @@ export default function UsersPage() {
       password: "",
       branchIds: u.branchMappings?.map((m) => m.branch.id) ?? [],
       isActive: u.isActive ?? "Y",
+      validUntil: u.validUntil ?? "",
+      remarks: u.remarks ?? "",
       mediaFileId: u.mediaFileId ?? "",
     });
     setPreviewUrl(u.profileImage?.fileUrl ?? "");
@@ -126,10 +131,12 @@ export default function UsersPage() {
     setSaving(true);
     try {
       const base = {
-        name: form.name || undefined,
-        email: form.email || undefined,
-        branchIds: form.branchIds,
-        isActive: form.isActive,
+        name:        form.name        || undefined,
+        email:       form.email       || undefined,
+        branchIds:   form.branchIds,
+        isActive:    form.isActive,
+        validUntil:  form.validUntil  || undefined,
+        remarks:     form.remarks     || undefined,
         mediaFileId: form.mediaFileId || undefined,
       };
       if (editing) {
@@ -281,6 +288,23 @@ export default function UsersPage() {
             value={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.value })}
             options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]}
+          />
+          <Input
+            label="Valid Until"
+            type="date"
+            value={form.validUntil}
+            onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
+          />
+        </div>
+
+        <div className="mt-4">
+          <Textarea
+            id="remarks"
+            label="Remarks"
+            rows={4}
+            placeholder="Any notes about this user..."
+            value={form.remarks}
+            onChange={(e) => setForm({ ...form, remarks: e.target.value })}
           />
         </div>
 

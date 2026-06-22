@@ -8,6 +8,7 @@ export interface Item {
   itmCategory?: string;
   itmType?: string;
   itmUOM?: string;
+  itmRemarks?: string;
   isActive?: string;
 }
 
@@ -17,6 +18,7 @@ export interface ItemPayload {
   itmCategory?: string;
   itmType?: string;
   itmUOM?: string;
+  itmRemarks?: string;
   isActive?: string;
 }
 

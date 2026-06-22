@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchItems, createItem, updateItem, deleteItem, type Item, type ItemPayload } from "./server";
@@ -14,7 +15,31 @@ import { fetchAllCategories, type Category } from "../categories/server";
 import { usePagination } from "@/hooks/usePagination";
 import toast from "react-hot-toast";
 
-const emptyItem: ItemPayload = { itmCode: "", itmName: "", itmCategory: "", itmType: "", itmUOM: "", isActive: "Y" };
+const ITEM_TYPES = [
+  { value: "RW",  label: "RW — Raw Material" },
+  { value: "FG",  label: "FG — Finished Goods" },
+  { value: "SFG", label: "SFG — Semi-Finished Goods" },
+  { value: "P",   label: "P — Packaging" },
+];
+
+const UOM_OPTIONS = [
+  { value: "Pcs", label: "Pcs" },
+  { value: "Cup", label: "Cup" },
+  { value: "gm",  label: "gm" },
+  { value: "KG",  label: "KG" },
+  { value: "LT",  label: "LT" },
+  { value: "ml",  label: "ml" },
+];
+
+const emptyItem: ItemPayload = {
+  itmCode: "",
+  itmName: "",
+  itmCategory: "",
+  itmType: "",
+  itmUOM: "",
+  itmRemarks: "",
+  isActive: "Y",
+};
 
 export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -40,16 +65,32 @@ export default function ItemsPage() {
   const openCreate = () => { setEditing(null); setForm(emptyItem); setModal(true); };
   const openEdit = (item: Item) => {
     setEditing(item);
-    setForm({ itmCode: item.itmCode, itmName: item.itmName ?? "", itmCategory: item.itmCategory ?? "", itmType: item.itmType ?? "", itmUOM: item.itmUOM ?? "", isActive: item.isActive ?? "Y" });
+    setForm({
+      itmCode:     item.itmCode,
+      itmName:     item.itmName     ?? "",
+      itmCategory: item.itmCategory ?? "",
+      itmType:     item.itmType     ?? "",
+      itmUOM:      item.itmUOM      ?? "",
+      itmRemarks:  item.itmRemarks  ?? "",
+      isActive:    item.isActive    ?? "Y",
+    });
     setModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.itmCode) { toast.error("Item code is required"); return; }
+    if (!form.itmCode.trim())  { toast.error("Item code is required");  return; }
+    if (!form.itmType)         { toast.error("Item type is required");   return; }
+    if (!form.itmUOM)          { toast.error("UOM is required");         return; }
+    if ((form.itmRemarks?.length ?? 0) > 500) { toast.error("Remarks must be 500 characters or fewer"); return; }
+
     setSaving(true);
     try {
-      if (editing) await updateItem(editing.id, form);
-      else await createItem(form);
+      if (editing) {
+        const { itmCode: _, ...updateFields } = form;
+        await updateItem(editing.id, updateFields);
+      } else {
+        await createItem(form);
+      }
       toast.success(editing ? "Item updated" : "Item created");
       setModal(false);
       load();
@@ -78,20 +119,36 @@ export default function ItemsPage() {
     (i.itmName ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const itmTypeLabel = (val?: string) =>
+    ITEM_TYPES.find((t) => t.value === val)?.label.split(" — ")[1] ?? val ?? "—";
+
   return (
     <AppLayout>
-      <PageHeader title="Items" subtitle="Manage product master" action={{ label: "New Item", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader
+        title="Items"
+        subtitle="Manage product master"
+        action={{ label: "New Item", onClick: openCreate, icon: <Plus size={16} /> }}
+      />
+
       <div className="mb-4">
-        <Input placeholder="Search by code or name..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
+        <Input
+          placeholder="Search by code or name..."
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="max-w-xs"
+        />
       </div>
+
       <Table
-        loading={loading} data={filtered}
+        loading={loading}
+        data={filtered}
         columns={[
-          { key: "itmCode", header: "Code" },
-          { key: "itmName", header: "Name" },
+          { key: "itmCode",     header: "Code" },
+          { key: "itmName",     header: "Name" },
           { key: "itmCategory", header: "Category" },
-          { key: "itmUOM", header: "UOM" },
-          { key: "isActive", header: "Active" },
+          { key: "itmType",     header: "Type",   render: (r) => itmTypeLabel(r.itmType) },
+          { key: "itmUOM",      header: "UOM" },
+          { key: "isActive",    header: "Active" },
           {
             key: "actions", header: "",
             render: (row) => (
@@ -104,22 +161,80 @@ export default function ItemsPage() {
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
+
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Item" : "New Item"}>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Item Code *" value={form.itmCode} onChange={(e) => setForm({ ...form, itmCode: e.target.value })} disabled={!!editing} />
-          <Input label="Item Name" value={form.itmName ?? ""} onChange={(e) => setForm({ ...form, itmName: e.target.value })} />
+          {/* Row 1: Code + Name */}
+          <Input
+            label="Item Code *"
+            value={form.itmCode}
+            onChange={(e) => setForm({ ...form, itmCode: e.target.value })}
+            disabled={!!editing}
+            placeholder="e.g. ITM-001"
+          />
+          <Input
+            label="Item Name"
+            value={form.itmName ?? ""}
+            onChange={(e) => setForm({ ...form, itmName: e.target.value })}
+            placeholder="e.g. Kaju Barfi"
+          />
+
+          {/* Row 2: Category + Item Type */}
           <Select
             label="Category"
             value={form.itmCategory ?? ""}
             onChange={(e) => setForm({ ...form, itmCategory: e.target.value })}
-            options={[{ value: "", label: "-- Select Category --" }, ...categories.map((c) => ({ value: c.name ?? c.code, label: c.name ? `${c.code} - ${c.name}` : c.code }))]}
+            options={[
+              { value: "", label: "— Select Category —" },
+              ...categories.map((c) => ({
+                value: c.name ?? c.code,
+                label: c.name ? `${c.code} - ${c.name}` : c.code,
+              })),
+            ]}
           />
-          <Input label="UOM" value={form.itmUOM ?? ""} onChange={(e) => setForm({ ...form, itmUOM: e.target.value })} />
-          <Select label="Active" value={form.isActive ?? "Y"} onChange={(e) => setForm({ ...form, isActive: e.target.value })} options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]} />
+          <Select
+            label="Item Type *"
+            value={form.itmType ?? ""}
+            onChange={(e) => setForm({ ...form, itmType: e.target.value })}
+            options={[{ value: "", label: "— Select Type —" }, ...ITEM_TYPES]}
+          />
+
+          {/* Row 3: UOM + Active */}
+          <Select
+            label="UOM *"
+            value={form.itmUOM ?? ""}
+            onChange={(e) => setForm({ ...form, itmUOM: e.target.value })}
+            options={[{ value: "", label: "— Select UOM —" }, ...UOM_OPTIONS]}
+          />
+          <Select
+            label="Active"
+            value={form.isActive ?? "Y"}
+            onChange={(e) => setForm({ ...form, isActive: e.target.value })}
+            options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]}
+          />
+
+          {/* Row 4: Remarks — full width */}
+          <div className="col-span-2">
+            <Textarea
+              id="itmRemarks"
+              label="Remarks"
+              rows={3}
+              maxLength={500}
+              placeholder="Enter any item remarks here..."
+              value={form.itmRemarks ?? ""}
+              onChange={(e) => setForm({ ...form, itmRemarks: e.target.value })}
+            />
+            <p className="text-xs text-gray-400 text-right mt-1">
+              {(form.itmRemarks?.length ?? 0)}/500
+            </p>
+          </div>
         </div>
+
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button onClick={handleSave} loading={saving}>Save</Button>
+          <Button onClick={handleSave} loading={saving}>
+            {editing ? "Update" : "Create Item"}
+          </Button>
         </div>
       </Modal>
     </AppLayout>

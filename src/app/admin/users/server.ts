@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 import type { MediaFile } from "@/lib/upload";
 export type { MediaFile };
 
@@ -44,7 +44,4 @@ export const updateUser = (id: string, data: Partial<AdminUserPayload>) =>
   api.patch<AdminUser>(`/users/${id}`, data).then((r) => r.data);
 
 export const fetchBranches = (): Promise<Branch[]> =>
-  api.get("/admin/branches").then((r) => {
-    const body = r.data;
-    return Array.isArray(body) ? body : (body?.items ?? []);
-  });
+  api.get("/admin/branches").then(unwrapList<Branch>);

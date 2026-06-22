@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, type PosProduct } from "@/lib/services/pos.service";
+import Image from "next/image";
 import { ShoppingCart, Plus, Minus, Trash2, Search } from "lucide-react";
 
 interface CartItem {
@@ -154,7 +155,19 @@ export default function PosPage() {
                     onClick={() => addToCart(p)}
                     className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:border-primary-500 hover:shadow-md transition-all active:scale-95 group"
                   >
-                    <div className="text-2xl mb-2">🍬</div>
+                    <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                      {p.imageUrl ? (
+                        <Image
+                          src={p.imageUrl}
+                          alt={p.name}
+                          width={96}
+                          height={96}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-3xl">🍬</span>
+                      )}
+                    </div>
                     <p className="font-medium text-sm text-gray-800 leading-tight line-clamp-2 group-hover:text-primary-700">
                       {p.name}
                     </p>

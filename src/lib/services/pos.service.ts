@@ -8,6 +8,7 @@ export interface PosProduct {
   uom: string;         // Item_Information.itmUOM
   price: number;       // t_Price.priceListPrice
   vatPercentage: number; // t_Price.priceVatPercent
+  imageUrl?: string | null;
 }
 
 export interface PosSaleItem {

@@ -27,6 +27,7 @@ export interface PosSale {
   dateTime: string;
   salesType: string;
   totalAmount: number;
+  discountAmount: number;
   vatAmount: number;
   payableAmount: number;
   paidAmount: number;
@@ -41,6 +42,8 @@ export interface CreatePosSalePayload {
   servedBy?: string;
   salesType?: string;
   branchId?: number;
+  discountType?: 'fixed' | 'percentage';
+  discountValue?: number;
 }
 
 export const posProductsApi = {

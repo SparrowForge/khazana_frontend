@@ -6,10 +6,10 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, type PosProduct } from "@/lib/services/pos.service";
-import Image from "next/image";
-import { ShoppingCart, Plus, Minus, Trash2, Search } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Search, Tag } from "lucide-react";
 
 interface CartItem {
   itemId: string;
@@ -20,6 +20,9 @@ interface CartItem {
   qty: number;
 }
 
+type DiscountType = "fixed" | "percentage";
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toFixed(2);
 
 export default function PosPage() {
@@ -31,6 +34,10 @@ export default function PosPage() {
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Discount state
+  const [discountType, setDiscountType] = useState<DiscountType>("fixed");
+  const [discountValue, setDiscountValue] = useState("");
 
   useEffect(() => {
     posProductsApi
@@ -78,15 +85,34 @@ export default function PosPage() {
   const itemVat = (c: CartItem) =>
     Math.round(c.price * c.qty * c.vatPercentage) / 100;
 
-  const totalAmount = cart.reduce((s, c) => s + itemSubtotal(c), 0);
-  const vatAmount = cart.reduce((s, c) => s + itemVat(c), 0);
-  const payableAmount = Math.round((totalAmount + vatAmount) * 100) / 100;
+  // ── Calculation ──────────────────────────────────────────────
+  const subtotal = r2(cart.reduce((s, c) => s + itemSubtotal(c), 0));
+  const vatAmount = r2(cart.reduce((s, c) => s + itemVat(c), 0));
+  const grossAmount = r2(subtotal + vatAmount);
+
+  const discVal = parseFloat(discountValue) || 0;
+  const rawDiscount =
+    discountType === "percentage"
+      ? r2(grossAmount * discVal / 100)
+      : r2(discVal);
+  // Clamp: never exceed gross
+  const discountAmount = Math.min(rawDiscount, grossAmount);
+
+  const payableAmount = r2(grossAmount - discountAmount);
   const paid = parseFloat(paidAmount) || 0;
-  const change = Math.round((paid - payableAmount) * 100) / 100;
+  const change = r2(paid - payableAmount);
+
+  // Discount input validation hint
+  const discountExceedsTotal =
+    discountType === "fixed"
+      ? discVal > grossAmount && grossAmount > 0
+      : discVal > 100;
 
   const handleGenerateBill = async () => {
     if (!cart.length) { toast.error("Cart is empty"); return; }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
+    if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
+
     setSubmitting(true);
     try {
       const sale = await posSalesApi.create({
@@ -94,6 +120,8 @@ export default function PosPage() {
         paidAmount: paid,
         servedBy: servedBy || undefined,
         salesType: "Cash",
+        discountType: discVal > 0 ? discountType : undefined,
+        discountValue: discVal > 0 ? discVal : undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
       router.push(`/pos/invoice/${sale.id}`);
@@ -267,15 +295,79 @@ export default function PosPage() {
 
           {/* Payment Summary */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+            {/* Totals */}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-500">
                 <span>Sub-total</span>
-                <span>৳{fmt(totalAmount)}</span>
+                <span>৳{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-500">
                 <span>VAT</span>
                 <span>৳{fmt(vatAmount)}</span>
               </div>
+
+              {/* Discount row */}
+              <div className="pt-2 pb-1">
+                <div className="flex items-center gap-1 mb-1.5 text-xs font-medium text-gray-500">
+                  <Tag size={11} />
+                  Discount
+                </div>
+                <div className="flex gap-2">
+                  {/* Type toggle */}
+                  <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setDiscountType("fixed"); setDiscountValue(""); }}
+                      className={`px-2.5 py-1.5 font-medium transition-colors ${
+                        discountType === "fixed"
+                          ? "bg-primary-700 text-white"
+                          : "bg-white text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      ৳ Fixed
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setDiscountType("percentage"); setDiscountValue(""); }}
+                      className={`px-2.5 py-1.5 font-medium transition-colors border-l border-gray-200 ${
+                        discountType === "percentage"
+                          ? "bg-primary-700 text-white"
+                          : "bg-white text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      % Off
+                    </button>
+                  </div>
+                  {/* Value input */}
+                  <input
+                    type="number"
+                    min="0"
+                    max={discountType === "percentage" ? 100 : undefined}
+                    step="0.01"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === "percentage" ? "0–100" : "0.00"}
+                    className={`flex-1 min-w-0 border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      discountExceedsTotal
+                        ? "border-red-400 bg-red-50 focus:ring-red-400"
+                        : "border-gray-200"
+                    }`}
+                  />
+                </div>
+                {discountExceedsTotal && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {discountType === "percentage"
+                      ? "Percentage cannot exceed 100%"
+                      : "Discount cannot exceed total"}
+                  </p>
+                )}
+                {discountAmount > 0 && !discountExceedsTotal && (
+                  <p className="text-xs text-green-600 mt-1">
+                    −৳{fmt(discountAmount)} applied
+                  </p>
+                )}
+              </div>
+
               <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-gray-100 text-base">
                 <span>Payable</span>
                 <span>৳{fmt(payableAmount)}</span>
@@ -313,7 +405,7 @@ export default function PosPage() {
               size="lg"
               onClick={handleGenerateBill}
               loading={submitting}
-              disabled={!cart.length || paid < payableAmount}
+              disabled={!cart.length || paid < payableAmount || discountExceedsTotal}
             >
               Generate Bill
             </Button>

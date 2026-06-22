@@ -221,7 +221,7 @@ export default function Sidebar() {
     <aside className="h-screen w-60 bg-slate-800 flex flex-col overflow-y-auto shrink-0">
       <div className="px-4 py-4 border-b border-slate-700">
         <h1 className="text-white font-bold text-lg">Khazana POS</h1>
-        <p className="text-slate-400 text-xs mt-0.5">{user?.branchName ?? user?.branch?.branchName ?? "Branch"}</p>
+        <p className="text-slate-400 text-xs mt-0.5">{user?.branchName ?? "Branch"}</p>
       </div>
 
       <nav className="flex-1 px-2 py-3 space-y-0.5">

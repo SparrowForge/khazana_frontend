@@ -28,7 +28,7 @@ export default function AuditLogPage() {
       <div className="mb-4">
         <Input placeholder="Search by user, page, or action..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
       </div>
-      <Table loading={loading} data={filtered.map((l) => ({ ...l, id: l.serialNo }))}
+      <Table loading={loading} data={filtered}
         columns={[
           { key: "date", header: "Date/Time", render: (r) => formatDateTime(r.date) },
           { key: "userName", header: "User" },

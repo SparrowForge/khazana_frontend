@@ -2,7 +2,7 @@ import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Price {
-  priceOId: string;
+  id: string;
   priceItemOId?: string;
   priceFromDate?: string;
   priceToDate?: string;

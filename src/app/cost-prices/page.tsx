@@ -49,7 +49,7 @@ export default function CostPricesPage() {
     setSaving(true);
     try {
       const payload = { ...form, priceListPrice: parseFloat(form.priceListPrice) };
-      if (editing) await updateCostPrice(editing.priceOId, payload);
+      if (editing) await updateCostPrice(editing.id, payload);
       else await createCostPrice(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
@@ -59,7 +59,7 @@ export default function CostPricesPage() {
   return (
     <AppLayout>
       <PageHeader title="Cost Price Setup" action={{ label: "New Cost Price", onClick: openCreate, icon: <Plus size={16} /> }} />
-      <Table loading={loading} data={prices.map((p) => ({ ...p, id: p.priceOId }))}
+      <Table loading={loading} data={prices}
         columns={[
           { key: "item", header: "Item", render: (r) => `${r.item?.itmCode ?? ""} — ${r.item?.itmName ?? ""}` },
           { key: "priceFromDate", header: "From", render: (r) => formatDate(r.priceFromDate) },

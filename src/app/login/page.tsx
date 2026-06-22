@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +18,8 @@ const schema = z.object({
 });
 type LoginForm = z.infer<typeof schema>;
 
+const DEBOUNCE_MS = 600;
+
 export default function LoginPage() {
   const router = useRouter();
   const { login: storeLogin } = useAuthStore();
@@ -25,6 +27,9 @@ export default function LoginPage() {
   const [branches, setBranches] = useState<UserBranch[]>([]);
   const [branchesReady, setBranchesReady] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+
+  // Holds the pending debounce timer so onChange can cancel it on the next keystroke
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
@@ -39,14 +44,21 @@ export default function LoginPage() {
   const loadBranches = useCallback(
     async (userName: string) => {
       const trimmed = userName.trim();
-      if (!trimmed) return;
+      if (!trimmed) {
+        // Username cleared — reset branch state
+        setBranches([]);
+        setBranchesReady(false);
+        setValue("branchId", "");
+        return;
+      }
       setLoadingBranches(true);
       setBranchesReady(false);
+      setValue("branchId", "");
       try {
         const { branches: list } = await getUserBranches(trimmed);
         setBranches(list);
         setBranchesReady(true);
-        // Auto-select when there is only one branch
+        // Auto-select when the user has exactly one branch
         if (list.length === 1) {
           setValue("branchId", list[0].id, { shouldValidate: true });
         }
@@ -58,6 +70,34 @@ export default function LoginPage() {
       }
     },
     [setValue],
+  );
+
+  // onChange: debounce so we don't fire on every keystroke
+  const handleUserNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Let react-hook-form track the value
+      register("userName").onChange(e);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        loadBranches(e.target.value);
+      }, DEBOUNCE_MS);
+    },
+    [register, loadBranches],
+  );
+
+  // onBlur: cancel pending debounce and load immediately
+  const handleUserNameBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      register("userName").onBlur(e);
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      loadBranches(e.target.value);
+    },
+    [register, loadBranches],
   );
 
   const onSubmit = async (data: LoginForm) => {
@@ -94,10 +134,8 @@ export default function LoginPage() {
             placeholder="Enter your username"
             error={errors.userName?.message}
             {...register("userName")}
-            onBlur={(e) => {
-              register("userName").onBlur(e);
-              loadBranches(e.target.value);
-            }}
+            onChange={handleUserNameChange}
+            onBlur={handleUserNameBlur}
           />
 
           <Input

@@ -11,9 +11,9 @@ export interface User {
   id: string;
   name: string | null;
   userName: string;
+  /** The branch selected at login time for the current session */
   branchId: string;
-  branchName?: string;
-  branch?: Branch;
+  branchName?: string | null;
   isActive?: string;
   permissions?: UserPermission[];
 }

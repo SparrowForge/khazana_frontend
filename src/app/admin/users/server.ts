@@ -1,15 +1,14 @@
 import api from "@/lib/api";
-import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface AdminUser {
   id: string;
   name?: string;
   userName: string;
   email?: string;
-  branchId: string;
   isActive?: string;
   isVerified?: boolean;
-  branch?: { branchName: string };
+  branchMappings?: { branch: { id: string; branchName: string | null; branchCode: string | null } }[];
 }
 
 export interface AdminUserPayload {
@@ -17,13 +16,14 @@ export interface AdminUserPayload {
   userName?: string;
   email?: string;
   password?: string;
-  branchId: string;
+  branchIds: string[];
   isActive?: string;
 }
 
 export interface Branch {
   id: string;
-  branchName: string;
+  branchName: string | null;
+  branchCode: string | null;
 }
 
 export const fetchUsers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<AdminUser>> =>
@@ -36,4 +36,8 @@ export const updateUser = (id: string, data: Partial<AdminUserPayload>) =>
   api.patch<AdminUser>(`/users/${id}`, data).then((r) => r.data);
 
 export const fetchBranches = (): Promise<Branch[]> =>
-  api.get("/admin/branches").then(unwrapList<Branch>);
+  api.get("/admin/branches").then((r) => {
+    const body = r.data;
+    // Handles both paginated { items: [] } and plain array responses
+    return Array.isArray(body) ? body : (body?.items ?? []);
+  });

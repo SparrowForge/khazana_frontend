@@ -22,10 +22,10 @@ export interface Permission {
 }
 
 export const fetchRoles = (): Promise<Role[]> =>
-  api.get("/roles?page=1&limit=200").then(unwrapPaginated<Role>).then((r) => r.items);
+  api.get("/roles?page=1&limit=100").then(unwrapPaginated<Role>).then((r) => r.items);
 
 export const fetchMenus = (): Promise<Menu[]> =>
-  api.get("/menus?page=1&limit=200").then(unwrapPaginated<Menu>).then((r) => r.items);
+  api.get("/menus?page=1&limit=100").then(unwrapPaginated<Menu>).then((r) => r.items);
 
 export const fetchPermissions = (roleId: string): Promise<Permission[]> =>
   api.get(`/permissions/role/${roleId}`).then((r) => r.data ?? []);

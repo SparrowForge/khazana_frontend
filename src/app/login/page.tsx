@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,7 +22,19 @@ const DEBOUNCE_MS = 600;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login: storeLogin } = useAuthStore();
+  const { login: storeLogin, isAuthenticated } = useAuthStore();
+
+  // Already signed in (valid persisted token) → bounce to the dashboard.
+  // Wait for hydration so the persisted zustand state is read before deciding.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (hydrated && isAuthenticated) {
+      router.replace("/");
+    }
+  }, [hydrated, isAuthenticated, router]);
 
   const [branches, setBranches] = useState<UserBranch[]>([]);
   // "idle"    → username not yet checked — branch dropdown is hidden
@@ -118,6 +130,10 @@ export default function LoginPage() {
       toast.error(msg ?? "Login failed");
     }
   };
+
+  // Don't flash the form before hydration settles or while redirecting an
+  // already-authenticated user to the dashboard.
+  if (!hydrated || isAuthenticated) return null;
 
   const branchPlaceholder =
     branchLoadState === "loading"

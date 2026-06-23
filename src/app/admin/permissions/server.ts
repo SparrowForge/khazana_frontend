@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { unwrapList, unwrapPaginated } from "@/lib/unwrap";
+import { unwrapPaginated } from "@/lib/unwrap";
 
 export interface Role {
   id: string;

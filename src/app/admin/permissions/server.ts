@@ -1,34 +1,35 @@
-﻿import api from "@/lib/api";
-import { unwrapList } from "@/lib/unwrap";
+import api from "@/lib/api";
+import { unwrapList, unwrapPaginated } from "@/lib/unwrap";
 
 export interface Role {
-  id: number;
+  id: string;
   name: string;
 }
 
 export interface Menu {
-  id: number;
+  id: string;
   menuName: string;
   controlName: string;
+  parentMenu: string | null;
 }
 
 export interface Permission {
-  menuId: number;
+  menuId: string;
   isEnable: boolean;
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
+export const fetchRoles = (): Promise<Role[]> =>
+  api.get("/roles?page=1&limit=200").then(unwrapPaginated<Role>).then((r) => r.items);
 
-export const fetchRoles = () =>
-  api.get<{ data: Role[] } | Role[]>("/roles").then(unwrapList<Role>);
+export const fetchMenus = (): Promise<Menu[]> =>
+  api.get("/menus?page=1&limit=200").then(unwrapPaginated<Menu>).then((r) => r.items);
 
-export const fetchMenus = () =>
-  api.get<{ data: Menu[] } | Menu[]>("/menus").then(unwrapList<Menu>);
+export const fetchPermissions = (roleId: string): Promise<Permission[]> =>
+  api.get(`/permissions/role/${roleId}`).then((r) => r.data ?? []);
 
-export const fetchPermissions = (roleId: string) =>
-  api.get<{ data: Permission[] } | Permission[]>(`/permissions/role/${roleId}`).then(unwrapList<Permission>);
-
+/** Sync-save: PUT replaces all permissions for the role in one transaction. */
 export const savePermissions = (roleId: string, permissions: Permission[]) =>
-  api.post(`/permissions/role/${roleId}/bulk`, { permissions }).then((r) => r.data);
+  api.put(`/permissions/role/${roleId}`, { permissions }).then((r) => r.data);

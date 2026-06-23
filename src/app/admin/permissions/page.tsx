@@ -4,14 +4,30 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import { fetchRoles, fetchMenus, fetchPermissions, savePermissions, type Role, type Menu, type Permission } from "./server";
+import {
+  fetchRoles,
+  fetchMenus,
+  fetchPermissions,
+  savePermissions,
+  type Role,
+  type Menu,
+  type Permission,
+} from "./server";
 import toast from "react-hot-toast";
+
+const EMPTY_PERM = (menuId: string): Permission => ({
+  menuId,
+  isEnable: false,
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+});
 
 export default function PermissionsPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>("");
-  const [permissions, setPermissions] = useState<Record<number, Permission>>({});
+  const [permList, setPermList] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -21,38 +37,45 @@ export default function PermissionsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedRole) return;
+    if (!selectedRole) { setPermList([]); return; }
     setLoading(true);
     fetchPermissions(selectedRole)
-      .then((perms) => {
-        const permMap: Record<number, Permission> = {};
-        perms.forEach((p) => { permMap[p.menuId] = p; });
-        setPermissions(permMap);
-      })
+      .then(setPermList)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [selectedRole]);
 
-  const toggle = (menuId: number, field: keyof Permission) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [menuId]: { ...{ isEnable: false, canCreate: false, canEdit: false, canDelete: false }, ...prev[menuId], [field]: !(prev[menuId]?.[field] ?? false) },
-    }));
+  const getPermForMenu = (menuId: string): Permission =>
+    permList.find((p) => p.menuId === menuId) ?? EMPTY_PERM(menuId);
+
+  const toggle = (menuId: string, field: keyof Omit<Permission, "menuId">) => {
+    setPermList((prev) => {
+      const flipOne = (p: Permission): Permission => {
+        const next = { ...p };
+        next[field] = !next[field];
+        return next;
+      };
+      const idx = prev.findIndex((p) => p.menuId === menuId);
+      if (idx !== -1) {
+        return prev.map((p) => (p.menuId === menuId ? flipOne(p) : p));
+      }
+      const fresh = flipOne(EMPTY_PERM(menuId));
+      return [...prev, fresh];
+    });
   };
 
   const handleSave = async () => {
     if (!selectedRole) return;
     setSaving(true);
     try {
-      const defaults = { isEnable: false, canCreate: false, canEdit: false, canDelete: false };
-      const payload = menus.map((m) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { menuId: _id, ...perms } = permissions[m.id] ?? {};
-        return { menuId: m.id, ...defaults, ...perms } as Permission;
-      });
+      const payload: Permission[] = menus.map((m) => getPermForMenu(m.id));
       await savePermissions(selectedRole, payload);
       toast.success("Permissions saved");
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,6 +91,13 @@ export default function PermissionsPage() {
           className="w-64"
         />
       </div>
+
+      {loading && (
+        <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+          Loading permissions...
+        </div>
+      )}
+
       {selectedRole && !loading && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
@@ -81,25 +111,37 @@ export default function PermissionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {menus.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-medium text-gray-700">{m.menuName}</td>
-                  {(["isEnable", "canCreate", "canEdit", "canDelete"] as const).map((field) => (
-                    <td key={field} className="px-4 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={permissions[m.id]?.[field] ?? false}
-                        onChange={() => toggle(m.id, field)}
-                        className="w-4 h-4 accent-primary-800"
-                      />
+              {menus.map((m) => {
+                const perm = getPermForMenu(m.id);
+                return (
+                  <tr
+                    key={m.id}
+                    className={`hover:bg-gray-50 ${!m.parentMenu ? "bg-gray-50/60 font-medium" : ""}`}
+                  >
+                    <td className="px-4 py-2 text-gray-700">
+                      {m.parentMenu
+                        ? <span className="pl-5 text-gray-600">{m.menuName}</span>
+                        : m.menuName}
                     </td>
-                  ))}
-                </tr>
-              ))}
+                    {(["isEnable", "canCreate", "canEdit", "canDelete"] as const).map((field) => (
+                      <td key={field} className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={perm[field]}
+                          onChange={() => toggle(m.id, field)}
+                          className="w-4 h-4 accent-primary-800"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <div className="px-4 py-3 border-t flex justify-end">
-            <Button onClick={handleSave} loading={saving}>Save Permissions</Button>
+            <Button onClick={handleSave} loading={saving}>
+              Save Permissions
+            </Button>
           </div>
         </div>
       )}

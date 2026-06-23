@@ -120,6 +120,7 @@ const navItems: NavItem[] = [
       { label: "Users", href: "/admin/users", icon: <Users size={16} />, controlName: "Users" },
       { label: "Roles", href: "/admin/roles", icon: <UserCog size={16} />, controlName: "RolesPermissions" },
       { label: "Permissions", href: "/admin/permissions", icon: <Settings size={16} />, controlName: "RolesPermissions" },
+      { label: "User Role Permission", href: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
       { label: "Branches", href: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Admin" },
       { label: "Audit Log", href: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "Admin" },
       { label: "System Settings", href: "/admin/settings", icon: <Settings size={16} />, controlName: "Admin" },

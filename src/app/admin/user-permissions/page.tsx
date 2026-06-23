@@ -10,7 +10,7 @@ import {
   fetchRoles,
   getUserPermissions,
   importRoleTemplate,
-  saveUserPermissionsBatch,
+  saveUserRoles,
   type UserItem,
   type Menu,
   type Role,
@@ -160,9 +160,10 @@ export default function UserPermissionsPage() {
     }
     setSaving(true);
     try {
-      // Send the full grid for every menu so the sync replaces each user's set completely.
+      // Send the full grid for every menu so the save replaces each user's set completely.
       const payload = menus.map((m) => getPerm(m.controlName));
-      await saveUserPermissionsBatch(targets, payload);
+      // POST /users/{userName}/roles per selected user (delete-then-insert t_UserRole).
+      await Promise.all(targets.map((userName) => saveUserRoles(userName, payload)));
       toast.success(`Permissions updated for ${targets.length} user(s)`);
     } catch {
       toast.error("Failed to save permissions");

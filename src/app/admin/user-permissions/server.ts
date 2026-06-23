@@ -68,10 +68,9 @@ export const importRoleTemplate = (roleId: string): Promise<UserPermission[]> =>
     })),
   );
 
-/** Sync-save: PUT replaces all t_UserRole entries for a single user in one transaction. */
-export const saveUserPermissions = (userName: string, permissions: UserPermission[]) =>
-  api.put(`/users/${userName}/permissions`, { roles: permissions }).then((r) => r.data);
-
-/** Batch sync-save: apply one grid to many users in a single transaction. */
-export const saveUserPermissionsBatch = (userNames: string[], permissions: UserPermission[]) =>
-  api.put(`/users/permissions/batch`, { userNames, permissions }).then((r) => r.data);
+/**
+ * Save the grid to one user via the roles endpoint (delete-then-insert t_UserRole).
+ * Payload shape: { roles: UserPermission[] }.
+ */
+export const saveUserRoles = (userName: string, permissions: UserPermission[]) =>
+  api.post(`/users/${userName}/roles`, { roles: permissions }).then((r) => r.data);

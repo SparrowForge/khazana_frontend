@@ -69,8 +69,19 @@ export const importRoleTemplate = (roleId: string): Promise<UserPermission[]> =>
   );
 
 /**
- * Save the grid to one user via the roles endpoint (delete-then-insert t_UserRole).
- * Payload shape: { roles: UserPermission[] }.
+ * Save the grid to one user (delete-then-insert t_UserRole). Payload: { roles: [...] }.
+ * Strip to the 5 allowed fields — getUserPermissions() returns raw t_UserRole rows that
+ * also carry userId, which the backend's whitelist validation rejects.
  */
-export const saveUserRoles = (userName: string, permissions: UserPermission[]) =>
-  api.post(`/users/${userName}/roles`, { roles: permissions }).then((r) => r.data);
+export const saveUserPermissions = (userName: string, permissions: UserPermission[]) =>
+  api
+    .put(`/users/${userName}/permissions`, {
+      roles: permissions.map(({ controlName, isEnable, addAccess, editAccess, deleteAccess }) => ({
+        controlName,
+        isEnable,
+        addAccess,
+        editAccess,
+        deleteAccess,
+      })),
+    })
+    .then((r) => r.data);

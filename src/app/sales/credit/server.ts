@@ -3,7 +3,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface AvailableItem {
-  id: number;
+  id: string;
   itmCode: string;
   itmName?: string;
   price?: number;
@@ -25,7 +25,7 @@ export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
 export const fetchCustomers = () =>
-  api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers?limit=500")
+  api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers")
     .then(unwrapList<{ id: number; code: string; name: string }>);
 
 export const createCreditSale = (data: CreditSalePayload) =>

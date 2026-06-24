@@ -3,7 +3,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
 
 export interface AvailableItem {
-  id: number;
+  id: string;
   itmCode: string;
   itmName?: string;
   price?: number;

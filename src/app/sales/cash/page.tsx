@@ -53,6 +53,8 @@ export default function CashSalePage() {
       setSubmitting(false);
     }
   };
+  
+  console.log(availableItems)
 
   return (
     <AppLayout>

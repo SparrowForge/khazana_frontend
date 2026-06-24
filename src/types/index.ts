@@ -55,16 +55,15 @@ export interface Customer {
 }
 
 export interface SaleItem {
-  itemId: number;
+  itemId: string; // UUID
   itemCode: string;
-  itemName?: string;
+  itemName: string;
   quantity: number;
   rate: number;
   discount: number;
   vat: number;
   total: number;
 }
-
 export interface PaginationMeta {
   total: number;
   page: number;

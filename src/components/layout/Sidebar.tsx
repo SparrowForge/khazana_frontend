@@ -76,9 +76,9 @@ function NavLinkRow({ link }: { link: RenderLink }) {
   );
 }
 
-function NavGroup({ label, icon, children }: { label: string; icon: React.ReactNode; children: RenderLink[] }) {
+function NavGroup({ label, icon, links }: { label: string; icon: React.ReactNode; links: RenderLink[] }) {
   const pathname = usePathname();
-  const isChildActive = children.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
+  const isChildActive = links.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
   const [open, setOpen] = useState(isChildActive);
 
   return (
@@ -95,7 +95,7 @@ function NavGroup({ label, icon, children }: { label: string; icon: React.ReactN
       </button>
       {open && (
         <div className="ml-4 mt-1 space-y-0.5 border-l border-slate-600 pl-2">
-          {children.map((child) => (
+          {links.map((child) => (
             <Link
               key={child.href}
               href={child.href}
@@ -144,7 +144,7 @@ export default function Sidebar() {
           item.kind === "link" ? (
             <NavLinkRow key={item.href} link={item} />
           ) : (
-            <NavGroup key={item.label} label={item.label} icon={item.icon} children={item.children} />
+            <NavGroup key={item.label} label={item.label} icon={item.icon} links={item.children} />
           )
         )}
       </nav>

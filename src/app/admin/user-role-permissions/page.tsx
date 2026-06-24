@@ -37,7 +37,8 @@ export default function UserRolePermissionsPage() {
   const toggleUser = (userName: string) =>
     setSelectedUsers((prev) => {
       const next = new Set(prev);
-      next.has(userName) ? next.delete(userName) : next.add(userName);
+      if (next.has(userName)) next.delete(userName);
+      else next.add(userName);
       return next;
     });
 
@@ -53,7 +54,8 @@ export default function UserRolePermissionsPage() {
   const toggleRole = (roleId: string) =>
     setSelectedRoles((prev) => {
       const next = new Set(prev);
-      next.has(roleId) ? next.delete(roleId) : next.add(roleId);
+      if (next.has(roleId)) next.delete(roleId);
+      else next.add(roleId);
       return next;
     });
 

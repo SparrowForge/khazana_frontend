@@ -30,6 +30,17 @@ export const fetchMenus = (): Promise<Menu[]> =>
 export const fetchPermissions = (roleId: string): Promise<Permission[]> =>
   api.get(`/permissions/role/${roleId}`).then((r) => r.data ?? []);
 
-/** Sync-save: PUT replaces all permissions for the role in one transaction. */
-export const savePermissions = (roleId: string, permissions: Permission[]) =>
-  api.put(`/permissions/role/${roleId}`, { permissions }).then((r) => r.data);
+/** Sync-save: PUT replaces all permissions for the role in one transaction.
+ * Sanitises each item to exactly the fields the backend DTO whitelists — rows
+ * loaded via fetchPermissions carry extra fields (id/roleId/menu) that the strict
+ * ValidationPipe would otherwise reject with a 400. */
+export const savePermissions = (roleId: string, permissions: Permission[]) => {
+  const clean = permissions.map(({ menuId, isEnable, canCreate, canEdit, canDelete }) => ({
+    menuId,
+    isEnable,
+    canCreate,
+    canEdit,
+    canDelete,
+  }));
+  return api.put(`/permissions/role/${roleId}`, { permissions: clean }).then((r) => r.data);
+};

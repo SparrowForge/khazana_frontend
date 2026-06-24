@@ -2,175 +2,84 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
-  Layers, Settings, ChevronDown, ChevronRight, BarChart2,
-  DollarSign, Warehouse, FileText, UserCog, LogOut, RefreshCw,
-  Receipt,
-} from "lucide-react";
-import { useState } from "react";
+import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
 import type { UserPermission } from "@/types";
+import { fetchNavMenus, type NavMenu } from "@/lib/services/menu.service";
+import { NAV_REGISTRY } from "@/lib/navRegistry";
 
-interface NavItem {
+interface RenderLink {
   label: string;
-  href?: string;
+  href: string;
   icon: React.ReactNode;
-  controlName?: string;
-  children?: NavItem[];
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: <LayoutDashboard size={18} />, controlName: "Dashboard" },
-  {
-    label: "POS Billing", icon: <Receipt size={18} />,
-    children: [
-      { label: "POS Terminal", href: "/pos", icon: <ShoppingCart size={16} /> },
-      { label: "POS Sales", href: "/pos/sales", icon: <FileText size={16} /> },
-    ],
-  },
-  {
-    label: "Sales", icon: <ShoppingCart size={18} />, controlName: "Sales",
-    children: [
-      { label: "Cash Sales", href: "/sales/cash", icon: <DollarSign size={16} />, controlName: "CashSales" },
-      { label: "Credit Sales", href: "/sales/credit", icon: <DollarSign size={16} />, controlName: "CreditSales" },
-      { label: "VAT Cash Sales", href: "/sales/vat/cash", icon: <DollarSign size={16} />, controlName: "VatCashSales" },
-      { label: "VAT Credit Sales", href: "/sales/vat/credit", icon: <DollarSign size={16} />, controlName: "VatCreditSales" },
-      { label: "Sales List", href: "/sales", icon: <FileText size={16} />, controlName: "Sales" },
-    ],
-  },
-  {
-    label: "NC Adjustment", icon: <RefreshCw size={18} />, controlName: "NCAdjustment",
-    children: [
-      { label: "New NC", href: "/nc-adjustment", icon: <FileText size={16} />, controlName: "NCAdjustment" },
-      { label: "NC List", href: "/nc-adjustment/list", icon: <ClipboardList size={16} />, controlName: "NCAdjustment" },
-    ],
-  },
-  {
-    label: "Assortment", icon: <Layers size={18} />, controlName: "Assortment",
-    children: [
-      { label: "New Assortment", href: "/assortment", icon: <FileText size={16} />, controlName: "Assortment" },
-      { label: "Assortment List", href: "/assortment/list", icon: <ClipboardList size={16} />, controlName: "Assortment" },
-    ],
-  },
-  {
-    label: "Inventory", icon: <Warehouse size={18} />, controlName: "Inventory",
-    children: [     
-      { label: "Categories", href: "/inventory/categories", icon: <Layers size={16} />, controlName: "Items" },
-      { label: "Items", href: "/inventory/items", icon: <Package size={16} />, controlName: "Items" },
-      { label: "Stock View", href: "/inventory", icon: <BarChart2 size={16} />, controlName: "StockView" },
-      { label: "Stock Receive", href: "/inventory/receive", icon: <FileText size={16} />, controlName: "StockReceive" },
-      { label: "Stock Issue", href: "/inventory/issue", icon: <FileText size={16} />, controlName: "StockIssue" },
-      { label: "Stock Transfer", href: "/inventory/transfer", icon: <FileText size={16} />, controlName: "StockTransfer" },
-      { label: "Stock Adjustment", href: "/inventory/adjustment", icon: <RefreshCw size={16} />, controlName: "StockAdjustment" },
-    ],
-  },
-  {
-    label: "Packets", icon: <Package size={18} />, controlName: "Packets",
-    children: [
-      { label: "Packet Info", href: "/packets", icon: <Package size={16} />, controlName: "Packets" },
-      { label: "Packet Receive", href: "/packets/receive", icon: <FileText size={16} />, controlName: "Packets" },
-      { label: "Packet Issue", href: "/packets/issue", icon: <FileText size={16} />, controlName: "Packets" },
-      { label: "Packet Stock", href: "/packets/stock", icon: <BarChart2 size={16} />, controlName: "Packets" },
-    ],
-  },
-  {
-    label: "Customers", icon: <Users size={18} />, controlName: "Customers",
-    children: [
-      { label: "Customer List", href: "/customers", icon: <Users size={16} />, controlName: "Customers" },
-      { label: "Customer Payments", href: "/customers/payments", icon: <DollarSign size={16} />, controlName: "Customers" },
-    ],
-  },
-  {
-    label: "Pricing", icon: <DollarSign size={18} />, controlName: "Pricing",
-    children: [
-      { label: "Price Setup", href: "/prices", icon: <DollarSign size={16} />, controlName: "Pricing" },
-      { label: "Cost Price Setup", href: "/cost-prices", icon: <DollarSign size={16} />, controlName: "Pricing" },
-    ],
-  },
-  {
-    label: "Orders", icon: <ClipboardList size={18} />, controlName: "Orders",
-    children: [
-      { label: "Orders", href: "/orders", icon: <ClipboardList size={16} />, controlName: "Orders" },
-      { label: "VAT Orders", href: "/orders/vat", icon: <ClipboardList size={16} />, controlName: "Orders" },
-    ],
-  },
-  {
-    label: "Finance", icon: <DollarSign size={18} />, controlName: "Finance",
-    children: [
-      { label: "Money Receive", href: "/finance/money-receive", icon: <DollarSign size={16} />, controlName: "Finance" },
-      { label: "Cash Purchase", href: "/finance/cash-purchase", icon: <FileText size={16} />, controlName: "Finance" },
-    ],
-  },
-  {
-    label: "Reports", icon: <BarChart2 size={18} />, controlName: "Reports",
-    children: [
-      { label: "Sales Report", href: "/reports/sales", icon: <BarChart2 size={16} />, controlName: "Reports" },
-      { label: "Stock Report", href: "/reports/stock", icon: <BarChart2 size={16} />, controlName: "Reports" },
-      { label: "Customer Statement", href: "/reports/customer-statement", icon: <FileText size={16} />, controlName: "Reports" },
-      { label: "Daily Summary", href: "/reports/daily", icon: <FileText size={16} />, controlName: "Reports" },
-      { label: "Item-wise Sales", href: "/reports/item-sales", icon: <FileText size={16} />, controlName: "Reports" },
-      { label: "Packet Analysis", href: "/reports/packet", icon: <FileText size={16} />, controlName: "Reports" },
-    ],
-  },
-  {
-    label: "Administration", icon: <UserCog size={18} />, controlName: "Admin",
-    children: [
-      { label: "Users", href: "/admin/users", icon: <Users size={16} />, controlName: "Users" },
-      { label: "Roles", href: "/admin/roles", icon: <UserCog size={16} />, controlName: "RolesPermissions" },
-      { label: "Permissions", href: "/admin/permissions", icon: <Settings size={16} />, controlName: "RolesPermissions" },
-      { label: "User Role Permission", href: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
-      { label: "Branches", href: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Admin" },
-      { label: "Audit Log", href: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "Admin" },
-      { label: "System Settings", href: "/admin/settings", icon: <Settings size={16} />, controlName: "Admin" },
-    ],
-  },
-];
+type RenderItem =
+  | ({ kind: "link" } & RenderLink)
+  | { kind: "group"; label: string; icon: React.ReactNode; children: RenderLink[] };
 
 function isEnabled(controlName: string, permissions: UserPermission[]): boolean {
   const perm = permissions.find((p) => p.controlName === controlName);
   return perm?.isEnable === "Y";
 }
 
-function filterNavItems(items: NavItem[], permissions: UserPermission[]): NavItem[] {
-  return items.reduce<NavItem[]>((acc, item) => {
-    if (item.children) {
-      const visibleChildren = filterNavItems(item.children, permissions);
-      const parentAllowed = !item.controlName || isEnabled(item.controlName, permissions);
-      if (parentAllowed && visibleChildren.length > 0) {
-        acc.push({ ...item, children: visibleChildren });
-      }
-    } else {
-      if (!item.controlName || isEnabled(item.controlName, permissions)) {
-        acc.push(item);
+/**
+ * Build the navigation from DB menus (which top-level groups appear + order +
+ * label + permission controlName) joined with the frontend registry (icons +
+ * leaf links). Each item is permission-filtered using the user's permissions.
+ */
+function buildNav(menus: NavMenu[], permissions: UserPermission[]): RenderItem[] {
+  const topLevel = menus
+    .filter((m) => !m.parentMenu)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const items: RenderItem[] = [];
+  for (const menu of topLevel) {
+    const meta = NAV_REGISTRY[menu.controlName];
+    if (!meta) continue; // DB row with no frontend mapping → skip
+    if (!isEnabled(menu.controlName, permissions)) continue; // group/link not allowed
+
+    if (meta.route) {
+      items.push({ kind: "link", label: menu.menuName, href: meta.route, icon: meta.icon });
+      continue;
+    }
+
+    if (meta.links) {
+      const children = meta.links
+        .filter((l) => isEnabled(l.controlName ?? menu.controlName, permissions))
+        .map((l) => ({ label: l.label, href: l.route, icon: l.icon }));
+      if (children.length > 0) {
+        items.push({ kind: "group", label: menu.menuName, icon: meta.icon, children });
       }
     }
-    return acc;
-  }, []);
+  }
+  return items;
 }
 
-function NavGroup({ item }: { item: NavItem }) {
+function NavLinkRow({ link }: { link: RenderLink }) {
   const pathname = usePathname();
-  const isChildActive = item.children?.some((c) => c.href && pathname.startsWith(c.href));
-  const [open, setOpen] = useState(isChildActive ?? false);
+  return (
+    <Link
+      href={link.href}
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+        pathname === link.href
+          ? "bg-primary-800 text-white"
+          : "text-slate-300 hover:bg-slate-700 hover:text-white"
+      )}
+    >
+      {link.icon}
+      <span>{link.label}</span>
+    </Link>
+  );
+}
 
-  if (!item.children) {
-    return (
-      <Link
-        href={item.href!}
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-          pathname === item.href
-            ? "bg-primary-800 text-white"
-            : "text-slate-300 hover:bg-slate-700 hover:text-white"
-        )}
-      >
-        {item.icon}
-        <span>{item.label}</span>
-      </Link>
-    );
-  }
+function NavGroup({ label, icon, children }: { label: string; icon: React.ReactNode; children: RenderLink[] }) {
+  const pathname = usePathname();
+  const isChildActive = children.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
+  const [open, setOpen] = useState(isChildActive);
 
   return (
     <div>
@@ -181,15 +90,15 @@ function NavGroup({ item }: { item: NavItem }) {
           isChildActive ? "text-white bg-slate-700" : "text-slate-300 hover:bg-slate-700 hover:text-white"
         )}
       >
-        <span className="flex items-center gap-2">{item.icon}{item.label}</span>
+        <span className="flex items-center gap-2">{icon}{label}</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       {open && (
         <div className="ml-4 mt-1 space-y-0.5 border-l border-slate-600 pl-2">
-          {item.children.map((child) => (
+          {children.map((child) => (
             <Link
               key={child.href}
-              href={child.href!}
+              href={child.href}
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors",
                 pathname === child.href
@@ -210,13 +119,18 @@ function NavGroup({ item }: { item: NavItem }) {
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [menus, setMenus] = useState<NavMenu[]>([]);
+
+  useEffect(() => {
+    fetchNavMenus().then(setMenus).catch(() => setMenus([]));
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.push("/login");
   };
 
-  const visibleItems = filterNavItems(navItems, user?.permissions ?? []);
+  const items = buildNav(menus, user?.permissions ?? []);
 
   return (
     <aside className="h-screen w-60 bg-slate-800 flex flex-col overflow-y-auto shrink-0">
@@ -226,9 +140,13 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {visibleItems.map((item) => (
-          <NavGroup key={item.label} item={item} />
-        ))}
+        {items.map((item) =>
+          item.kind === "link" ? (
+            <NavLinkRow key={item.href} link={item} />
+          ) : (
+            <NavGroup key={item.label} label={item.label} icon={item.icon} children={item.children} />
+          )
+        )}
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-700">

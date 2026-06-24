@@ -17,7 +17,12 @@ export interface Paginated<T> {
 const DEFAULT_META: PaginationMeta = { total: 0, page: 1, limit: 10, totalPages: 1, hasNextPage: false, hasPreviousPage: false };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const unwrapList = <T>(r: any): T[] => r.data?.data?.items ?? [];
+export const unwrapList = <T>(r: any): T[] => {
+  const d = r.data;
+  if (Array.isArray(d)) return d;            // raw array: [ ... ]
+  if (Array.isArray(d?.data)) return d.data; // wrapped: { data: [ ... ] }
+  return d?.data?.items ?? [];               // paginated: { data: { items: [ ... ] } }
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const unwrapPaginated = <T>(r: any): Paginated<T> => ({

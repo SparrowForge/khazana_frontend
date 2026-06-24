@@ -27,8 +27,13 @@ export const fetchAllCustomers = (limit = 500): Promise<Customer[]> =>
 export const createCustomer = (data: CustomerPayload) =>
   api.post<Customer>("/customers", data).then((r) => r.data);
 
-export const updateCustomer = (code: string, data: Partial<CustomerPayload>) =>
-  api.patch<Customer>(`/customers/${code}`, data).then((r) => r.data);
+export const updateCustomer = (code: string, data: Partial<CustomerPayload>) => {
+  // `code` is the path identifier and the primary key — it must not be in the body.
+  // The backend UpdateCustomerDto doesn't whitelist it, so sending it returns a 400.
+  const body = { ...data };
+  delete body.code;
+  return api.patch<Customer>(`/customers/${code}`, body).then((r) => r.data);
+};
 
 export const deleteCustomer = (code: string) =>
   api.delete(`/customers/${code}`).then((r) => r.data);

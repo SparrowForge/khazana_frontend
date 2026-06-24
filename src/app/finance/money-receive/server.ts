@@ -32,4 +32,4 @@ export const createMoneyReceive = (data: MoneyReceivePayload) =>
   api.post<MoneyReceive>("/finance/money-receive", data).then((r) => r.data);
 
 export const fetchCustomers = (): Promise<Customer[]> =>
-  api.get("/customers?limit=500").then(unwrapList<Customer>);
+  api.get("/customers?limit=100").then(unwrapList<Customer>);

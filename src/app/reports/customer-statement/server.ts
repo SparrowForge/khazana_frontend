@@ -19,7 +19,7 @@ export interface StatementRow {
 
 
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=100").then(unwrapList<Customer>);
 
 export const fetchCustomerStatement = (from: string, to: string, customerCode: string) =>
   api.get<{ data: StatementRow[] } | StatementRow[]>(`/reports/customer-statement?from=${from}&to=${to}&customerCode=${customerCode}`)

@@ -16,7 +16,7 @@ export interface PacketIssuePayload {
 
 
 export const fetchPackets = () =>
-  api.get<{ data: PacketOption[] } | PacketOption[]>("/packets?limit=500").then(unwrapList<PacketOption>);
+  api.get<{ data: PacketOption[] } | PacketOption[]>("/packets?limit=100").then(unwrapList<PacketOption>);
 
 export const issuePackets = (data: PacketIssuePayload) =>
   api.post("/packets/issue", data).then((r) => r.data);

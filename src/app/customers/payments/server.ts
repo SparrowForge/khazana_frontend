@@ -34,4 +34,4 @@ export const createPayment = (data: PaymentPayload) =>
   api.post<Payment>("/customers/payments", data).then((r) => r.data);
 
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=500").then(unwrapList<Customer>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=100").then(unwrapList<Customer>);

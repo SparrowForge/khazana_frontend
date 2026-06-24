@@ -15,7 +15,7 @@ export interface PacketReceivePayload {
 
 
 export const fetchPackets = () =>
-  api.get<{ data: PacketOption[] } | PacketOption[]>("/packets?limit=500").then(unwrapList<PacketOption>);
+  api.get<{ data: PacketOption[] } | PacketOption[]>("/packets?limit=100").then(unwrapList<PacketOption>);
 
 export const receivePackets = (data: PacketReceivePayload) =>
   api.post("/packets/receive", data).then((r) => r.data);

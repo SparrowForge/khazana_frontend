@@ -32,7 +32,7 @@ interface RolePermRow {
 }
 
 export const fetchUsers = (): Promise<UserItem[]> =>
-  api.get("/users?page=1&limit=200").then(unwrapPaginated<UserItem>).then((r) => r.items);
+  api.get("/users?page=1&limit=100").then(unwrapPaginated<UserItem>).then((r) => r.items);
 
 export const fetchRoles = (): Promise<Role[]> =>
   api.get("/roles?page=1&limit=100").then(unwrapPaginated<Role>).then((r) => r.items);

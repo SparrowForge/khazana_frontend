@@ -3,8 +3,8 @@ import api from "@/lib/api";
 export interface DailySummary {
   cashSales?: number;
   creditSales?: number;
-  vatCashSales?: number;
-  vatCreditSales?: number;
+  ncSales?: number;
+  orderCollection?: number;
   totalSales?: number;
   totalRevenue?: number;
 }

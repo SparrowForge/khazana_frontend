@@ -36,8 +36,8 @@ export default function DailySummaryPage() {
           {[
             { label: "Cash Sales", value: summary.cashSales ?? 0 },
             { label: "Credit Sales", value: summary.creditSales ?? 0 },
-            { label: "VAT Cash Sales", value: summary.vatCashSales ?? 0 },
-            { label: "VAT Credit Sales", value: summary.vatCreditSales ?? 0 },
+            { label: "NC Sales", value: summary.ncSales ?? 0 },
+            { label: "Order Collection", value: summary.orderCollection ?? 0 },
           ].map((s) => (
             <Card key={s.label}>
               <p className="text-xs text-gray-500">{s.label}</p>

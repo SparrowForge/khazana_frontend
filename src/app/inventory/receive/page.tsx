@@ -6,21 +6,26 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { fetchItems, receiveStock, type AvailableItem } from "./server";
+import { fetchItems, fetchBranches, receiveStock, type AvailableItem, type BranchOption } from "./server";
+import { useAuthStore } from "@/store/auth.store";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
 interface ReceiveLine { itemCode: string; qty: string; }
 
 export default function StockReceivePage() {
+  const user = useAuthStore((s) => s.user);
   const [voucherNo, setVoucherNo] = useState("");
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
+  const [fromBranchId, setFromBranchId] = useState("");
+  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [lines, setLines] = useState<ReceiveLine[]>([{ itemCode: "", qty: "1" }]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
+    fetchBranches().then(setBranches).catch(() => {});
   }, []);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1" }]);
@@ -31,15 +36,17 @@ export default function StockReceivePage() {
   const handleSubmit = async () => {
     const valid = lines.filter((l) => l.itemCode && parseFloat(l.qty) > 0);
     if (!valid.length) { toast.error("Add at least one valid line"); return; }
+    if (!fromBranchId) { toast.error("Select the branch to receive from"); return; }
     setSubmitting(true);
     try {
       await receiveStock({
-        voucherNo, purDate,
+        voucherNo, purDate, fromBranchId,
         items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
       });
       toast.success("Stock receive saved");
       setLines([{ itemCode: "", qty: "1" }]);
       setVoucherNo("");
+      setFromBranchId("");
     } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
   };
 
@@ -52,6 +59,14 @@ export default function StockReceivePage() {
             <div className="grid grid-cols-2 gap-4 mb-5">
               <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
               <Input label="Date" type="date" value={purDate} onChange={(e) => setPurDate(e.target.value)} />
+              <Select
+                label="Receive From Branch"
+                value={fromBranchId}
+                onChange={(e) => setFromBranchId(e.target.value)}
+                placeholder="Select source branch..."
+                options={branches.map((b) => ({ value: b.id, label: b.branchName }))}
+              />
+              <Input label="Received Branch" value={user?.branchName ?? "Your branch"} disabled readOnly />
             </div>
             <div className="space-y-2">
               {lines.map((line, i) => (

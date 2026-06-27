@@ -265,8 +265,8 @@ export default function PosPage() {
 
   /** Persist the current cart as an offline order (IndexedDB), deduct local
    *  stock, print a self-contained receipt, and reset the terminal. */
-  const saveOfflineBill = async () => {
-    if (!user) { toast.error("Not logged in — cannot save offline"); return; }
+  const saveOfflineBill = async (printWin?: Window | null) => {
+    if (!user) { toast.error("Not logged in — cannot save offline"); printWin?.close(); return; }
 
     const prefix = user.userPrefix || fallbackPrefix(user.userName);
     const seq = await nextSequence(user.id);
@@ -302,7 +302,7 @@ export default function PosPage() {
     decrementProductStock(cart);
     await refreshPending();
     toast.success(`Saved offline — ${invoiceNo}`);
-    printOfflineReceipt(order);
+    printOfflineReceipt(order, printWin);
     resetWorkspace();
   };
 
@@ -311,10 +311,16 @@ export default function PosPage() {
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
 
+    // Open the print tab NOW, synchronously inside the click gesture, then
+    // navigate it once the sale is saved. Opening it after the await would be
+    // treated as a non-user-initiated popup and silently blocked by the browser
+    // (the cause of "no invoice tab appears").
+    const printWin = window.open("", "_blank");
+
     setSubmitting(true);
     try {
-      // No connection → go straight to the offline queue.
-      if (!isOnline) { await saveOfflineBill(); return; }
+      // No connection → go straight to the offline queue (reuse the print tab).
+      if (!isOnline) { await saveOfflineBill(printWin); return; }
 
       // Clean DTO: send only itemId + qty. Client-only lookup metadata
       // (name/uom/price/vatPercentage) is stripped to satisfy the backend's
@@ -331,24 +337,28 @@ export default function PosPage() {
       // Keep local caches in step with the server-side deduction.
       if (user) await deductCachedStock(user.id, cart.map((c) => ({ itemId: c.itemId, qty: c.qty })));
       decrementProductStock(cart);
-      // Auto-print: open the print-ready receipt in a new tab (it auto-fires
-      // the print dialog via ?print=1)…
-      window.open(`/pos/invoice/${sale.id}?print=1`, "_blank");
+      // Point the pre-opened tab at the print-ready receipt (auto-fires the
+      // print dialog via ?print=1). Fall back to a fresh open if it was blocked.
+      const url = `/pos/invoice/${sale.id}?print=1`;
+      if (printWin) printWin.location.href = url;
+      else window.open(url, "_blank");
       // …and reset the terminal for the next customer without a page reload.
       resetWorkspace();
     } catch (e: unknown) {
       // A network-level failure (no HTTP response) means we lost connectivity
-      // mid-submit — fall back to the offline queue instead of losing the sale.
+      // mid-submit — fall back to the offline queue (reuse the same print tab).
       const hasResponse = !!(e as { response?: unknown }).response;
       if (!hasResponse) {
         try {
-          await saveOfflineBill();
+          await saveOfflineBill(printWin);
           return;
         } catch {
+          printWin?.close();
           toast.error("Failed to save sale offline");
           return;
         }
       }
+      printWin?.close(); // nothing to show — don't leave a blank tab
       const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
       toast.error(msg ?? "Failed to generate bill");
     } finally {

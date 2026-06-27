@@ -10,10 +10,12 @@ const fmt = (n: number) => Number(n).toFixed(2);
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export function printOfflineReceipt(order: OfflineOrder): void {
+export function printOfflineReceipt(order: OfflineOrder, win?: Window | null): void {
   if (typeof window === "undefined") return;
   const d = order.display;
-  const w = window.open("", "_blank", "width=360,height=640");
+  // Reuse a window pre-opened inside the click gesture (avoids popup blocking);
+  // otherwise try to open one now.
+  const w = win ?? window.open("", "_blank", "width=360,height=640");
   if (!w) return; // popup blocked — caller already toasts the invoice number
 
   const rows = d.lines

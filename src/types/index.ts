@@ -55,7 +55,7 @@ export interface Customer {
 }
 
 export interface SaleItem {
-  itemId: number;
+  itemId: string;
   itemCode: string;
   itemName?: string;
   quantity: number;

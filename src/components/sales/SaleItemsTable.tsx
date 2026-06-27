@@ -8,16 +8,16 @@ import { SaleItem } from "@/types";
 interface SaleItemsTableProps {
   items: SaleItem[];
   onItemsChange: (items: SaleItem[]) => void;
-  availableItems: { id: number; itmCode: string; itmName?: string; price?: number }[];
+  availableItems: { id: string; itmCode: string; itmName?: string; price?: number }[];
 }
 
 export default function SaleItemsTable({ items, onItemsChange, availableItems }: SaleItemsTableProps) {
-  const [selectedItemId, setSelectedItemId] = useState<number | "">("");
+  const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
   const [disc, setDisc] = useState("0");
 
   const addItem = () => {
-    const itemMeta = availableItems.find((i) => i.id === Number(selectedItemId));
+    const itemMeta = availableItems.find((i) => i.id === selectedItemId);
     if (!itemMeta) return;
     const rate = itemMeta.price ?? 0;
     const quantity = parseFloat(qty) || 1;
@@ -66,7 +66,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
           <label className="text-xs font-medium text-gray-600 mb-1 block">Item</label>
           <select
             value={selectedItemId}
-            onChange={(e) => setSelectedItemId(e.target.value === "" ? "" : Number(e.target.value))}
+            onChange={(e) => setSelectedItemId(e.target.value)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
           >
             <option value="">Select item...</option>

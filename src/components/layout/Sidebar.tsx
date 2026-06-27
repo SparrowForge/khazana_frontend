@@ -39,14 +39,18 @@ function buildNav(menus: NavMenu[], permissions: UserPermission[]): RenderItem[]
   for (const menu of topLevel) {
     const meta = NAV_REGISTRY[menu.controlName];
     if (!meta) continue; // DB row with no frontend mapping → skip
-    if (!isEnabled(menu.controlName, permissions)) continue; // group/link not allowed
 
     if (meta.route) {
+      // Direct top-level link: gate on its own control.
+      if (!isEnabled(menu.controlName, permissions)) continue;
       items.push({ kind: "link", label: menu.menuName, href: meta.route, icon: meta.icon });
       continue;
     }
 
     if (meta.links) {
+      // Group: show it if ANY child is permitted. Each child is gated by its own
+      // controlName (falling back to the group's), so granting just a leaf
+      // permission (e.g. POSSales) surfaces the group even without the parent.
       const children = meta.links
         .filter((l) => isEnabled(l.controlName ?? menu.controlName, permissions))
         .map((l) => ({ label: l.label, href: l.route, icon: l.icon }));

@@ -11,6 +11,8 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/sales/cash", "CashSales"],
   ["/sales/credit", "CreditSales"],
   ["/sales", "Sales"],
+  ["/pos/sales", "POSSales"],
+  ["/pos", "POSTerminal"],
   ["/nc-adjustment", "NCAdjustment"],
   ["/assortment", "Assortment"],
   ["/inventory/items", "Items"],

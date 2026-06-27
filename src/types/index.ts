@@ -11,6 +11,8 @@ export interface User {
   id: string;
   name: string | null;
   userName: string;
+  /** Unique short cashier code used to namespace offline invoice numbers */
+  userPrefix?: string | null;
   /** The branch selected at login time for the current session */
   branchId: string;
   branchName?: string | null;

@@ -8,6 +8,7 @@ export interface PosProduct {
   uom: string;         // Item_Information.itmUOM
   price: number;       // t_Price.priceListPrice
   vatPercentage: number; // t_Price.priceVatPercent
+  stock: number;       // on-hand quantity (summed Inventory rows)
   imageUrl?: string | null;
 }
 
@@ -46,6 +47,39 @@ export interface CreatePosSalePayload {
   discountValue?: number;
 }
 
+// ── Offline sync ──────────────────────────────────────────────
+export interface OfflineSalePayload {
+  invoiceNo: string;
+  items: { itemId: string; qty: number }[];
+  paidAmount: number;
+  clientSavedAt: string;
+  servedBy?: string;
+  salesType?: string;
+  branchId?: number;
+  discountType?: "fixed" | "percentage";
+  discountValue?: number;
+}
+
+export interface SyncOfflinePayload {
+  userId: string;
+  userName: string;
+  orders: OfflineSalePayload[];
+}
+
+export interface SyncOrderResult {
+  invoiceNo: string;
+  status: "synced" | "skipped" | "failed";
+  saleId?: string;
+  reason?: string;
+}
+
+export interface SyncOfflineResult {
+  syncedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  results: SyncOrderResult[];
+}
+
 export const posProductsApi = {
   getAll: () => api.get<PosProduct[]>("/pos/products").then((r) => r.data),
 };
@@ -55,4 +89,6 @@ export const posSalesApi = {
     api.post<PosSale>("/pos/sales", data).then((r) => r.data),
   getAll: () => api.get<PosSale[]>("/pos/sales").then((r) => r.data),
   getOne: (id: string) => api.get<PosSale>(`/pos/sales/${id}`).then((r) => r.data),
+  syncOffline: (data: SyncOfflinePayload) =>
+    api.post<SyncOfflineResult>("/pos/sync-offline", data).then((r) => r.data),
 };

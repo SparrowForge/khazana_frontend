@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -9,7 +8,18 @@ import Input from "@/components/ui/Input";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, type PosProduct } from "@/lib/services/pos.service";
-import { ShoppingCart, Plus, Minus, Trash2, Search, Tag } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import {
+  addOfflineOrder, deductCachedStock, cacheStock, cacheCatalog,
+  getCachedCatalog, getCachedStock, nextSequence, type OfflineOrder,
+} from "@/lib/offline/offlineStore";
+import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
+import { printOfflineReceipt } from "@/lib/offline/receipt";
+import {
+  ShoppingCart, Plus, Minus, Trash2, Search, Tag, PauseCircle, Clock, X,
+  Wifi, WifiOff, RefreshCw,
+} from "lucide-react";
 
 interface CartItem {
   itemId: string;
@@ -22,11 +32,33 @@ interface CartItem {
 
 type DiscountType = "fixed" | "percentage";
 
+/** A parked order snapshot held in the local queue (Hold/Resume). */
+interface HeldOrder {
+  id: string;
+  heldAt: string;
+  cart: CartItem[];
+  servedBy: string;
+  discountType: DiscountType;
+  discountValue: string;
+}
+
+const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
+
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toFixed(2);
 
+/** Gross (incl. VAT, pre-discount) for a held order — used for queue display. */
+const heldOrderGross = (h: HeldOrder) =>
+  r2(h.cart.reduce((s, c) => s + c.price * c.qty + Math.round(c.price * c.qty * c.vatPercentage) / 100, 0));
+
+const heldOrderQty = (h: HeldOrder) => h.cart.reduce((s, c) => s + c.qty, 0);
+
+function heldTimeLabel(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function PosPage() {
-  const router = useRouter();
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paidAmount, setPaidAmount] = useState("");
@@ -39,13 +71,81 @@ export default function PosPage() {
   const [discountType, setDiscountType] = useState<DiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
 
+  // ── Order queue (Hold / Resume), persisted to localStorage ───
+  const [queue, setQueue] = useState<HeldOrder[]>([]);
+  const [queueHydrated, setQueueHydrated] = useState(false);
+
+  // ── Offline-first state ──────────────────────────────────────
+  const user = useAuthStore((s) => s.user);
+  const { isOnline, pendingCount, syncing, syncNow, refresh: refreshPending } = useOfflineSync();
+
+  // Load products: online → fetch + refresh local caches; offline → cached catalog.
   useEffect(() => {
-    posProductsApi
-      .getAll()
-      .then(setProducts)
-      .catch(() => toast.error("Failed to load products"))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await posProductsApi.getAll();
+        if (cancelled) return;
+        setProducts(data);
+        if (user) {
+          await cacheCatalog(user.id, data);
+          await cacheStock(user.id, data.map((p) => ({ itemId: p.id, quantity: p.stock })));
+        }
+      } catch {
+        if (!user) {
+          if (!cancelled) toast.error("Failed to load products");
+          return;
+        }
+        const [cat, stock] = await Promise.all([
+          getCachedCatalog(user.id),
+          getCachedStock(user.id),
+        ]);
+        if (cancelled) return;
+        if (cat.length) {
+          setProducts(cat.map((p) => ({ ...p, stock: stock[p.id] ?? p.stock })));
+          toast("Loaded cached catalog (offline)", { icon: "📴" });
+        } else {
+          toast.error("No cached products available offline");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  /** Reflect a sale in the on-screen stock counts (and not just the cache). */
+  const decrementProductStock = (sold: CartItem[]) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        const line = sold.find((c) => c.itemId === p.id);
+        return line ? { ...p, stock: p.stock - line.qty } : p;
+      }),
+    );
+  };
+
+  // Load any parked orders that survived a refresh.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
+      if (raw) setQueue(JSON.parse(raw) as HeldOrder[]);
+    } catch {
+      /* corrupt/unavailable storage — start with an empty queue */
+    }
+    setQueueHydrated(true);
   }, []);
+
+  // Persist the queue whenever it changes (but only after hydration, so we
+  // don't clobber stored orders with the empty initial state on first render).
+  useEffect(() => {
+    if (!queueHydrated) return;
+    try {
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    } catch {
+      /* storage full/unavailable — non-fatal */
+    }
+  }, [queue, queueHydrated]);
 
   const addToCart = (product: PosProduct) => {
     setCart((prev) => {
@@ -108,6 +208,104 @@ export default function PosPage() {
       ? discVal > grossAmount && grossAmount > 0
       : discVal > 100;
 
+  // Clear the active billing terminal back to a blank, ready state.
+  const resetWorkspace = () => {
+    setCart([]);
+    setPaidAmount("");
+    setServedBy("");
+    setDiscountType("fixed");
+    setDiscountValue("");
+  };
+
+  // ── Hold / Resume ────────────────────────────────────────────
+  const holdOrder = () => {
+    if (!cart.length) { toast.error("Nothing to hold"); return; }
+    const held: HeldOrder = {
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      heldAt: new Date().toISOString(),
+      cart,
+      servedBy,
+      discountType,
+      discountValue,
+    };
+    setQueue((q) => [held, ...q]);
+    resetWorkspace();
+    toast.success("Order held");
+  };
+
+  const resumeOrder = (id: string) => {
+    const held = queue.find((h) => h.id === id);
+    if (!held) return;
+    // Swap: if the terminal has an active cart, park it so it isn't lost.
+    setQueue((q) => {
+      const remaining = q.filter((h) => h.id !== id);
+      if (cart.length) {
+        remaining.unshift({
+          id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          heldAt: new Date().toISOString(),
+          cart,
+          servedBy,
+          discountType,
+          discountValue,
+        });
+      }
+      return remaining;
+    });
+    setCart(held.cart);
+    setServedBy(held.servedBy);
+    setDiscountType(held.discountType);
+    setDiscountValue(held.discountValue);
+    setPaidAmount("");
+    toast.success("Order resumed");
+  };
+
+  const discardHeld = (id: string) => {
+    setQueue((q) => q.filter((h) => h.id !== id));
+  };
+
+  /** Persist the current cart as an offline order (IndexedDB), deduct local
+   *  stock, print a self-contained receipt, and reset the terminal. */
+  const saveOfflineBill = async () => {
+    if (!user) { toast.error("Not logged in — cannot save offline"); return; }
+
+    const prefix = user.userPrefix || fallbackPrefix(user.userName);
+    const seq = await nextSequence(user.id);
+    const at = new Date();
+    const invoiceNo = buildOfflineInvoiceNo(prefix, seq, at);
+    const items = cart.map((c) => ({ itemId: c.itemId, qty: c.qty }));
+
+    const order: OfflineOrder = {
+      localId:
+        typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      userId: user.id,
+      invoiceNo,
+      items,
+      paidAmount: paid,
+      clientSavedAt: at.toISOString(),
+      servedBy: servedBy || undefined,
+      salesType: "Cash",
+      discountType: discVal > 0 ? discountType : undefined,
+      discountValue: discVal > 0 ? discVal : undefined,
+      display: {
+        dateTime: at.toLocaleString(),
+        servedBy: servedBy || user.name || user.userName,
+        lines: cart.map((c) => ({
+          name: c.name, qty: c.qty, rate: c.price,
+          vatPct: c.vatPercentage, vat: itemVat(c), total: itemSubtotal(c),
+        })),
+        subtotal, vatAmount, discountAmount, payableAmount, paidAmount: paid, changeAmount: change,
+      },
+    };
+
+    await addOfflineOrder(order);
+    await deductCachedStock(user.id, items);
+    decrementProductStock(cart);
+    await refreshPending();
+    toast.success(`Saved offline — ${invoiceNo}`);
+    printOfflineReceipt(order);
+    resetWorkspace();
+  };
+
   const handleGenerateBill = async () => {
     if (!cart.length) { toast.error("Cart is empty"); return; }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
@@ -115,6 +313,12 @@ export default function PosPage() {
 
     setSubmitting(true);
     try {
+      // No connection → go straight to the offline queue.
+      if (!isOnline) { await saveOfflineBill(); return; }
+
+      // Clean DTO: send only itemId + qty. Client-only lookup metadata
+      // (name/uom/price/vatPercentage) is stripped to satisfy the backend's
+      // whitelist + forbidNonWhitelisted ValidationPipe (avoids 400s).
       const sale = await posSalesApi.create({
         items: cart.map((c) => ({ itemId: c.itemId, qty: c.qty })),
         paidAmount: paid,
@@ -124,8 +328,27 @@ export default function PosPage() {
         discountValue: discVal > 0 ? discVal : undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
-      router.push(`/pos/invoice/${sale.id}`);
+      // Keep local caches in step with the server-side deduction.
+      if (user) await deductCachedStock(user.id, cart.map((c) => ({ itemId: c.itemId, qty: c.qty })));
+      decrementProductStock(cart);
+      // Auto-print: open the print-ready receipt in a new tab (it auto-fires
+      // the print dialog via ?print=1)…
+      window.open(`/pos/invoice/${sale.id}?print=1`, "_blank");
+      // …and reset the terminal for the next customer without a page reload.
+      resetWorkspace();
     } catch (e: unknown) {
+      // A network-level failure (no HTTP response) means we lost connectivity
+      // mid-submit — fall back to the offline queue instead of losing the sale.
+      const hasResponse = !!(e as { response?: unknown }).response;
+      if (!hasResponse) {
+        try {
+          await saveOfflineBill();
+          return;
+        } catch {
+          toast.error("Failed to save sale offline");
+          return;
+        }
+      }
       const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
       toast.error(msg ?? "Failed to generate bill");
     } finally {
@@ -145,9 +368,94 @@ export default function PosPage() {
         subtitle="Select items and generate invoice — products & prices managed via Items / Pricing"
       />
 
-      <div className="flex gap-5 h-[calc(100vh-11rem)]">
+      {/* ─── Connection / offline-sync status bar ─────────────── */}
+      <div className={`mb-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs ${
+        isOnline ? "border-gray-200 bg-white" : "border-amber-200 bg-amber-50"
+      }`}>
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <span className="inline-flex items-center gap-1.5 text-green-600 font-medium">
+              <Wifi size={14} /> Online
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-amber-600 font-medium">
+              <WifiOff size={14} /> Offline — sales are saved locally
+            </span>
+          )}
+          {pendingCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-gray-500">
+              · <span className="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">{pendingCount}</span> pending sync
+            </span>
+          )}
+        </div>
+        {pendingCount > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => syncNow()}
+            loading={syncing}
+            disabled={!isOnline}
+            title={isOnline ? "Upload offline sales now" : "Reconnect to sync"}
+          >
+            <RefreshCw size={13} />
+            Sync now
+          </Button>
+        )}
+      </div>
+
+      <div className="flex gap-5 h-[calc(100vh-14rem)]">
         {/* ─── Product Grid ─────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Pending order queue (Hold / Resume) — only shown when parked orders exist */}
+          {queue.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                <PauseCircle size={13} />
+                Pending Queue
+                <span className="bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px]">
+                  {queue.length}
+                </span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {queue.map((h) => (
+                  <div
+                    key={h.id}
+                    className="relative shrink-0 w-44 bg-amber-50 border border-amber-200 rounded-lg p-2.5 hover:border-amber-400 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => resumeOrder(h.id)}
+                      className="block w-full text-left"
+                    >
+                      <div className="flex items-center gap-1 text-[10px] text-amber-700">
+                        <Clock size={10} />
+                        {heldTimeLabel(h.heldAt)}
+                        <span className="text-amber-500">· {heldOrderQty(h)} item(s)</span>
+                      </div>
+                      <div className="text-sm font-bold text-gray-800 mt-0.5">
+                        ৳{fmt(heldOrderGross(h))}
+                      </div>
+                      {h.servedBy && (
+                        <div className="text-[10px] text-gray-500 truncate">{h.servedBy}</div>
+                      )}
+                      <div className="text-[10px] text-primary-700 mt-1 font-medium">
+                        Tap to resume →
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => discardHeld(h.id)}
+                      title="Discard held order"
+                      className="absolute top-1 right-1 text-amber-400 hover:text-red-500 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mb-3 relative">
             <Search
               size={16}
@@ -206,11 +514,18 @@ export default function PosPage() {
                         /{p.uom}
                       </span>
                     </p>
-                    {Number(p.vatPercentage) > 0 && (
-                      <p className="text-[10px] text-orange-500 mt-0.5">
-                        +{p.vatPercentage}% VAT
-                      </p>
-                    )}
+                    <div className="flex items-center justify-between mt-0.5">
+                      {Number(p.vatPercentage) > 0 ? (
+                        <span className="text-[10px] text-orange-500">+{p.vatPercentage}% VAT</span>
+                      ) : <span />}
+                      <span
+                        className={`text-[10px] font-medium ${
+                          p.stock <= 0 ? "text-red-500" : "text-gray-400"
+                        }`}
+                      >
+                        Stock: {p.stock}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -400,15 +715,28 @@ export default function PosPage() {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleGenerateBill}
-              loading={submitting}
-              disabled={!cart.length || paid < payableAmount || discountExceedsTotal}
-            >
-              Generate Bill
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="shrink-0"
+                size="lg"
+                onClick={holdOrder}
+                disabled={!cart.length}
+                title="Park this order and clear the terminal"
+              >
+                <PauseCircle size={16} />
+                Hold
+              </Button>
+              <Button
+                className="flex-1"
+                size="lg"
+                onClick={handleGenerateBill}
+                loading={submitting}
+                disabled={!cart.length || paid < payableAmount || discountExceedsTotal}
+              >
+                {isOnline ? "Generate Bill" : "Save Offline Bill"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

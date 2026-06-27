@@ -148,6 +148,16 @@ export default function InvoicePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Auto-open the print dialog when launched from the POS terminal
+  // (window.open(`/pos/invoice/${id}?print=1`, "_blank")). Reading from
+  // window.location avoids needing a Suspense boundary for useSearchParams.
+  useEffect(() => {
+    if (!sale) return;
+    if (new URLSearchParams(window.location.search).get("print") !== "1") return;
+    const t = setTimeout(() => window.print(), 300); // let the receipt paint first
+    return () => clearTimeout(t);
+  }, [sale]);
+
   const handlePrint = () => window.print();
 
   if (loading) {

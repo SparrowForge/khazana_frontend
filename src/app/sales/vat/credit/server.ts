@@ -29,5 +29,33 @@ export const fetchCustomers = () =>
   api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers?limit=100")
     .then(unwrapList<{ id: number; code: string; name: string }>);
 
-export const createVatCreditSale = (data: VatCreditSalePayload) =>
-  api.post("/sales/vat/credit", data).then((r) => r.data);
+const VAT_RATE = 0.15; // flat rate the VAT pages apply
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export const createVatCreditSale = (data: VatCreditSalePayload) => {
+  // Map the UI's SaleItem shape onto CreateVatCreditSaleDto (items keyed by
+  // itemCode/qty/disc). Derive per-line vatValue/vatAmount from the flat 15%.
+  const payload = {
+    invNo: data.invoiceNo || undefined, // blank → backend auto-generates
+    invDate: data.invoiceDate,
+    clientCode: data.clientCode,
+    totalAmount: data.totalAmount,
+    totalDiscount: data.totalDiscount,
+    totalVat: data.totalVat,
+    items: data.items.map((it) => {
+      const taxable = it.rate * it.quantity - it.discount;
+      const vatAmount = round2(taxable * VAT_RATE);
+      return {
+        itemCode: it.itemCode,
+        qty: it.quantity,
+        rate: it.rate,
+        disc: it.discount,
+        vatValue: VAT_RATE * 100,
+        vatAmount,
+        total: round2(taxable + vatAmount),
+      };
+    }),
+  };
+  return api.post("/sales/vat/credit", payload).then((r) => r.data);
+};

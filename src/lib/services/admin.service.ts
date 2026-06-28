@@ -5,7 +5,7 @@ export interface AdminUser {
   id: number;
   name?: string;
   userName: string;
-  branchId: number;
+  branchId: string;
   isActive?: string;
   branch?: { branchName: string };
 }
@@ -14,12 +14,12 @@ export interface AdminUserPayload {
   name?: string;
   userName?: string;
   password?: string;
-  branchId: number;
+  branchId: string;
   isActive?: string;
 }
 
 export interface Branch {
-  id: number;
+  id: string;
   branchCode: string;
   branchName: string;
   address?: string;

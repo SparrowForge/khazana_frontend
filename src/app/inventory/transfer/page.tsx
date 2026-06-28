@@ -40,8 +40,8 @@ export default function StockTransferPage() {
     try {
       await transferStock({
         voucherNo, issueDate,
-        issueBranchId: Number(issueBranchId),
-        receiveBranchId: Number(receiveBranchId),
+        issueBranchId,
+        receiveBranchId,
         items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
       });
       toast.success("Stock transfer saved");

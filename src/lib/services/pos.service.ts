@@ -42,7 +42,8 @@ export interface CreatePosSalePayload {
   paidAmount: number;
   servedBy?: string;
   salesType?: string;
-  branchId?: number;
+  /** Session branch UUID. */
+  branchId?: string;
   discountType?: 'fixed' | 'percentage';
   discountValue?: number;
 }
@@ -55,7 +56,8 @@ export interface OfflineSalePayload {
   clientSavedAt: string;
   servedBy?: string;
   salesType?: string;
-  branchId?: number;
+  /** Originating branch UUID captured at sale time. */
+  branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
 }

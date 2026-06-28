@@ -41,7 +41,8 @@ export interface OfflineOrder {
   clientSavedAt: string;
   servedBy?: string;
   salesType?: string;
-  branchId?: number;
+  /** Originating branch UUID captured at sale time. */
+  branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
   // ── Client-only ──

@@ -2,8 +2,16 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { ShoppingCart, DollarSign, Package, Users, TrendingUp, RefreshCw } from "lucide-react";
+import { ShoppingCart, DollarSign, Package, Users, TrendingUp, RefreshCw, Building2 } from "lucide-react";
 import Card from "@/components/ui/Card";
+
+interface BranchSales {
+  branchId: string;
+  branchCode?: string | null;
+  branchName?: string | null;
+  todaySales: number;
+  todayRevenue: number;
+}
 
 interface DashboardStats {
   todaySales?: number;
@@ -12,6 +20,7 @@ interface DashboardStats {
   totalCustomers?: number;
   lowStockItems?: number;
   pendingOrders?: number;
+  branches?: BranchSales[];
 }
 
 interface StatCardProps {
@@ -91,6 +100,33 @@ export default function Dashboard() {
           <StatCard key={card.title} {...card} />
         ))}
       </div>
+
+      {/* Per-branch sales — one card per branch the user is assigned to */}
+      {!loading && (stats.branches?.length ?? 0) > 0 && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-3">Today&apos;s Sales by Branch</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {stats.branches!.map((b) => (
+              <div key={b.branchId} className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building2 size={18} className="text-primary-700" />
+                  <p className="font-semibold text-gray-800">{b.branchName ?? b.branchCode ?? "Branch"}</p>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Sales</p>
+                    <p className="text-xl font-bold text-gray-800">{b.todaySales}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">Revenue</p>
+                    <p className="text-xl font-bold text-green-600">৳ {formatCurrency(b.todayRevenue)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6">
         <Card title="Recent Sales">

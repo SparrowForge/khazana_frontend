@@ -284,6 +284,7 @@ export default function PosPage() {
       clientSavedAt: at.toISOString(),
       servedBy: servedBy || undefined,
       salesType: "Cash",
+      branchId: user.branchId || undefined,
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
       display: {
@@ -330,6 +331,7 @@ export default function PosPage() {
         paidAmount: paid,
         servedBy: servedBy || undefined,
         salesType: "Cash",
+        branchId: user?.branchId || undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
       });

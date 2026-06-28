@@ -15,8 +15,8 @@ export interface BranchOption {
 export interface TransferPayload {
   voucherNo?: string;
   issueDate: string;
-  issueBranchId: number;
-  receiveBranchId: number;
+  issueBranchId: string;
+  receiveBranchId: string;
   items: { itemCode: string; qty: number }[];
 }
 

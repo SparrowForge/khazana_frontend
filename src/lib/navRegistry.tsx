@@ -118,7 +118,6 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
   Finance: {
     icon: <DollarSign size={18} />,
     links: [
-      { label: "Money Receive", route: "/finance/money-receive", icon: <DollarSign size={16} /> },
       { label: "Cash Purchase", route: "/finance/cash-purchase", icon: <FileText size={16} /> },
     ],
   },

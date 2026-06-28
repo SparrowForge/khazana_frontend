@@ -1,27 +1,28 @@
-﻿import api from "@/lib/api";
+import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 
 export interface Payment {
-  id: bigint | number;
-  clientCode?: string;
-  paymentDate?: string;
-  paymentAmount?: number;
+  id: bigint | number | string;
+  customerId?: string;
+  customer?: { code?: string; name?: string };
+  receiveDate?: string;
+  receiveAmount?: number;
   tType?: string;
   moneyReceptNo?: string;
   bankName?: string;
 }
 
 export interface PaymentPayload {
-  clientCode: string;
-  paymentDate: string;
-  paymentAmount: number;
+  customerId: string;
+  receiveDate: string;
+  receiveAmount: number;
   tType?: string;
   moneyReceptNo?: string;
   bankName?: string;
 }
 
 export interface Customer {
-  id: number;
+  id: string;
   code: string;
   name: string;
 }

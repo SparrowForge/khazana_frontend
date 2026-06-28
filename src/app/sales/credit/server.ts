@@ -12,7 +12,7 @@ export interface AvailableItem {
 export interface CreditSalePayload {
   invoiceNo?: string;
   invoiceDate: string;
-  clientCode: string;
+  customerId: string;
   poNo?: string;
   items: SaleItem[];
   totalAmount: number;
@@ -25,8 +25,8 @@ export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
 export const fetchCustomers = () =>
-  api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers?limit=100")
-    .then(unwrapList<{ id: number; code: string; name: string }>);
+  api.get<{ data: { id: string; code: string; name: string }[] } | { id: string; code: string; name: string }[]>("/customers?limit=100")
+    .then(unwrapList<{ id: string; code: string; name: string }>);
 
 export const createCreditSale = (data: CreditSalePayload) => {
   // Map the UI's SaleItem/payload shape onto CreateCreditSaleDto and drop
@@ -35,7 +35,7 @@ export const createCreditSale = (data: CreditSalePayload) => {
   const payload = {
     invNo: data.invoiceNo || undefined, // blank → backend auto-generates
     invDate: data.invoiceDate,
-    clientCode: data.clientCode,
+    customerId: data.customerId,
     poNo: data.poNo || undefined,
     totalAmount: data.totalAmount,
     totalDiscount: data.totalDiscount,

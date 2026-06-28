@@ -15,10 +15,10 @@ import toast from "react-hot-toast";
 export default function CreditSalePage() {
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
-  const [customers, setCustomers] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; code: string; name: string }[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
-  const [clientCode, setClientCode] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [poNo, setPoNo] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,18 +32,18 @@ export default function CreditSalePage() {
 
   const handleSubmit = async () => {
     if (!items.length) { toast.error("Add at least one item"); return; }
-    if (!clientCode) { toast.error("Select a customer"); return; }
+    if (!customerId) { toast.error("Select a customer"); return; }
     setSubmitting(true);
     try {
       await createCreditSale({
-        invoiceNo, invoiceDate, clientCode, poNo, items,
+        invoiceNo, invoiceDate, customerId, poNo, items,
         totalAmount: items.reduce((s, i) => s + i.rate * i.quantity, 0),
         totalDiscount, netAmount,
       });
       toast.success("Credit sale created");
       setItems([]);
       setInvoiceNo("");
-      setClientCode("");
+      setCustomerId("");
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
       toast.error(msg ?? "Failed to create sale");
@@ -63,10 +63,10 @@ export default function CreditSalePage() {
               <Input label="Invoice Date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
               <Select
                 label="Customer"
-                value={clientCode}
-                onChange={(e) => setClientCode(e.target.value)}
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
                 placeholder="Select customer..."
-                options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
               />
               <Input label="PO No" value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Optional" />
             </div>

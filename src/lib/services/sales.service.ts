@@ -29,7 +29,7 @@ export interface CashSalePayload {
 export interface CreditSalePayload {
   invoiceNo: string;
   invoiceDate: string;
-  clientCode: string;
+  customerId: string;
   poNo?: string;
   items: SaleItem[];
   totalAmount: number;

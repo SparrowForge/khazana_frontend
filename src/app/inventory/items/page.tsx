@@ -217,8 +217,15 @@ export default function ItemsPage() {
           {
             key: "image", header: "",
             render: (r) => r.image?.fileUrl
-              ? <NextImage src={r.image.fileUrl} alt={r.itmName ?? ""} width={32} height={32} className="w-8 h-8 rounded object-cover" />
-              : <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center"><ImagePlus size={14} className="text-gray-300" /></div>,
+              ? <NextImage src={r.image.fileUrl} alt={r.itmName ?? ""} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+              : <div  className={`w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-800 text-xs font-semibold`}> {(() => {
+                const name = r.itmName?.trim() || "";
+                const words = name.split(/\s+/).filter(Boolean);
+                return (words.length > 1
+                  ? words.map(w => w.match(/[a-zA-Z]/)?.[0] || "").join("")
+                  : name.replace(/[^a-zA-Z]/g, "").slice(0, 2)
+                ).toUpperCase();
+              })()}</div>,
           },
           { key: "itmCode",     header: "Code" },
           { key: "itmName",     header: "Name" },

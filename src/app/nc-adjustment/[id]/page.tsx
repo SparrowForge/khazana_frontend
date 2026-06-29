@@ -1,0 +1,126 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import AppLayout from "@/components/layout/AppLayout";
+import PageHeader from "@/components/ui/PageHeader";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import SaleItemsTable from "@/components/sales/SaleItemsTable";
+import {
+  fetchItems,
+  fetchNcAdjustment,
+  updateNcAdjustment,
+  type AvailableItem,
+} from "../server";
+import { formatCurrency } from "@/lib/utils";
+import { SaleItem } from "@/types";
+import { usePermissions } from "@/hooks/usePermissions";
+import toast from "react-hot-toast";
+
+export default function NCAdjustmentEditPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
+  const { can } = usePermissions();
+  const canEdit = can("NCAdjustment", "edit");
+
+  const [items, setItems] = useState<SaleItem[]>([]);
+  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
+  const [code, setCode] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [name, setName] = useState("");
+  const [contactNo, setContactNo] = useState("");
+  const [reference, setReference] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    if (!canEdit) {
+      toast.error("You don't have permission to edit NC adjustments");
+      router.replace("/nc-adjustment/list");
+      return;
+    }
+    fetchItems().then(setAvailableItems).catch(() => {});
+    fetchNcAdjustment(id)
+      .then((nc) => {
+        setCode(nc.ncmstrCode ?? "");
+        setDate(nc.ncmstrDate ? nc.ncmstrDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+        setName(nc.ncmstrName ?? "");
+        setContactNo(nc.ncmstrContactNo ?? "");
+        setReference(nc.ncmstrReference ?? "");
+        setItems(
+          (nc.details ?? []).map((d) => ({
+            itemId: d.ncdetItemOID,
+            itemCode: d.item?.itmCode ?? "",
+            itemName: d.item?.itmName ?? "",
+            quantity: Number(d.ncdetQTY ?? 0),
+            rate: Number(d.ncdetPrice ?? 0),
+            discount: Number(d.ncdetDiscount ?? 0),
+            vat: Number(d.ncdetVATAmount ?? 0),
+            total: Number(d.ncdetNetAmount ?? 0),
+          })),
+        );
+      })
+      .catch(() => toast.error("Failed to load NC adjustment"))
+      .finally(() => setLoading(false));
+  }, [id, canEdit, router]);
+
+  const netAmount = items.reduce((s, i) => s + i.total, 0);
+
+  const handleSubmit = async () => {
+    if (!id) return;
+    if (!items.length) { toast.error("Add at least one item"); return; }
+    setSubmitting(true);
+    try {
+      // Full edit: backend replaces the detail rows and reconciles stock, master updates.
+      await updateNcAdjustment(id, { code, date, name, contactNo, reference, items, netAmount });
+      toast.success("NC Adjustment updated");
+      router.push("/nc-adjustment/list");
+    } catch {
+      toast.error("Failed to update");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AppLayout>
+      <PageHeader title="Edit NC Adjustment" subtitle="Update header and items — stock is re-reconciled on save" />
+      {loading ? (
+        <div className="text-sm text-gray-400">Loading…</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-5">
+            <Card title="NC Information">
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="NC Code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Auto-generated" />
+                <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input label="Contact No" value={contactNo} onChange={(e) => setContactNo(e.target.value)} />
+                <Input label="Reference" value={reference} onChange={(e) => setReference(e.target.value)} className="col-span-2" />
+              </div>
+            </Card>
+            <Card title="Items">
+              <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} />
+            </Card>
+          </div>
+          <div>
+            <Card title="Summary">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Net Amount</span>
+                  <span>৳ {formatCurrency(netAmount)}</span>
+                </div>
+                <Button className="w-full" onClick={handleSubmit} loading={submitting} disabled={!items.length}>Update NC Adjustment</Button>
+                <Button variant="secondary" className="w-full" onClick={() => router.push("/nc-adjustment/list")}>Cancel</Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  );
+}

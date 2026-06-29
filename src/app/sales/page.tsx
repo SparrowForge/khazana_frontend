@@ -5,9 +5,12 @@ import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import Pagination from "@/components/ui/Pagination";
-import { fetchSales, type Sale, type SalesTypeFilter } from "./server";
+import { fetchSales, deleteCashSale, deleteCreditSale, type Sale, type SalesTypeFilter } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import Link from "next/link";
 
 const TYPE_OPTIONS: { value: SalesTypeFilter; label: string }[] = [
@@ -25,6 +28,28 @@ export default function SalesListPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<SalesTypeFilter>("all");
   const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
+  const { can } = usePermissions();
+
+  // Map a unified row's type → its RBAC control + delete API. Only cash & credit
+  // are editable/deletable here (POS sales are managed on the POS Sales screen).
+  const deletableFor = (type?: string) => {
+    if (type === "Cash") return { control: "CashSales", del: deleteCashSale };
+    if (type === "Credit") return { control: "CreditSales", del: deleteCreditSale };
+    return null;
+  };
+
+  const handleDelete = async (s: Sale) => {
+    const target = deletableFor(s.type);
+    if (!target) return;
+    if (!confirm(`Delete ${s.type} sale "${s.invoiceNo}"? Stock will be restored.`)) return;
+    try {
+      await target.del(s.id);
+      toast.success("Sale deleted");
+      load();
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -72,9 +97,20 @@ export default function SalesListPage() {
           { key: "netAmount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.netAmount ?? 0)}`, className: "text-right" },
           {
             key: "actions", header: "",
-            render: (r) => (
-              <Link href={`/sales/${r.id}`} className="text-primary-800 hover:underline text-xs">View</Link>
-            ),
+            render: (r) => {
+              const target = deletableFor(r.type);
+              const showDelete = target && can(target.control, "delete");
+              return (
+                <div className="flex items-center gap-3">
+                  <Link href={`/sales/${r.id}`} className="text-primary-800 hover:underline text-xs">View</Link>
+                  {showDelete && (
+                    <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            },
           },
         ]}
       />

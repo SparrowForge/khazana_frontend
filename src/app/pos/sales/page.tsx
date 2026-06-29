@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 function formatDT(iso: string) {
@@ -24,13 +26,28 @@ export default function PosSalesListPage() {
   const router = useRouter();
   const [sales, setSales] = useState<PosSale[]>([]);
   const [loading, setLoading] = useState(true);
+  const { can } = usePermissions();
+  const canDelete = can("POSSales", "delete");
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     posSalesApi.getAll()
       .then(setSales)
       .catch(() => toast.error("Failed to load sales"))
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(load, []);
+
+  const handleDelete = async (s: PosSale) => {
+    if (!confirm(`Delete POS sale "${s.invoiceNo}"? Stock will be restored.`)) return;
+    try {
+      await posSalesApi.remove(s.id);
+      toast.success("Sale deleted");
+      load();
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
 
   return (
     <AppLayout>
@@ -65,12 +82,19 @@ export default function PosSalesListPage() {
                   <td className="px-5 py-3 text-right font-semibold text-gray-800">৳{Number(s.payableAmount).toFixed(2)}</td>
                   <td className="px-5 py-3 text-gray-600">{s.servedBy}</td>
                   <td className="px-5 py-3 text-center">
-                    <button
-                      onClick={() => router.push(`/pos/invoice/${s.id}`)}
-                      className="text-primary-700 hover:underline text-xs font-medium"
-                    >
-                      View Invoice
-                    </button>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => router.push(`/pos/invoice/${s.id}`)}
+                        className="text-primary-700 hover:underline text-xs font-medium"
+                      >
+                        View Invoice
+                      </button>
+                      {canDelete && (
+                        <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-600" title="Delete">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

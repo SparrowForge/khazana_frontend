@@ -91,6 +91,7 @@ export const posSalesApi = {
     api.post<PosSale>("/pos/sales", data).then((r) => r.data),
   getAll: () => api.get<PosSale[]>("/pos/sales").then((r) => r.data),
   getOne: (id: string) => api.get<PosSale>(`/pos/sales/${id}`).then((r) => r.data),
+  remove: (id: string) => api.delete(`/pos/sales/${id}`).then((r) => r.data),
   syncOffline: (data: SyncOfflinePayload) =>
     api.post<SyncOfflineResult>("/pos/sync-offline", data).then((r) => r.data),
 };

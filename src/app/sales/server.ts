@@ -15,3 +15,6 @@ export type SalesTypeFilter = "all" | "cash" | "credit" | "vat-cash" | "vat-cred
 
 export const fetchSales = ({ page = 1, limit = 10, type = "all" as SalesTypeFilter } = {}): Promise<Paginated<Sale>> =>
   api.get(`/sales?page=${page}&limit=${limit}&type=${type}`).then(unwrapPaginated<Sale>);
+
+export const deleteCashSale = (id: string | number) => api.delete(`/sales/cash/${id}`).then((r) => r.data);
+export const deleteCreditSale = (id: string | number) => api.delete(`/sales/credit/${id}`).then((r) => r.data);

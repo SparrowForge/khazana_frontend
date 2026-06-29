@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchCategories, createCategory, updateCategory, deleteCategory, type Category } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 export default function CategoriesPage() {
@@ -20,6 +21,10 @@ export default function CategoriesPage() {
   const [form, setForm] = useState({ code: "", name: "", remarks: "" });
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+  const { can } = usePermissions();
+  const canAdd = can("Items", "add");
+  const canEdit = can("Items", "edit");
+  const canDelete = can("Items", "delete");
 
   const load = () => {
     setLoading(true);
@@ -52,7 +57,7 @@ export default function CategoriesPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Item Categories" action={{ label: "New Category", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Item Categories" action={canAdd ? { label: "New Category", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={categories}
         columns={[
           { key: "code", header: "Code" },
@@ -60,8 +65,8 @@ export default function CategoriesPage() {
           { key: "remarks", header: "Remarks" },
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
-              <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
-              <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              {canEdit && <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+              {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
             </div>
           )},
         ]}

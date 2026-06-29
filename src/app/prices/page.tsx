@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -26,6 +27,9 @@ export default function PricesPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+  const { can } = usePermissions();
+  const canAdd = can("Pricing", "add");
+  const canEdit = can("Pricing", "edit");
 
   const load = () => {
     setLoading(true);
@@ -58,7 +62,7 @@ export default function PricesPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Price Setup" action={{ label: "New Price", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Price Setup" action={canAdd ? { label: "New Price", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={prices}
         columns={[
           { key: "item", header: "Item", render: (r) => `${r.item?.itmCode ?? ""} — ${r.item?.itmName ?? ""}` },
@@ -67,7 +71,7 @@ export default function PricesPage() {
           { key: "priceListPrice", header: "Price", render: (r) => `৳ ${formatCurrency(r.priceListPrice ?? 0)}`, className: "text-right" },
           { key: "priceVatPercent", header: "VAT%", render: (r) => `${r.priceVatPercent ?? 0}%`, className: "text-right" },
           { key: "priceIsActive", header: "Active" },
-          { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

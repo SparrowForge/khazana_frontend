@@ -21,6 +21,7 @@ import {
 } from "./server";
 import { uploadFile } from "@/lib/upload";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const emptyForm = {
@@ -42,6 +43,9 @@ export default function UsersPage() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const { can } = usePermissions();
+  const canAdd = can("Users", "add");
+  const canEdit = can("Users", "edit");
 
   // Avatar upload state
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -179,7 +183,7 @@ export default function UsersPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Users" action={{ label: "New User", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Users" action={canAdd ? { label: "New User", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
 
       <Table
         loading={loading}
@@ -195,7 +199,7 @@ export default function UsersPage() {
           { key: "branch", header: "Branch(es)", render: branchLabel },
           { key: "isVerified", header: "Verified", render: (r) => r.isVerified ? <CheckCircle size={15} className="text-green-500" /> : <XCircle size={15} className="text-gray-300" /> },
           { key: "isActive", header: "Active" },
-          { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

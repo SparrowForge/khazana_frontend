@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2 } from "lucide-react";
 import { fetchOrders, createOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -26,6 +27,8 @@ export default function OrdersPage() {
   const [form, setForm] = useState({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+  const { can } = usePermissions();
+  const canAdd = can("Orders", "add");
 
   const load = () => {
     setLoading(true);
@@ -64,7 +67,7 @@ export default function OrdersPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Orders" action={{ label: "New Order", onClick: () => { setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]); setModal(true); }, icon: <Plus size={16} /> }} />
+      <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: () => { setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
           { key: "serialNo", header: "Order No" },

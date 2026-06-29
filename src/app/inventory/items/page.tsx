@@ -22,6 +22,7 @@ import {
 } from "./server";
 import { fetchAllCategories, type Category } from "../categories/server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const ITEM_TYPES = [
@@ -61,6 +62,11 @@ export default function ItemsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
+
+  const { can } = usePermissions();
+  const canCreate = can("Items", "add");
+  const canEdit = can("Items", "edit");
+  const canDelete = can("Items", "delete");
 
   const load = () => {
     setLoading(true);
@@ -192,7 +198,7 @@ export default function ItemsPage() {
       <PageHeader
         title="Items"
         subtitle="Manage product master"
-        action={{ label: "New Item", onClick: openCreate, icon: <Plus size={16} /> }}
+        action={canCreate ? { label: "New Item", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
 
       <div className="mb-4">
@@ -224,8 +230,13 @@ export default function ItemsPage() {
             key: "actions", header: "",
             render: (row) => (
               <div className="flex gap-2">
-                <button onClick={() => openEdit(row)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
-                <button onClick={() => handleDelete(row)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                {canEdit && (
+                  <button onClick={() => openEdit(row)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
+                )}
+                {canDelete && (
+                  <button onClick={() => handleDelete(row)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                )}
+                {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
               </div>
             ),
           },

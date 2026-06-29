@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchRoles, createRole, updateRole, type Role } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const emptyForm = { name: "", description: "" };
@@ -21,6 +22,9 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<Role | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { can } = usePermissions();
+  const canAdd = can("RolesPermissions", "add");
+  const canEdit = can("RolesPermissions", "edit");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
@@ -48,12 +52,12 @@ export default function RolesPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Roles" action={{ label: "New Role", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Roles" action={canAdd ? { label: "New Role", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={roles}
         columns={[
           { key: "name", header: "Role Name" },
           { key: "description", header: "Description" },
-          { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

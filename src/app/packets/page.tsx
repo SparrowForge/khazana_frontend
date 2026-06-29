@@ -10,6 +10,7 @@ import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchPackets, createPacket, updatePacket, deletePacket, type Packet } from "./server";
 import { formatCurrency } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const emptyForm = { code: "", name: "", uom: "pcs", weight: "", rate: "", isActive: "1" };
@@ -21,6 +22,10 @@ export default function PacketsPage() {
   const [editing, setEditing] = useState<Packet | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { can } = usePermissions();
+  const canAdd = can("Packets", "add");
+  const canEdit = can("Packets", "edit");
+  const canDelete = can("Packets", "delete");
 
   const load = () => {
     setLoading(true);
@@ -55,7 +60,7 @@ export default function PacketsPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Packet Info" action={{ label: "New Packet", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Packet Info" action={canAdd ? { label: "New Packet", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={packets}
         columns={[
           { key: "code", header: "Code" },
@@ -65,8 +70,8 @@ export default function PacketsPage() {
           { key: "rate", header: "Rate", render: (r) => `৳ ${formatCurrency(r.rate ?? 0)}`, className: "text-right" },
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
-              <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
-              <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              {canEdit && <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+              {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
             </div>
           )},
         ]}

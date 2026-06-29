@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
 import { fetchBranches, createBranch, updateBranch, type Branch } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "" };
@@ -21,6 +22,9 @@ export default function BranchesPage() {
   const [editing, setEditing] = useState<Branch | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { can } = usePermissions();
+  const canAdd = can("Admin", "add");
+  const canEdit = can("Admin", "edit");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
@@ -48,7 +52,7 @@ export default function BranchesPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Branches" action={{ label: "New Branch", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Branches" action={canAdd ? { label: "New Branch", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={branches}
         columns={[
           { key: "branchCode", header: "Code" },
@@ -56,7 +60,7 @@ export default function BranchesPage() {
           { key: "address", header: "Address" },
           { key: "vatNo", header: "VAT No" },
           { key: "mobileNo", header: "Mobile" },
-          { key: "actions", header: "", render: (r) => <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

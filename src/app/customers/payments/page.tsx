@@ -10,6 +10,7 @@ import Select from "@/components/ui/Select";
 import { Plus } from "lucide-react";
 import { fetchPayments, createPayment, fetchCustomers, type Payment, type Customer } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
 const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", moneyReceptNo: "", bankName: "" };
@@ -21,6 +22,8 @@ export default function CustomerPaymentsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { can } = usePermissions();
+  const canAdd = can("Customers", "add");
 
   const load = () => {
     setLoading(true);
@@ -43,7 +46,7 @@ export default function CustomerPaymentsPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Customer Payments" action={{ label: "New Payment", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> }} />
+      <PageHeader title="Customer Payments" action={canAdd ? { label: "New Payment", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={payments}
         columns={[
           { key: "moneyReceptNo", header: "Receipt No" },

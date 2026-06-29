@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus } from "lucide-react";
 import { fetchCashPurchases, createCashPurchase, type CashPurchase } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -21,6 +22,8 @@ export default function CashPurchasePage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { can } = usePermissions();
+  const canAdd = can("Finance", "add");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {
@@ -44,7 +47,7 @@ export default function CashPurchasePage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Cash Purchase" action={{ label: "New Purchase", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> }} />
+      <PageHeader title="Cash Purchase" action={canAdd ? { label: "New Purchase", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={records}
         columns={[
           { key: "voucherNo", header: "Voucher No" },

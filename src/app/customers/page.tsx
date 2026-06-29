@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2, Eye } from "lucide-react";
 import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -24,6 +25,10 @@ export default function CustomersPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
+  const { can } = usePermissions();
+  const canAdd = can("Customers", "add");
+  const canEdit = can("Customers", "edit");
+  const canDelete = can("Customers", "delete");
 
   const load = () => {
     setLoading(true);
@@ -64,7 +69,7 @@ export default function CustomersPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Customers" action={{ label: "New Customer", onClick: openCreate, icon: <Plus size={16} /> }} />
+      <PageHeader title="Customers" action={canAdd ? { label: "New Customer", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <div className="mb-4">
         <Input placeholder="Search by code, name, or mobile..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
       </div>
@@ -77,8 +82,8 @@ export default function CustomersPage() {
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
               <Link href={`/customers/${r.id}/ledger`} className="text-green-600 hover:text-green-800"><Eye size={14} /></Link>
-              <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
-              <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              {canEdit && <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+              {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
             </div>
           )},
         ]}

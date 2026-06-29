@@ -8,7 +8,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, POS_PAY_MODES, type PosProduct } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import {
@@ -40,6 +40,7 @@ interface HeldOrder {
   cart: CartItem[];
   servedBy: string;
   payMode: string;
+  bankId: string;
   discountType: DiscountType;
   discountValue: string;
 }
@@ -66,6 +67,8 @@ export default function PosPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const [servedBy, setServedBy] = useState("");
   const [payMode, setPayMode] = useState<string>("Cash");
+  const [banks, setBanks] = useState<PosBank[]>([]);
+  const [bankId, setBankId] = useState("");
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -117,6 +120,12 @@ export default function PosPage() {
     load();
     return () => { cancelled = true; };
   }, [user]);
+
+  // Banks for the Card-payment dropdown (best-effort; offline terminals just
+  // get an empty list and skip the bank selection).
+  useEffect(() => {
+    posBanksApi.getAll().then(setBanks).catch(() => {});
+  }, []);
 
   /** Reflect a sale in the on-screen stock counts (and not just the cache). */
   const decrementProductStock = (sold: CartItem[]) => {
@@ -217,6 +226,7 @@ export default function PosPage() {
     setPaidAmount("");
     setServedBy("");
     setPayMode("Cash");
+    setBankId("");
     setDiscountType("fixed");
     setDiscountValue("");
   };
@@ -230,6 +240,7 @@ export default function PosPage() {
       cart,
       servedBy,
       payMode,
+      bankId,
       discountType,
       discountValue,
     };
@@ -251,6 +262,7 @@ export default function PosPage() {
           cart,
           servedBy,
           payMode,
+          bankId,
           discountType,
           discountValue,
         });
@@ -260,6 +272,7 @@ export default function PosPage() {
     setCart(held.cart);
     setServedBy(held.servedBy);
     setPayMode(held.payMode ?? "Cash");
+    setBankId(held.bankId ?? "");
     setDiscountType(held.discountType);
     setDiscountValue(held.discountValue);
     setPaidAmount("");
@@ -291,6 +304,7 @@ export default function PosPage() {
       clientSavedAt: at.toISOString(),
       servedBy: servedBy || undefined,
       salesType: payMode,
+      bankId: payMode === "Card" ? (bankId || undefined) : undefined,
       branchId: user.branchId || undefined,
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
@@ -338,6 +352,7 @@ export default function PosPage() {
         paidAmount: paid,
         servedBy: servedBy || undefined,
         salesType: payMode,
+        bankId: payMode === "Card" ? (bankId || undefined) : undefined,
         branchId: user?.branchId || undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
@@ -711,9 +726,25 @@ export default function PosPage() {
             <Select
               label="Pay Mode"
               value={payMode}
-              onChange={(e) => setPayMode(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPayMode(next);
+                if (next !== "Card") setBankId("");
+              }}
               options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))}
             />
+
+            {payMode === "Card" && (
+              <Select
+                label="Bank"
+                value={bankId}
+                onChange={(e) => setBankId(e.target.value)}
+                options={[
+                  { value: "", label: "Select bank" },
+                  ...banks.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+              />
+            )}
 
             <Input
               label="Served By"

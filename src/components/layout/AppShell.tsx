@@ -34,6 +34,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/admin/permissions", "RolesPermissions"],
   ["/admin/user-role-permissions", "UserRolePermission"],
   ["/admin/user-permissions", "UserRolePermission"],
+  ["/admin/banks", "Bank"],
   ["/admin", "Admin"],
 ];
 

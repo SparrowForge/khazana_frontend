@@ -41,6 +41,8 @@ export interface OfflineOrder {
   clientSavedAt: string;
   servedBy?: string;
   salesType?: string;
+  /** Bank UUID — set when salesType is 'Card'. */
+  bankId?: string;
   /** Originating branch UUID captured at sale time. */
   branchId?: string;
   discountType?: "fixed" | "percentage";
@@ -163,6 +165,7 @@ export function toSyncPayload(o: OfflineOrder) {
     clientSavedAt: o.clientSavedAt,
     ...(o.servedBy ? { servedBy: o.servedBy } : {}),
     ...(o.salesType ? { salesType: o.salesType } : {}),
+    ...(o.bankId ? { bankId: o.bankId } : {}),
     ...(o.branchId != null ? { branchId: o.branchId } : {}),
     ...(o.discountType ? { discountType: o.discountType } : {}),
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),

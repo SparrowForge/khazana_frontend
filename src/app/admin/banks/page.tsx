@@ -22,9 +22,9 @@ export default function BanksPage() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const { can } = usePermissions();
-  const canAdd = can("Admin", "add");
-  const canEdit = can("Admin", "edit");
-  const canDelete = can("Admin", "delete");
+  const canAdd = can("Bank", "add");
+  const canEdit = can("Bank", "edit");
+  const canDelete = can("Bank", "delete");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {

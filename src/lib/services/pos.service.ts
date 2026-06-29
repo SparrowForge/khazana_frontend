@@ -50,6 +50,8 @@ export interface CreatePosSalePayload {
   paidAmount: number;
   servedBy?: string;
   salesType?: string;
+  /** Bank UUID — set when salesType is 'Card'. */
+  bankId?: string;
   /** Session branch UUID. */
   branchId?: string;
   discountType?: 'fixed' | 'percentage';
@@ -64,6 +66,8 @@ export interface OfflineSalePayload {
   clientSavedAt: string;
   servedBy?: string;
   salesType?: string;
+  /** Bank UUID — set when salesType is 'Card'. */
+  bankId?: string;
   /** Originating branch UUID captured at sale time. */
   branchId?: string;
   discountType?: "fixed" | "percentage";
@@ -92,6 +96,19 @@ export interface SyncOfflineResult {
 
 export const posProductsApi = {
   getAll: () => api.get<PosProduct[]>("/pos/products").then((r) => r.data),
+};
+
+// Banks for the Card-payment dropdown (sourced from the Bank table via the
+// admin banks endpoint). Returns a flat {id,name} list, unwrapping the
+// paginated envelope when present.
+export interface PosBank { id: string; name: string }
+export const posBanksApi = {
+  getAll: () =>
+    api.get("/admin/banks?page=1&limit=200").then((r) => {
+      const raw = r.data;
+      const rows = Array.isArray(raw) ? raw : (raw?.data ?? raw?.items ?? []);
+      return (rows as { id: string; name?: string }[]).map((b) => ({ id: b.id, name: b.name ?? "" }));
+    }),
 };
 
 export const posSalesApi = {

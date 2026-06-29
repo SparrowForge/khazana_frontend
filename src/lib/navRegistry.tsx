@@ -145,7 +145,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "User Menu Permission", route: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
       { label: "User Role Assignment", route: "/admin/user-role-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
       { label: "Branches", route: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Admin" },
-      { label: "Banks", route: "/admin/banks", icon: <Landmark size={16} />, controlName: "Admin" },
+      { label: "Banks", route: "/admin/banks", icon: <Landmark size={16} />, controlName: "Bank" },
       { label: "Audit Log", route: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "Admin" },
       { label: "System Settings", route: "/admin/settings", icon: <Settings size={16} />, controlName: "Admin" },
     ],

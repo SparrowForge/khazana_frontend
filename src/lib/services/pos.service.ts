@@ -35,6 +35,7 @@ export interface PosSale {
   invoiceNo: string;
   dateTime: string;
   salesType: string;
+  bankId?: string | null;
   totalAmount: number;
   discountAmount: number;
   vatAmount: number;
@@ -104,7 +105,7 @@ export const posProductsApi = {
 export interface PosBank { id: string; name: string }
 export const posBanksApi = {
   getAll: () =>
-    api.get("/admin/banks?page=1&limit=200").then((r) => {
+    api.get("/admin/banks?page=1&limit=100").then((r) => {
       const raw = r.data;
       const rows = Array.isArray(raw) ? raw : (raw?.data ?? raw?.items ?? []);
       return (rows as { id: string; name?: string }[]).map((b) => ({ id: b.id, name: b.name ?? "" }));

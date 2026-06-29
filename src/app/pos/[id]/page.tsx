@@ -9,7 +9,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, POS_PAY_MODES, type PosProduct } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ShoppingCart, Plus, Minus, Trash2, Search, Tag, ArrowLeft } from "lucide-react";
 
@@ -37,6 +37,8 @@ export default function PosSaleEditPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [salesType, setSalesType] = useState("Cash");
+  const [banks, setBanks] = useState<PosBank[]>([]);
+  const [bankId, setBankId] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const [servedBy, setServedBy] = useState("");
   const [search, setSearch] = useState("");
@@ -58,6 +60,7 @@ export default function PosSaleEditPage() {
         setProducts(prods);
         setInvoiceNo(sale.invoiceNo);
         setSalesType(sale.salesType || "Cash");
+        setBankId(sale.bankId || "");
         setServedBy(sale.servedBy || "");
         setPaidAmount(String(sale.paidAmount ?? ""));
         if (Number(sale.discountAmount) > 0) {
@@ -87,6 +90,11 @@ export default function PosSaleEditPage() {
     load();
     return () => { cancelled = true; };
   }, [id]);
+
+  // Banks for the Card-payment dropdown (best-effort).
+  useEffect(() => {
+    posBanksApi.getAll().then(setBanks).catch(() => {});
+  }, []);
 
   const addToCart = (product: PosProduct) => {
     setCart((prev) => {
@@ -150,6 +158,7 @@ export default function PosSaleEditPage() {
         paidAmount: paid,
         servedBy: servedBy || undefined,
         salesType: salesType || undefined,
+        bankId: salesType === "Card" ? (bankId || undefined) : undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
       });
@@ -353,11 +362,27 @@ export default function PosSaleEditPage() {
             <Select
               label="Pay Mode"
               value={salesType}
-              onChange={(e) => setSalesType(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSalesType(next);
+                if (next !== "Card") setBankId("");
+              }}
               options={((POS_PAY_MODES as readonly string[]).includes(salesType) ? [...POS_PAY_MODES] : [salesType, ...POS_PAY_MODES])
                 .filter(Boolean)
                 .map((m) => ({ value: m, label: m }))}
             />
+
+            {salesType === "Card" && (
+              <Select
+                label="Bank"
+                value={bankId}
+                onChange={(e) => setBankId(e.target.value)}
+                options={[
+                  { value: "", label: "Select bank" },
+                  ...banks.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+              />
+            )}
             <Input label="Served By" value={servedBy} onChange={(e) => setServedBy(e.target.value)} placeholder="Staff name (optional)" />
             <Input label="Paid Amount (৳)" type="number" min="0" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} placeholder="0.00" />
 

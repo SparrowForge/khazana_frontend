@@ -1,5 +1,12 @@
 import api from "@/lib/api";
 
+// Payment modes offered at the counter (persisted as a sale's `salesType` /
+// t_SOMstr.mtype). Shared by the POS terminal and the sale-edit screen.
+export const POS_PAY_MODES = [
+  "Cash", "Card", "Bkash", "Rocket", "Nagad",
+  "Ucash", "Mycash", "T-cash", "Sure Cash", "Others",
+] as const;
+
 // Items come from Item_Information + t_Price (active, date-ranged)
 export interface PosProduct {
   id: string;          // Item_Information.id (UUID)
@@ -14,6 +21,7 @@ export interface PosProduct {
 
 export interface PosSaleItem {
   id: string;
+  itemId: string;
   productName: string;
   qty: number;
   rate: number;
@@ -91,6 +99,8 @@ export const posSalesApi = {
     api.post<PosSale>("/pos/sales", data).then((r) => r.data),
   getAll: () => api.get<PosSale[]>("/pos/sales").then((r) => r.data),
   getOne: (id: string) => api.get<PosSale>(`/pos/sales/${id}`).then((r) => r.data),
+  update: (id: string, data: CreatePosSalePayload) =>
+    api.patch<PosSale>(`/pos/sales/${id}`, data).then((r) => r.data),
   remove: (id: string) => api.delete(`/pos/sales/${id}`).then((r) => r.data),
   syncOffline: (data: SyncOfflinePayload) =>
     api.post<SyncOfflineResult>("/pos/sync-offline", data).then((r) => r.data),

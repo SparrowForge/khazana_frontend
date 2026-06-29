@@ -6,7 +6,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 function formatDT(iso: string) {
@@ -27,6 +27,7 @@ export default function PosSalesListPage() {
   const [sales, setSales] = useState<PosSale[]>([]);
   const [loading, setLoading] = useState(true);
   const { can } = usePermissions();
+  const canEdit = can("POSSales", "edit");
   const canDelete = can("POSSales", "delete");
 
   const load = () => {
@@ -89,11 +90,9 @@ export default function PosSalesListPage() {
                       >
                         View Invoice
                       </button>
-                      {canDelete && (
-                        <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-600" title="Delete">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                       {canEdit && <button onClick={() => router.push(`/pos/${s.id}`)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+                       {canDelete && <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
+                       {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
                     </div>
                   </td>
                 </tr>

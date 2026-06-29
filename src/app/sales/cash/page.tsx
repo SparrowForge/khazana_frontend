@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
+import { POS_PAY_MODES } from "@/lib/services/pos.service";
 import { fetchItems, createCashSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
@@ -67,11 +68,7 @@ export default function CashSalePage() {
                 label="Payment Method"
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                options={[
-                  { value: "Cash", label: "Cash" },
-                  { value: "Card", label: "Card" },
-                  { value: "Mobile", label: "Mobile Banking" },
-                ]}
+                options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))}
               />
               <Input label="Discount Remarks" value={discountRemarks} onChange={(e) => setDiscountRemarks(e.target.value)} />
             </div>

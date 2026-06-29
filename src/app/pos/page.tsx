@@ -5,9 +5,10 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, type PosProduct } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, POS_PAY_MODES, type PosProduct } from "@/lib/services/pos.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import {
@@ -38,6 +39,7 @@ interface HeldOrder {
   heldAt: string;
   cart: CartItem[];
   servedBy: string;
+  payMode: string;
   discountType: DiscountType;
   discountValue: string;
 }
@@ -63,6 +65,7 @@ export default function PosPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paidAmount, setPaidAmount] = useState("");
   const [servedBy, setServedBy] = useState("");
+  const [payMode, setPayMode] = useState<string>("Cash");
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -213,6 +216,7 @@ export default function PosPage() {
     setCart([]);
     setPaidAmount("");
     setServedBy("");
+    setPayMode("Cash");
     setDiscountType("fixed");
     setDiscountValue("");
   };
@@ -225,6 +229,7 @@ export default function PosPage() {
       heldAt: new Date().toISOString(),
       cart,
       servedBy,
+      payMode,
       discountType,
       discountValue,
     };
@@ -245,6 +250,7 @@ export default function PosPage() {
           heldAt: new Date().toISOString(),
           cart,
           servedBy,
+          payMode,
           discountType,
           discountValue,
         });
@@ -253,6 +259,7 @@ export default function PosPage() {
     });
     setCart(held.cart);
     setServedBy(held.servedBy);
+    setPayMode(held.payMode ?? "Cash");
     setDiscountType(held.discountType);
     setDiscountValue(held.discountValue);
     setPaidAmount("");
@@ -283,7 +290,7 @@ export default function PosPage() {
       paidAmount: paid,
       clientSavedAt: at.toISOString(),
       servedBy: servedBy || undefined,
-      salesType: "Cash",
+      salesType: payMode,
       branchId: user.branchId || undefined,
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
@@ -330,7 +337,7 @@ export default function PosPage() {
         items: cart.map((c) => ({ itemId: c.itemId, qty: c.qty })),
         paidAmount: paid,
         servedBy: servedBy || undefined,
-        salesType: "Cash",
+        salesType: payMode,
         branchId: user?.branchId || undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
@@ -700,6 +707,13 @@ export default function PosPage() {
                 <span>৳{fmt(payableAmount)}</span>
               </div>
             </div>
+
+            <Select
+              label="Pay Mode"
+              value={payMode}
+              onChange={(e) => setPayMode(e.target.value)}
+              options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))}
+            />
 
             <Input
               label="Served By"

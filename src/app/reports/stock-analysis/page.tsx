@@ -1,0 +1,211 @@
+"use client";
+import { useState } from "react";
+import AppLayout from "@/components/layout/AppLayout";
+import PageHeader from "@/components/ui/PageHeader";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
+import { useAuthStore } from "@/store/auth.store";
+import { fetchStockAnalysis, type StockAnalysisReport, type StockAnalysisRow } from "./server";
+import { formatCurrency, formatDate } from "@/lib/utils";
+
+// Quantities show a dash when zero (matching the legacy sheet); amounts always print.
+const q = (n: number) => (Math.abs(n ?? 0) < 0.005 ? "-" : (n ?? 0).toFixed(2));
+const amt = (n: number) => formatCurrency(n ?? 0);
+const pcs = (n: number) => String(Math.round(n ?? 0));
+
+export default function StockAnalysisPage() {
+  const today = new Date().toISOString().split("T")[0];
+  const branchId = useAuthStore((s) => s.user?.branchId ?? "");
+  const [date, setDate] = useState(today);
+  const [report, setReport] = useState<StockAnalysisReport | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const runReport = () => {
+    if (!branchId) return;
+    setLoading(true);
+    fetchStockAnalysis(date, branchId)
+      .then(setReport)
+      .catch(() => setReport(null))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <AppLayout>
+      <PageHeader title="Stock Analysis Report" />
+
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+        <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
+        {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}
+      </div>
+
+      {report && (
+        <>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 8mm; }
+              body * { visibility: hidden !important; }
+              #report, #report * { visibility: visible !important; }
+              #report { position: absolute; top: 0; left: 0; width: 100%; }
+              .no-print { display: none !important; }
+            }
+          `}</style>
+          <Report data={report} />
+        </>
+      )}
+    </AppLayout>
+  );
+}
+
+const COLS: { key: keyof StockAnalysisRow; label: string; amount?: boolean }[] = [
+  { key: "rate", label: "Rate", amount: true },
+  { key: "openStock", label: "Open Stock" },
+  { key: "gReceive", label: "G. Receive" },
+  { key: "totalStock", label: "Total Stock" },
+  { key: "salesQty", label: "Sales/Qty" },
+  { key: "salesAmt", label: "Sales Amt", amount: true },
+  { key: "assorted", label: "Assorted" },
+  { key: "nc", label: "NC" },
+  { key: "reject", label: "Reject" },
+  { key: "issueQty", label: "Issue Qty" },
+  { key: "short", label: "Short" },
+  { key: "excess", label: "Excess" },
+  { key: "closing", label: "Closing St." },
+];
+
+function Report({ data }: { data: StockAnalysisReport }) {
+  const { branch, items, totals, summary: s, categories: c } = data;
+
+  return (
+    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-4">
+      {/* ── Header ── */}
+      <div className="text-center mb-3">
+        <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
+        <div className="font-semibold">{branch.name}</div>
+        {branch.address && <div className="text-[10px]">{branch.address}</div>}
+        <div className="mt-1">
+          <span className="font-bold italic">Stock Analysis On: </span>
+          <span>{formatDate(data.date)}</span>
+        </div>
+      </div>
+
+      {/* ── Item table ── */}
+      <table className="w-full border-collapse border border-black text-right">
+        <thead>
+          <tr className="border-b border-black font-bold text-center">
+            <th className="border border-gray-400 px-1 py-0.5">SL</th>
+            <th className="border border-gray-400 px-1 py-0.5 text-left">Item Name</th>
+            {COLS.map((col) => (
+              <th key={col.key} className="border border-gray-400 px-1 py-0.5">{col.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((r) => (
+            <tr key={r.itemCode} className="border-b border-gray-200">
+              <td className="border border-gray-200 px-1 text-center">{r.sl}</td>
+              <td className="border border-gray-200 px-1 text-left whitespace-nowrap">
+                {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
+              </td>
+              {COLS.map((col) => (
+                <td key={col.key} className="border border-gray-200 px-1">
+                  {col.amount ? amt(r[col.key] as number) : q(r[col.key] as number)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-black font-bold">
+            <td className="border border-gray-300 px-1" colSpan={2}></td>
+            <td className="border border-gray-300 px-1"></td>
+            <td className="border border-gray-300 px-1">{q(totals.openStock)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.gReceive)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.totalStock)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.salesQty)}</td>
+            <td className="border border-gray-300 px-1">{amt(totals.salesAmt)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.assorted)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.nc)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.reject)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.issueQty)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.short)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.excess)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.closing)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* ── Footer summary ── */}
+      <div className="flex flex-wrap justify-between gap-6 mt-5">
+        {/* Sales totals */}
+        <table className="border-collapse min-w-[240px] self-start">
+          <tbody>
+            {[
+              ["Cash Sale", s.cashSale],
+              ["Card Sale", s.cardSale],
+              ["Credit Sale", s.creditSale],
+            ].map(([label, v]) => (
+              <tr key={label as string}>
+                <td className="font-bold py-0.5 pr-8">{label as string}</td>
+                <td className="text-right">{amt(v as number)}</td>
+              </tr>
+            ))}
+            <tr className="border-t border-black">
+              <td className="font-bold py-0.5 pr-8">Total Sale</td>
+              <td className="text-right font-bold">{amt(s.totalSale)}</td>
+            </tr>
+            <tr>
+              <td className="font-bold py-0.5 pr-8">NC Sale</td>
+              <td className="text-right">{amt(s.ncSale)}</td>
+            </tr>
+            <tr className="border-b border-black">
+              <td className="font-bold py-0.5 pr-8">Discount</td>
+              <td className="text-right">{amt(s.discount)}</td>
+            </tr>
+            <tr>
+              <td className="font-extrabold py-0.5 pr-8">Grand Total</td>
+              <td className="text-right font-extrabold">{amt(s.grandTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Category qty (Kg/Pcs/Amount) */}
+        <table className="border-collapse border border-black self-start">
+          <thead>
+            <tr className="border-b border-black text-center font-bold">
+              <th className="px-3 py-0.5"></th>
+              <th className="px-3 py-0.5 border-l border-gray-400">Kg</th>
+              <th className="px-3 py-0.5">Pcs</th>
+              <th className="px-3 py-0.5 border-l border-gray-400">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Regular Sale", c.regular],
+              ["Assorted Sale", c.assorted],
+              ["Issue Sale", c.issue],
+              ["Credit Sale", c.credit],
+            ].map(([label, cat]) => {
+              const r = cat as StockAnalysisReport["categories"]["regular"];
+              return (
+                <tr key={label as string} className="border-b border-gray-200">
+                  <td className="font-bold px-3 py-0.5">{label as string}</td>
+                  <td className="text-right px-3 border-l border-gray-300">{r.kg.toFixed(2)}</td>
+                  <td className="text-right px-3">{pcs(r.pcs)}</td>
+                  <td className="text-right px-3 border-l border-gray-300">{amt(r.amount)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Signatures ── */}
+      <div className="flex justify-between mt-12 text-[10px] text-center">
+        {["Prepared By", "Checked By", "Accountant", "Authorised Sign"].map((label) => (
+          <div key={label} className="border-t border-black px-6 pt-1">{label}</div>
+        ))}
+      </div>
+    </div>
+  );
+}

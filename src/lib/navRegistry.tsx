@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
   Layers, Settings, BarChart2, DollarSign, Warehouse, FileText,
-  UserCog, RefreshCw, Receipt,
+  UserCog, RefreshCw, Receipt, Landmark,
 } from "lucide-react";
 
 /**
@@ -127,8 +127,10 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     links: [
       { label: "Sales Report", route: "/reports/sales", icon: <BarChart2 size={16} /> },
       { label: "Stock Report", route: "/reports/stock", icon: <BarChart2 size={16} /> },
+      { label: "Stock Analysis", route: "/reports/stock-analysis", icon: <BarChart2 size={16} /> },
       { label: "Customer Statement", route: "/reports/customer-statement", icon: <FileText size={16} /> },
       { label: "Daily Summary", route: "/reports/daily", icon: <FileText size={16} /> },
+      { label: "Daily Final Report", route: "/reports/daily-final", icon: <FileText size={16} /> },
       { label: "Item-wise Sales", route: "/reports/item-sales", icon: <FileText size={16} /> },
       { label: "Packet Analysis", route: "/reports/packet", icon: <FileText size={16} /> },
     ],
@@ -143,6 +145,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "User Menu Permission", route: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
       { label: "User Role Assignment", route: "/admin/user-role-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
       { label: "Branches", route: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Admin" },
+      { label: "Banks", route: "/admin/banks", icon: <Landmark size={16} />, controlName: "Admin" },
       { label: "Audit Log", route: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "Admin" },
       { label: "System Settings", route: "/admin/settings", icon: <Settings size={16} />, controlName: "Admin" },
     ],

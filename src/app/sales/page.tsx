@@ -9,7 +9,7 @@ import { fetchSales, deleteCashSale, deleteCreditSale, type Sale, type SalesType
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -102,7 +102,7 @@ export default function SalesListPage() {
               const showDelete = target && can(target.control, "delete");
               return (
                 <div className="flex items-center gap-3">
-                  <Link href={`/sales/${r.id}`} className="text-primary-800 hover:underline text-xs">View</Link>
+                  <Link href={r.type=="Cash"?`/pos/${r.id}`:r.type=="Credit"?`/sales/credit/${r.id}`:`/nc-adjustment/${r.id}`} className="text-primary-800 hover:underline text-xs"><Edit2 size={14} /></Link>
                   {showDelete && (
                     <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
                       <Trash2 size={14} />

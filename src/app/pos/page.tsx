@@ -744,14 +744,14 @@ export default function PosPage() {
                       type="text"
                       value={discountName}
                       onChange={(e) => setDiscountName(e.target.value)}
-                      placeholder="Authoriser name *"
+                      placeholder="Guest name *"
                       className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
                     />
                     <input
                       type="text"
                       value={discountContact}
                       onChange={(e) => setDiscountContact(e.target.value)}
-                      placeholder="Authoriser contact no *"
+                      placeholder="Guest contact no *"
                       className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
                     />
                   </div>

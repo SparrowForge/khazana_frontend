@@ -49,6 +49,8 @@ export interface PosSale {
   changeAmount: number;
   servedBy: string;
   items: PosSaleItem[];
+  /** Branch header for the printed invoice (present on GET /pos/sales/:id). */
+  branch?: { name: string; address: string; vatNo: string; mobileNo: string } | null;
 }
 
 export interface CreatePosSalePayload {

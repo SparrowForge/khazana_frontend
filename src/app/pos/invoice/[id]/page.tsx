@@ -37,9 +37,9 @@ function Receipt({ sale }: { sale: PosSale }) {
       {/* ── Header ── */}
       <div className="text-center mb-1">
         <div className="font-bold text-[14px] tracking-widest">KHAZANA MITHAI</div>
-        <div className="text-[10px]">Gulshan-1, Dhaka-1212</div>
-        <div className="text-[10px]">VAT Reg No: 000000000000</div>
-        <div className="text-[10px]">Tel: +880 1700-000000</div>
+        <div className="text-[10px]">{sale.branch?.address}</div>
+        <div className="text-[10px]">VAT Reg No: {sale.branch?.vatNo || "—"}</div>
+        <div className="text-[10px]">Tel: {sale.branch?.mobileNo || "—"}</div>
         <div className="text-[10px]">www.khazanamithai.com</div>
       </div>
 
@@ -124,7 +124,7 @@ function Receipt({ sale }: { sale: PosSale }) {
         <div>Served By: <span className="font-semibold">{sale.servedBy}</span></div>
         <div className="mt-1">Thank you for visiting Khazana Mithai!</div>
         <div>We hope to see you again soon.</div>
-        <div className="mt-1 text-gray-400">Software by: SPR W-Forge</div>
+        <div className="mt-1 text-gray-400">Software by: https://sprwforge.com</div>
       </div>
 
       <div className="border-t border-dashed border-black mt-2" />

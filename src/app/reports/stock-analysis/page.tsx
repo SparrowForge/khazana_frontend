@@ -8,8 +8,14 @@ import { useAuthStore } from "@/store/auth.store";
 import { fetchStockAnalysis, type StockAnalysisReport, type StockAnalysisRow } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-// Quantities show a dash when zero (matching the legacy sheet); amounts always print.
-const q = (n: number) => (Math.abs(n ?? 0) < 0.005 ? "-" : (n ?? 0).toFixed(2));
+// Quantities: render a dash ONLY when the value is exactly 0 (to 2dp). A negative
+// balance is a real deficit and MUST print with its sign (e.g. -1.00) — never
+// blanked or absolute-valued. We round to 2dp first so float noise like
+// -0.000001 reads as 0 ("-"), while a genuine -1.00 stays "-1.00".
+const q = (n: number) => {
+  const v = Math.round(Number(n ?? 0) * 100) / 100;
+  return v === 0 ? "-" : v.toFixed(2);
+};
 const amt = (n: number) => formatCurrency(n ?? 0);
 const pcs = (n: number) => String(Math.round(n ?? 0));
 

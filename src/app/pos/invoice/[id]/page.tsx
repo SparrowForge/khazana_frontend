@@ -125,7 +125,7 @@ function Receipt({ sale }: { sale: PosSale }) {
         <div>Served By: <span className="font-semibold">{sale.servedBy}</span></div>
         <div className="mt-1">Thank you for visiting Khazana Mithai!</div>
         <div>We hope to see you again soon.</div>
-        <div className="mt-1 text-gray-400">Software by: https://sprwforge.com</div>
+        <div className="mt-1 text-gray-400">Software by: www.sprwforge.com</div>
       </div>
 
       <div className="border-t border-dashed border-black mt-2" />

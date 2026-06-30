@@ -35,7 +35,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export const createVatCreditSale = (data: VatCreditSalePayload) => {
   // Map the UI's SaleItem shape onto CreateVatCreditSaleDto (items keyed by
-  // itemCode/qty/disc). Derive per-line vatValue/vatAmount from the flat 15%.
+  // itemId/qty/disc). Derive per-line vatValue/vatAmount from the flat 15%.
   const payload = {
     invNo: data.invoiceNo || undefined, // blank → backend auto-generates
     invDate: data.invoiceDate,
@@ -47,7 +47,7 @@ export const createVatCreditSale = (data: VatCreditSalePayload) => {
       const taxable = it.rate * it.quantity - it.discount;
       const vatAmount = round2(taxable * VAT_RATE);
       return {
-        itemCode: it.itemCode,
+        itemId: it.itemId,
         qty: it.quantity,
         rate: it.rate,
         disc: it.discount,

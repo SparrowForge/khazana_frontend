@@ -31,7 +31,8 @@ export const fetchCustomers = () =>
 export const createCreditSale = (data: CreditSalePayload) => {
   // Map the UI's SaleItem/payload shape onto CreateCreditSaleDto and drop
   // display-only / unsupported fields so the strict ValidationPipe doesn't 400.
-  // Credit items are keyed by itemCode (not itemId) and use qty/disc.
+  // Credit items are keyed by itemId (the Item_Information UUID, stored in
+  // CSDetail.itemOId — a uuid FK) and use qty/disc.
   const payload = {
     invNo: data.invoiceNo || undefined, // blank → backend auto-generates
     invDate: data.invoiceDate,
@@ -40,7 +41,7 @@ export const createCreditSale = (data: CreditSalePayload) => {
     totalAmount: data.totalAmount,
     totalDiscount: data.totalDiscount,
     items: data.items.map((it) => ({
-      itemCode: it.itemCode,
+      itemId: it.itemId,
       qty: it.quantity,
       rate: it.rate,
       disc: it.discount,

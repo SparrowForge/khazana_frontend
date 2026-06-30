@@ -1,12 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchStockAnalysis, type StockAnalysisReport, type StockAnalysisRow } from "./server";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import { formatCurrency} from "@/lib/utils";
+
+const formatDate = (dateString : string | Date) => {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  
+  // Extract components using UTC to prevent timezone/hydration shifts
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+  const year = date.getUTCFullYear();
+  
+  return `${day}-${month}-${year}`; // Returns "30-Jun-2026"
+};
 
 // Quantities: render a dash ONLY when the value is exactly 0 (to 2dp). A negative
 // balance is a real deficit and MUST print with its sign (e.g. -1.00) — never
@@ -21,15 +36,33 @@ const pcs = (n: number) => String(Math.round(n ?? 0));
 
 export default function StockAnalysisPage() {
   const today = new Date().toISOString().split("T")[0];
-  const branchId = useAuthStore((s) => s.user?.branchId ?? "");
+  const sessionBranchId = useAuthStore((s) => s.user?.branchId ?? "");
   const [date, setDate] = useState(today);
+  // Report can target any branch (sales are recorded per-branch); default to the
+  // logged-in session branch. Lets an admin view e.g. Factory's stock from a
+  // Gulshan session — the cause of "sales exist but the report shows zero".
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
+  // When true, the report aggregates every branch together (no branch filter).
+  const [allBranches, setAllBranches] = useState(false);
   const [report, setReport] = useState<StockAnalysisReport | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    fetchBranches({ page: 1, limit: 100 })
+      .then(({ items }) => setBranches(items))
+      .catch(() => {});
+  }, []);
+
+  // Default the selected branch to the session branch once known.
+  useEffect(() => {
+    if (sessionBranchId) setBranchId((b) => b || sessionBranchId);
+  }, [sessionBranchId]);
+
   const runReport = () => {
-    if (!branchId) return;
+    if (!allBranches && !branchId) return;
     setLoading(true);
-    fetchStockAnalysis(date, branchId)
+    fetchStockAnalysis(date, allBranches ? undefined : branchId)
       .then(setReport)
       .catch(() => setReport(null))
       .finally(() => setLoading(false));
@@ -41,6 +74,23 @@ export default function StockAnalysisPage() {
 
       <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+        <Select
+          label="Branch"
+          value={branchId}
+          onChange={(e) => setBranchId(e.target.value)}
+          options={branches.map((b) => ({ value: String(b.id), label: b.branchName }))}
+          className="w-48"
+          disabled={allBranches}
+        />
+        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 select-none">
+          <input
+            type="checkbox"
+            checked={allBranches}
+            onChange={(e) => setAllBranches(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary-800 focus:ring-primary-800"
+          />
+          All Branches
+        </label>
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}
       </div>
@@ -90,9 +140,9 @@ function Report({ data }: { data: StockAnalysisReport }) {
         <div className="font-semibold">{branch.name}</div>
         {branch.address && <div className="text-[10px]">{branch.address}</div>}
         <div className="mt-1">
-          <span className="font-bold italic">Stock Analysis On: </span>
-          <span>{formatDate(data.date)}</span>
-        </div>
+          <span className="font-bold italic">Stock Analysis On: </span>         
+          <span className="font-semibold">{formatDate(data.date)}</span>
+        </div>      
       </div>
 
       {/* ── Item table ── */}

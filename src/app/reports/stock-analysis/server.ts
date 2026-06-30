@@ -50,7 +50,10 @@ export interface StockAnalysisReport {
   };
 }
 
-export const fetchStockAnalysis = (date: string, branchId: string) =>
+// Pass an empty/undefined branchId to aggregate ALL branches.
+export const fetchStockAnalysis = (date: string, branchId?: string) =>
   api
-    .get<StockAnalysisReport>(`/reports/stock-analysis?date=${date}&branchId=${branchId}`)
+    .get<StockAnalysisReport>(
+      `/reports/stock-analysis?date=${date}${branchId ? `&branchId=${branchId}` : ""}`,
+    )
     .then((r) => r.data);

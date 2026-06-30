@@ -29,7 +29,8 @@ export interface CategoryRow {
 }
 
 export interface StockAnalysisReport {
-  date: string;
+  fromDate: string;
+  toDate: string;
   branch: { name: string; address: string; vatNo: string };
   items: StockAnalysisRow[];
   totals: StockAnalysisTotals;
@@ -50,10 +51,11 @@ export interface StockAnalysisReport {
   };
 }
 
-// Pass an empty/undefined branchId to aggregate ALL branches.
-export const fetchStockAnalysis = (date: string, branchId?: string) =>
+// Date range [fromDate, toDate] (inclusive). Pass an empty/undefined branchId to
+// aggregate ALL branches.
+export const fetchStockAnalysis = (fromDate: string, toDate: string, branchId?: string) =>
   api
     .get<StockAnalysisReport>(
-      `/reports/stock-analysis?date=${date}${branchId ? `&branchId=${branchId}` : ""}`,
+      `/reports/stock-analysis?fromDate=${fromDate}&toDate=${toDate}${branchId ? `&branchId=${branchId}` : ""}`,
     )
     .then((r) => r.data);

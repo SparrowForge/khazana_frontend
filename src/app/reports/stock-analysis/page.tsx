@@ -37,7 +37,8 @@ const pcs = (n: number) => String(Math.round(n ?? 0));
 export default function StockAnalysisPage() {
   const today = new Date().toISOString().split("T")[0];
   const sessionBranchId = useAuthStore((s) => s.user?.branchId ?? "");
-  const [date, setDate] = useState(today);
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
   // Report can target any branch (sales are recorded per-branch); default to the
   // logged-in session branch. Lets an admin view e.g. Factory's stock from a
   // Gulshan session — the cause of "sales exist but the report shows zero".
@@ -62,7 +63,7 @@ export default function StockAnalysisPage() {
   const runReport = () => {
     if (!allBranches && !branchId) return;
     setLoading(true);
-    fetchStockAnalysis(date, allBranches ? undefined : branchId)
+    fetchStockAnalysis(fromDate, toDate, allBranches ? undefined : branchId)
       .then(setReport)
       .catch(() => setReport(null))
       .finally(() => setLoading(false));
@@ -73,7 +74,8 @@ export default function StockAnalysisPage() {
       <PageHeader title="Stock Analysis Report" />
 
       <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
-        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+        <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
+        <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
           label="Branch"
           value={branchId}
@@ -140,8 +142,12 @@ function Report({ data }: { data: StockAnalysisReport }) {
         <div className="font-semibold">{branch.name}</div>
         {branch.address && <div className="text-[10px]">{branch.address}</div>}
         <div className="mt-1">
-          <span className="font-bold italic">Stock Analysis On: </span>         
-          <span className="font-semibold">{formatDate(data.date)}</span>
+          <span className="font-bold italic">Stock Analysis: </span>
+          <span className="font-semibold">
+            {data.fromDate === data.toDate
+              ? formatDate(data.fromDate)
+              : `${formatDate(data.fromDate)} — ${formatDate(data.toDate)}`}
+          </span>
         </div>      
       </div>
 

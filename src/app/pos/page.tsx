@@ -43,6 +43,8 @@ interface HeldOrder {
   bankId: string;
   discountType: DiscountType;
   discountValue: string;
+  discountName: string;
+  discountContact: string;
 }
 
 const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
@@ -76,6 +78,9 @@ export default function PosPage() {
   // Discount state
   const [discountType, setDiscountType] = useState<DiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
+  // Discount authoriser (mandatory when a discount is applied)
+  const [discountName, setDiscountName] = useState("");
+  const [discountContact, setDiscountContact] = useState("");
 
   // ── Order queue (Hold / Resume), persisted to localStorage ───
   const [queue, setQueue] = useState<HeldOrder[]>([]);
@@ -229,6 +234,8 @@ export default function PosPage() {
     setBankId("");
     setDiscountType("fixed");
     setDiscountValue("");
+    setDiscountName("");
+    setDiscountContact("");
   };
 
   // ── Hold / Resume ────────────────────────────────────────────
@@ -243,6 +250,8 @@ export default function PosPage() {
       bankId,
       discountType,
       discountValue,
+      discountName,
+      discountContact,
     };
     setQueue((q) => [held, ...q]);
     resetWorkspace();
@@ -265,6 +274,8 @@ export default function PosPage() {
           bankId,
           discountType,
           discountValue,
+          discountName,
+          discountContact,
         });
       }
       return remaining;
@@ -275,6 +286,8 @@ export default function PosPage() {
     setBankId(held.bankId ?? "");
     setDiscountType(held.discountType);
     setDiscountValue(held.discountValue);
+    setDiscountName(held.discountName ?? "");
+    setDiscountContact(held.discountContact ?? "");
     setPaidAmount("");
     toast.success("Order resumed");
   };
@@ -308,6 +321,8 @@ export default function PosPage() {
       branchId: user.branchId || undefined,
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
+      discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
+      discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
       display: {
         dateTime: at.toLocaleString(),
         servedBy: servedBy || user.name || user.userName,
@@ -332,6 +347,10 @@ export default function PosPage() {
     if (!cart.length) { toast.error("Cart is empty"); return; }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
+    if (discountAmount > 0 && (!discountName.trim() || !discountContact.trim())) {
+      toast.error("Discount requires authoriser Name and Contact No");
+      return;
+    }
 
     // Open the print tab NOW, synchronously inside the click gesture, then
     // navigate it once the sale is saved. Opening it after the await would be
@@ -356,6 +375,8 @@ export default function PosPage() {
         branchId: user?.branchId || undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
+        discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
+        discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
       // Keep local caches in step with the server-side deduction.
@@ -714,6 +735,26 @@ export default function PosPage() {
                   <p className="text-xs text-green-600 mt-1">
                     −৳{fmt(discountAmount)} applied
                   </p>
+                )}
+
+                {/* Discount authoriser — mandatory once a discount is applied. */}
+                {discountAmount > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={discountName}
+                      onChange={(e) => setDiscountName(e.target.value)}
+                      placeholder="Authoriser name *"
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                    />
+                    <input
+                      type="text"
+                      value={discountContact}
+                      onChange={(e) => setDiscountContact(e.target.value)}
+                      placeholder="Authoriser contact no *"
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                    />
+                  </div>
                 )}
               </div>
 

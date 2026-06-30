@@ -47,6 +47,9 @@ export interface OfflineOrder {
   branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
+  /** Discount authoriser name/contact — captured when a discount is applied. */
+  discountRemarks?: string;
+  discountContact?: string;
   // ── Client-only ──
   display: OfflineDisplay;
 }
@@ -169,5 +172,7 @@ export function toSyncPayload(o: OfflineOrder) {
     ...(o.branchId != null ? { branchId: o.branchId } : {}),
     ...(o.discountType ? { discountType: o.discountType } : {}),
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),
+    ...(o.discountRemarks ? { discountRemarks: o.discountRemarks } : {}),
+    ...(o.discountContact ? { discountContact: o.discountContact } : {}),
   };
 }

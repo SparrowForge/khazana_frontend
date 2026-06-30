@@ -44,6 +44,10 @@ export default function PosSaleEditPage() {
   const [search, setSearch] = useState("");
   const [discountType, setDiscountType] = useState<DiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
+  const [discountName, setDiscountName] = useState("");
+  const [discountContact, setDiscountContact] = useState("");
+  // Mandatory on every update — audited in the Daily Final Report.
+  const [modifyReason, setModifyReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -66,6 +70,8 @@ export default function PosSaleEditPage() {
         if (Number(sale.discountAmount) > 0) {
           setDiscountType("fixed");
           setDiscountValue(String(sale.discountAmount));
+          setDiscountName(sale.discountRemarks ?? "");
+          setDiscountContact(sale.discountContact ?? "");
         }
         const byId = new Map(prods.map((p) => [p.id, p]));
         setCart(
@@ -150,6 +156,11 @@ export default function PosSaleEditPage() {
     if (!cart.length) { toast.error("Cart is empty"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
+    if (!modifyReason.trim()) { toast.error("Modify Reason is required"); return; }
+    if (discountAmount > 0 && (!discountName.trim() || !discountContact.trim())) {
+      toast.error("Discount requires authoriser Name and Contact No");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -161,6 +172,9 @@ export default function PosSaleEditPage() {
         bankId: salesType === "Card" ? (bankId || undefined) : undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
+        discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
+        discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
+        modifyRemarks: modifyReason.trim(),
       });
       toast.success(`Invoice ${invoiceNo} updated`);
       router.push("/pos/sales");
@@ -352,6 +366,26 @@ export default function PosSaleEditPage() {
                 {discountAmount > 0 && !discountExceedsTotal && (
                   <p className="text-xs text-green-600 mt-1">−৳{fmt(discountAmount)} applied</p>
                 )}
+
+                {/* Discount authoriser — mandatory once a discount is applied. */}
+                {discountAmount > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={discountName}
+                      onChange={(e) => setDiscountName(e.target.value)}
+                      placeholder="Authoriser name *"
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                    />
+                    <input
+                      type="text"
+                      value={discountContact}
+                      onChange={(e) => setDiscountContact(e.target.value)}
+                      placeholder="Authoriser contact no *"
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-gray-100 text-base">
@@ -384,6 +418,13 @@ export default function PosSaleEditPage() {
               />
             )}
             <Input label="Served By" value={servedBy} onChange={(e) => setServedBy(e.target.value)} placeholder="Staff name (optional)" />
+            <Input
+              label="Modify Reason *"
+              value={modifyReason}
+              onChange={(e) => setModifyReason(e.target.value)}
+              placeholder="Why is this sale being changed?"
+              className={modifyReason.trim() ? undefined : "border-red-300 bg-red-50"}
+            />
             <Input label="Paid Amount (৳)" type="number" min="0" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} placeholder="0.00" />
 
             {paid > 0 && (
@@ -398,7 +439,13 @@ export default function PosSaleEditPage() {
               size="lg"
               onClick={handleSave}
               loading={submitting}
-              disabled={!cart.length || paid < payableAmount || discountExceedsTotal}
+              disabled={
+                !cart.length ||
+                paid < payableAmount ||
+                discountExceedsTotal ||
+                !modifyReason.trim() ||
+                (discountAmount > 0 && (!discountName.trim() || !discountContact.trim()))
+              }
             >
               Save Changes
             </Button>

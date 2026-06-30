@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { unwrapList } from "@/lib/unwrap";
 
 // Payment modes offered at the counter (persisted as a sale's `salesType` /
 // t_SOMstr.mtype). Shared by the POS terminal and the sale-edit screen.
@@ -36,6 +37,10 @@ export interface PosSale {
   dateTime: string;
   salesType: string;
   bankId?: string | null;
+  bankName?: string | null;
+  discountRemarks?: string | null;
+  discountContact?: string | null;
+  modifyRemarks?: string | null;
   totalAmount: number;
   discountAmount: number;
   vatAmount: number;
@@ -57,6 +62,11 @@ export interface CreatePosSalePayload {
   branchId?: string;
   discountType?: 'fixed' | 'percentage';
   discountValue?: number;
+  /** Discount authoriser name/contact — sent when a discount is applied. */
+  discountRemarks?: string;
+  discountContact?: string;
+  /** Mandatory reason for an edit (update only) → SoMstr_ModifyRemarks. */
+  modifyRemarks?: string;
 }
 
 // ── Offline sync ──────────────────────────────────────────────
@@ -73,6 +83,9 @@ export interface OfflineSalePayload {
   branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
+  /** Discount authoriser name/contact — captured when a discount is applied. */
+  discountRemarks?: string;
+  discountContact?: string;
 }
 
 export interface SyncOfflinePayload {
@@ -106,9 +119,8 @@ export interface PosBank { id: string; name: string }
 export const posBanksApi = {
   getAll: () =>
     api.get("/admin/banks?page=1&limit=100").then((r) => {
-      const raw = r.data;
-      const rows = Array.isArray(raw) ? raw : (raw?.data ?? raw?.items ?? []);
-      return (rows as { id: string; name?: string }[]).map((b) => ({ id: b.id, name: b.name ?? "" }));
+      const rows = unwrapList<{ id: string; name?: string }>(r);
+      return rows.map((b) => ({ id: b.id, name: b.name ?? "" }));
     }),
 };
 

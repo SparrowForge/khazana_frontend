@@ -57,7 +57,7 @@ function Receipt({ sale }: { sale: PosSale }) {
         </div>
         <div className="flex justify-between">
           <span>Type:</span>
-          <span>{sale.salesType}</span>
+          <span>{sale.bankName ? `${sale.salesType}(${sale.bankName})` : sale.salesType}</span>
         </div>
       </div>
 

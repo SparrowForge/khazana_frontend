@@ -37,6 +37,7 @@ function Receipt({ sale }: { sale: PosSale }) {
       {/* ── Header ── */}
       <div className="text-center mb-1">
         <div className="font-bold text-[14px] tracking-widest">KHAZANA MITHAI</div>
+        <div className="text-[10px]">{sale.branch?.name} Branch</div>
         <div className="text-[10px]">{sale.branch?.address}</div>
         <div className="text-[10px]">VAT Reg No: {sale.branch?.vatNo || "—"}</div>
         <div className="text-[10px]">Tel: {sale.branch?.mobileNo || "—"}</div>

@@ -23,8 +23,8 @@ export default function BranchesPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const { can } = usePermissions();
-  const canAdd = can("Admin", "add");
-  const canEdit = can("Admin", "edit");
+  const canAdd = can("Branches", "add");
+  const canEdit = can("Branches", "edit");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {

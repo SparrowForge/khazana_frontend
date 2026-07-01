@@ -22,9 +22,9 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
   const { can } = usePermissions();
-  const canAdd = can("Items", "add");
-  const canEdit = can("Items", "edit");
-  const canDelete = can("Items", "delete");
+  const canAdd = can("Categories", "add");
+  const canEdit = can("Categories", "edit");
+  const canDelete = can("Categories", "delete");
 
   const load = () => {
     setLoading(true);

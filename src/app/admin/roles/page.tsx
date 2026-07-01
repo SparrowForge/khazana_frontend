@@ -23,8 +23,8 @@ export default function RolesPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const { can } = usePermissions();
-  const canAdd = can("RolesPermissions", "add");
-  const canEdit = can("RolesPermissions", "edit");
+  const canAdd = can("Roles", "add");
+  const canEdit = can("Roles", "edit");
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const load = () => {

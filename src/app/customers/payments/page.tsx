@@ -39,14 +39,14 @@ export default function CustomerPaymentsPage() {
     setSaving(true);
     try {
       await createPayment({ ...form, receiveAmount: parseFloat(form.receiveAmount) });
-      toast.success("Payment recorded");
+      toast.success("Money Receipt recorded");
       setModal(false); load();
     } catch { toast.error("Failed to save"); } finally { setSaving(false); }
   };
 
   return (
     <AppLayout>
-      <PageHeader title="Customer Payments" action={canAdd ? { label: "New Payment", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
+      <PageHeader title="Customer Money Receipt" action={canAdd ? { label: "New Money Receipt", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={payments}
         columns={[
           { key: "moneyReceptNo", header: "Receipt No" },
@@ -57,7 +57,7 @@ export default function CustomerPaymentsPage() {
           { key: "bankName", header: "Bank" },
         ]}
       />
-      <Modal open={modal} onClose={() => setModal(false)} title="New Payment">
+      <Modal open={modal} onClose={() => setModal(false)} title="New Money Receipt">
         <div className="grid grid-cols-2 gap-4">
           <Select label="Customer *" value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })}
             placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />

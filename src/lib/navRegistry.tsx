@@ -48,30 +48,30 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Credit Sales", route: "/sales/credit", icon: <DollarSign size={16} />, controlName: "CreditSales" },
       { label: "VAT Cash Sales", route: "/sales/vat/cash", icon: <DollarSign size={16} />, controlName: "VatCashSales" },
       { label: "VAT Credit Sales", route: "/sales/vat/credit", icon: <DollarSign size={16} />, controlName: "VatCreditSales" },
-      { label: "Sales List", route: "/sales", icon: <FileText size={16} />, controlName: "Sales" },
+      { label: "Sales List", route: "/sales", icon: <FileText size={16} />, controlName: "SalesList" },
     ],
   },
 
   NCAdjustment: {
     icon: <RefreshCw size={18} />,
     links: [
-      { label: "New NC", route: "/nc-adjustment", icon: <FileText size={16} /> },
-      { label: "NC List", route: "/nc-adjustment/list", icon: <ClipboardList size={16} /> },
+      { label: "New NC", route: "/nc-adjustment", icon: <FileText size={16} />, controlName: "NCNew" },
+      { label: "NC List", route: "/nc-adjustment/list", icon: <ClipboardList size={16} />, controlName: "NCList" },
     ],
   },
 
   Assortment: {
     icon: <Layers size={18} />,
     links: [
-      { label: "New Assortment", route: "/assortment", icon: <FileText size={16} /> },
-      { label: "Assortment List", route: "/assortment/list", icon: <ClipboardList size={16} /> },
+      { label: "New Assortment", route: "/assortment", icon: <FileText size={16} />, controlName: "AssortmentNew" },
+      { label: "Assortment List", route: "/assortment/list", icon: <ClipboardList size={16} />, controlName: "AssortmentList" },
     ],
   },
 
   Inventory: {
     icon: <Warehouse size={18} />,
     links: [
-      { label: "Categories", route: "/inventory/categories", icon: <Layers size={16} />, controlName: "Items" },
+      { label: "Categories", route: "/inventory/categories", icon: <Layers size={16} />, controlName: "Categories" },
       { label: "Items", route: "/inventory/items", icon: <Package size={16} />, controlName: "Items" },
       { label: "Stock View", route: "/inventory", icon: <BarChart2 size={16} />, controlName: "StockView" },
       { label: "Stock Receive", route: "/inventory/receive", icon: <FileText size={16} />, controlName: "StockReceive" },
@@ -84,55 +84,55 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
   Packets: {
     icon: <Package size={18} />,
     links: [
-      { label: "Packet Info", route: "/packets", icon: <Package size={16} /> },
-      { label: "Packet Receive", route: "/packets/receive", icon: <FileText size={16} /> },
-      { label: "Packet Issue", route: "/packets/issue", icon: <FileText size={16} /> },
-      { label: "Packet Stock", route: "/packets/stock", icon: <BarChart2 size={16} /> },
+      { label: "Packet Info", route: "/packets", icon: <Package size={16} />, controlName: "PacketInfo" },
+      { label: "Packet Receive", route: "/packets/receive", icon: <FileText size={16} />, controlName: "PacketReceive" },
+      { label: "Packet Issue", route: "/packets/issue", icon: <FileText size={16} />, controlName: "PacketIssue" },
+      { label: "Packet Stock", route: "/packets/stock", icon: <BarChart2 size={16} />, controlName: "PacketStock" },
     ],
   },
 
   Customers: {
     icon: <Users size={18} />,
     links: [
-      { label: "Customer List", route: "/customers", icon: <Users size={16} /> },
-      { label: "Customer Payments", route: "/customers/payments", icon: <DollarSign size={16} /> },
+      { label: "Customer List", route: "/customers", icon: <Users size={16} />, controlName: "CustomerList" },
+      { label: "Customer Money Receipt", route: "/customers/payments", icon: <DollarSign size={16} />, controlName: "CustomerPayments" },
     ],
   },
 
   Pricing: {
     icon: <DollarSign size={18} />,
     links: [
-      { label: "Price Setup", route: "/prices", icon: <DollarSign size={16} /> },
-      { label: "Cost Price Setup", route: "/cost-prices", icon: <DollarSign size={16} /> },
+      { label: "Price Setup", route: "/prices", icon: <DollarSign size={16} />, controlName: "PriceSetup" },
+      { label: "Cost Price Setup", route: "/cost-prices", icon: <DollarSign size={16} />, controlName: "CostPriceSetup" },
     ],
   },
 
   Orders: {
     icon: <ClipboardList size={18} />,
     links: [
-      { label: "Orders", route: "/orders", icon: <ClipboardList size={16} /> },
-      { label: "VAT Orders", route: "/orders/vat", icon: <ClipboardList size={16} /> },
+      { label: "Orders", route: "/orders", icon: <ClipboardList size={16} />, controlName: "OrdersList" },
+      { label: "VAT Orders", route: "/orders/vat", icon: <ClipboardList size={16} />, controlName: "VatOrders" },
     ],
   },
 
   Finance: {
     icon: <DollarSign size={18} />,
     links: [
-      { label: "Cash Purchase", route: "/finance/cash-purchase", icon: <FileText size={16} /> },
+      { label: "Cash Purchase", route: "/finance/cash-purchase", icon: <FileText size={16} />, controlName: "CashPurchase" },
     ],
   },
 
   Reports: {
     icon: <BarChart2 size={18} />,
     links: [
-      { label: "Sales Report", route: "/reports/sales", icon: <BarChart2 size={16} /> },
-      { label: "Stock Report", route: "/reports/stock", icon: <BarChart2 size={16} /> },
-      { label: "Stock Analysis", route: "/reports/stock-analysis", icon: <BarChart2 size={16} /> },
-      { label: "Customer Statement", route: "/reports/customer-statement", icon: <FileText size={16} /> },
-      { label: "Daily Summary", route: "/reports/daily", icon: <FileText size={16} /> },
-      { label: "Daily Final Report", route: "/reports/daily-final", icon: <FileText size={16} /> },
-      { label: "Item-wise Sales", route: "/reports/item-sales", icon: <FileText size={16} /> },
-      { label: "Packet Analysis", route: "/reports/packet", icon: <FileText size={16} /> },
+      { label: "Sales Report", route: "/reports/sales", icon: <BarChart2 size={16} />, controlName: "SalesReport" },
+      { label: "Stock Report", route: "/reports/stock", icon: <BarChart2 size={16} />, controlName: "StockReport" },
+      { label: "Stock Analysis", route: "/reports/stock-analysis", icon: <BarChart2 size={16} />, controlName: "StockAnalysis" },
+      { label: "Customer Statement", route: "/reports/customer-statement", icon: <FileText size={16} />, controlName: "CustomerStatement" },
+      { label: "Daily Summary", route: "/reports/daily", icon: <FileText size={16} />, controlName: "DailySummary" },
+      { label: "Daily Final Report", route: "/reports/daily-final", icon: <FileText size={16} />, controlName: "DailyFinalReport" },
+      { label: "Item-wise Sales", route: "/reports/item-sales", icon: <FileText size={16} />, controlName: "ItemSales" },
+      { label: "Packet Analysis", route: "/reports/packet", icon: <FileText size={16} />, controlName: "PacketAnalysis" },
     ],
   },
 
@@ -140,14 +140,14 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     icon: <UserCog size={18} />,
     links: [
       { label: "Users", route: "/admin/users", icon: <Users size={16} />, controlName: "Users" },
-      { label: "Roles", route: "/admin/roles", icon: <UserCog size={16} />, controlName: "RolesPermissions" },
-      { label: "Permissions", route: "/admin/permissions", icon: <Settings size={16} />, controlName: "RolesPermissions" },
-      { label: "User Menu Permission", route: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
-      { label: "User Role Assignment", route: "/admin/user-role-permissions", icon: <UserCog size={16} />, controlName: "UserRolePermission" },
-      { label: "Branches", route: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Admin" },
+      { label: "Roles", route: "/admin/roles", icon: <UserCog size={16} />, controlName: "Roles" },
+      { label: "Permissions", route: "/admin/permissions", icon: <Settings size={16} />, controlName: "Permissions" },
+      { label: "User Menu Permission", route: "/admin/user-permissions", icon: <UserCog size={16} />, controlName: "UserMenuPermission" },
+      { label: "User Role Assignment", route: "/admin/user-role-permissions", icon: <UserCog size={16} />, controlName: "UserRoleAssignment" },
+      { label: "Branches", route: "/admin/branches", icon: <Warehouse size={16} />, controlName: "Branches" },
       { label: "Banks", route: "/admin/banks", icon: <Landmark size={16} />, controlName: "Bank" },
-      { label: "Audit Log", route: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "Admin" },
-      { label: "System Settings", route: "/admin/settings", icon: <Settings size={16} />, controlName: "Admin" },
+      { label: "Audit Log", route: "/admin/audit-log", icon: <ClipboardList size={16} />, controlName: "AuditLog" },
+      { label: "System Settings", route: "/admin/settings", icon: <Settings size={16} />, controlName: "SystemSettings" },
     ],
   },
 };

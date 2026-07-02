@@ -24,6 +24,15 @@ import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 
+// Password strength rules — same policy as the reset-password and change-password flows.
+function passwordStrengthError(pw: string): string | null {
+  if (pw.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(pw)) return "Password must contain at least one uppercase letter";
+  if (!/[a-z]/.test(pw)) return "Password must contain at least one lowercase letter";
+  if (!/\d/.test(pw)) return "Password must contain at least one number";
+  return null;
+}
+
 const emptyForm = {
   name: "",
   userName: "",
@@ -131,6 +140,12 @@ export default function UsersPage() {
     if (!form.userName) { toast.error("Username is required"); return; }
     if (form.branchIds.length === 0) { toast.error("At least one branch must be selected"); return; }
     if (!editing && !form.password) { toast.error("Password is required for new users"); return; }
+    // Validate strength when a password is being set: always on create, and on
+    // edit only when the field is filled (blank = keep existing password).
+    if ((!editing || form.password) && form.password) {
+      const pwErr = passwordStrengthError(form.password);
+      if (pwErr) { toast.error(pwErr); return; }
+    }
     if (!editing && !form.email) { toast.error("Email is required for new users"); return; }
     setSaving(true);
     try {
@@ -285,7 +300,7 @@ export default function UsersPage() {
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={editing ? "Leave blank to keep current" : "Min 6 characters"}
+            placeholder={editing ? "Leave blank to keep current" : "Min 8 chars, upper, lower & number"}
           />
           <Select
             label="Active"

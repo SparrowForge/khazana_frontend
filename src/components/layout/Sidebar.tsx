@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { UserPermission } from "@/types";
 import { fetchNavMenus, type NavMenu } from "@/lib/services/menu.service";
 import { NAV_REGISTRY } from "@/lib/navRegistry";
+import UserMenu from "./UserMenu";
 
 interface RenderLink {
   label: string;
@@ -153,11 +154,11 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="px-4 py-3 border-t border-slate-700">
-        <p className="text-slate-300 text-sm font-medium">{user?.name ?? user?.userName}</p>
+      <div className="px-2 py-3 border-t border-slate-700">
+        <UserMenu />
         <button
           onClick={handleLogout}
-          className="mt-2 flex items-center gap-2 text-slate-400 hover:text-white text-xs transition-colors"
+          className="mt-2 flex items-center gap-2 px-2 text-slate-400 hover:text-white text-xs transition-colors"
         >
           <LogOut size={14} /> Logout
         </button>

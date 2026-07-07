@@ -7,7 +7,7 @@ export interface CustomerInfo {
 }
 
 export interface LedgerEntry {
-  id: number;
+  id: string;
   date?: string;
   description?: string;
   debit?: number;

@@ -28,17 +28,23 @@ interface StatCardProps {
   value: string;
   icon: React.ReactNode;
   color: string;
+  href: string;
 }
 
-function StatCard({ title, value, icon, color }: StatCardProps) {
+function StatCard({ title, value, icon, color, href }: StatCardProps) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex items-center gap-4`}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
+    >
       <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
       <div>
         <p className="text-sm text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-800 mt-0.5">{value}</p>
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -59,36 +65,42 @@ export default function Dashboard() {
       value: loading ? "..." : String(stats.todaySales ?? 0),
       icon: <ShoppingCart size={22} className="text-blue-600" />,
       color: "bg-blue-50",
+      href: "/reports/sales",
     },
     {
       title: "Today's Revenue",
       value: loading ? "..." : `৳ ${formatCurrency(stats.todayRevenue ?? 0)}`,
       icon: <DollarSign size={22} className="text-green-600" />,
       color: "bg-green-50",
+      href: "/reports/daily",
     },
     {
       title: "Total Items",
       value: loading ? "..." : String(stats.totalItems ?? 0),
       icon: <Package size={22} className="text-purple-600" />,
       color: "bg-purple-50",
+      href: "/inventory/items",
     },
     {
       title: "Total Customers",
       value: loading ? "..." : String(stats.totalCustomers ?? 0),
       icon: <Users size={22} className="text-orange-600" />,
       color: "bg-orange-50",
+      href: "/customers",
     },
     {
       title: "Low Stock Items",
       value: loading ? "..." : String(stats.lowStockItems ?? 0),
       icon: <TrendingUp size={22} className="text-red-600" />,
       color: "bg-red-50",
+      href: "/reports/stock",
     },
     {
       title: "Pending Orders",
       value: loading ? "..." : String(stats.pendingOrders ?? 0),
       icon: <RefreshCw size={22} className="text-yellow-600" />,
       color: "bg-yellow-50",
+      href: "/orders",
     },
   ];
 
@@ -107,7 +119,13 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-gray-700 mb-3">Today&apos;s Sales by Branch</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {stats.branches!.map((b) => (
-              <div key={b.branchId} className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+              <a
+                key={b.branchId}
+                href="/reports/sales"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block bg-white rounded-lg border border-gray-200 shadow-sm p-5 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
+              >
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 size={18} className="text-primary-700" />
                   <p className="font-semibold text-gray-800">{b.branchName ?? b.branchCode ?? "Branch"}</p>
@@ -122,7 +140,7 @@ export default function Dashboard() {
                     <p className="text-xl font-bold text-green-600">৳ {formatCurrency(b.todayRevenue)}</p>
                   </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>

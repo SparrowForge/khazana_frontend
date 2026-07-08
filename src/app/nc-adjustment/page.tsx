@@ -31,8 +31,9 @@ export default function NCAdjustmentPage() {
     if (!items.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await createNcAdjustment({ code, date, name, contactNo, reference, items, netAmount });
-      toast.success("NC Adjustment saved");
+      const saved = await createNcAdjustment({ code, date, name, contactNo, reference, items, netAmount });
+      const savedCode = saved?.ncmstrCode ?? saved?.data?.ncmstrCode;
+      toast.success(savedCode ? `NC Adjustment saved — ${savedCode}` : "NC Adjustment saved");
       setItems([]);
       setCode(""); setName(""); setContactNo(""); setReference("");
     } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }

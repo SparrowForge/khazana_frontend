@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { LogOut, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
@@ -63,28 +63,75 @@ function buildNav(menus: NavMenu[], permissions: UserPermission[]): RenderItem[]
   return items;
 }
 
-function NavLinkRow({ link }: { link: RenderLink }) {
+function NavLinkRow({ link, collapsed }: { link: RenderLink; collapsed: boolean }) {
   const pathname = usePathname();
   return (
     <Link
       href={link.href}
+      title={collapsed ? link.label : undefined}
       className={cn(
         "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+        collapsed && "justify-center px-2",
         pathname === link.href
           ? "bg-primary-800 text-white"
           : "text-slate-300 hover:bg-slate-700 hover:text-white"
       )}
     >
       {link.icon}
-      <span>{link.label}</span>
+      {!collapsed && <span>{link.label}</span>}
     </Link>
   );
 }
 
-function NavGroup({ label, icon, links }: { label: string; icon: React.ReactNode; links: RenderLink[] }) {
+function NavGroup({
+  label,
+  icon,
+  links,
+  collapsed,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  links: RenderLink[];
+  collapsed: boolean;
+}) {
   const pathname = usePathname();
   const isChildActive = links.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
   const [open, setOpen] = useState(isChildActive);
+
+  if (collapsed) {
+    // Icon-only rail: expand as a hover flyout instead of an inline accordion.
+    return (
+      <div className="relative group">
+        <button
+          title={label}
+          className={cn(
+            "w-full flex items-center justify-center px-2 py-2 rounded-md text-sm transition-colors",
+            isChildActive ? "text-white bg-slate-700" : "text-slate-300 hover:bg-slate-700 hover:text-white"
+          )}
+        >
+          {icon}
+        </button>
+        <div className="absolute left-full top-0 z-50 ml-1 hidden min-w-[170px] rounded-md border border-slate-700 bg-slate-800 py-1 shadow-lg group-hover:block">
+          <div className="px-3 py-1.5 text-xs font-semibold text-slate-400">{label}</div>
+          {links.map((child) => (
+            <Link
+              key={child.href}
+              href={child.href}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+                pathname === child.href
+                  ? "bg-primary-800 text-white"
+                  : "text-slate-300 hover:bg-slate-700 hover:text-white"
+              )}
+            >
+              {child.icon}
+              <span>{child.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -121,14 +168,45 @@ function NavGroup({ label, icon, links }: { label: string; icon: React.ReactNode
   );
 }
 
+const SIDEBAR_COLLAPSED_KEY = "khazana-sidebar-collapsed";
+const MOBILE_BREAKPOINT = 768;
+
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const [menus, setMenus] = useState<NavMenu[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     fetchNavMenus().then(setMenus).catch(() => setMenus([]));
   }, []);
+
+  // Default: honour a saved preference; otherwise collapse on mobile viewports.
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored !== null) {
+      setCollapsed(stored === "true");
+    } else if (window.innerWidth < MOBILE_BREAKPOINT) {
+      setCollapsed(true);
+    }
+  }, []);
+
+  // Auto-collapse when the viewport narrows into mobile range.
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < MOBILE_BREAKPOINT) setCollapsed(true);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  };
 
   const handleLogout = () => {
     logout();
@@ -138,29 +216,62 @@ export default function Sidebar() {
   const items = buildNav(menus, user?.permissions ?? []);
 
   return (
-    <aside className="h-screen w-60 bg-slate-800 flex flex-col overflow-y-auto shrink-0">
-      <div className="px-4 py-4 border-b border-slate-700">
-        <h1 className="text-white font-bold text-lg">Khazana POS</h1>
-        <p className="text-slate-400 text-xs mt-0.5">{user?.branchName ?? "Branch"}</p>
+    <aside
+      className={cn(
+        "h-screen bg-slate-800 flex flex-col overflow-y-auto shrink-0 transition-all duration-200",
+        collapsed ? "w-16" : "w-60"
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center border-b border-slate-700 py-4",
+          collapsed ? "justify-center px-2" : "justify-between px-4"
+        )}
+      >
+        {!collapsed && (
+          <div className="min-w-0">
+            <h1 className="text-white font-bold text-lg truncate">Khazana POS</h1>
+            <p className="text-slate-400 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
+          </div>
+        )}
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
+      <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-2")}>
         {items.map((item) =>
           item.kind === "link" ? (
-            <NavLinkRow key={item.href} link={item} />
+            <NavLinkRow key={item.href} link={item} collapsed={collapsed} />
           ) : (
-            <NavGroup key={item.label} label={item.label} icon={item.icon} links={item.children} />
+            <NavGroup
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              links={item.children}
+              collapsed={collapsed}
+            />
           )
         )}
       </nav>
 
-      <div className="px-2 py-3 border-t border-slate-700">
-        <UserMenu />
+      <div className={cn("border-t border-slate-700 py-3", collapsed ? "px-1.5" : "px-2")}>
+        <UserMenu collapsed={collapsed} />
         <button
           onClick={handleLogout}
-          className="mt-2 flex items-center gap-2 px-2 text-slate-400 hover:text-white text-xs transition-colors"
+          title={collapsed ? "Logout" : undefined}
+          className={cn(
+            "mt-2 flex items-center gap-2 text-slate-400 hover:text-white text-xs transition-colors",
+            collapsed ? "justify-center w-full py-1" : "px-2"
+          )}
         >
-          <LogOut size={14} /> Logout
+          <LogOut size={14} />
+          {!collapsed && "Logout"}
         </button>
       </div>
     </aside>

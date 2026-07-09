@@ -32,7 +32,7 @@ export default function AssortmentPage() {
     if (!items.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      await createAssortment({
+      const saved = await createAssortment({
         code, date, type, items,
         totalAmt: items.reduce((s, i) => s + i.rate * i.quantity, 0),
         discAmt: items.reduce((s, i) => s + i.discount, 0),
@@ -40,7 +40,8 @@ export default function AssortmentPage() {
         customerpay: parseFloat(paidAmount),
         change: Math.max(0, change),
       });
-      toast.success("Assortment sale saved");
+      const savedCode = saved?.code ?? saved?.data?.code;
+      toast.success(savedCode ? `Assortment sale saved — ${savedCode}` : "Assortment sale saved");
       setItems([]);
       setCode(""); setPaidAmount("0");
     } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }

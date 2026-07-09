@@ -11,7 +11,7 @@ import ChangePasswordModal from "./ChangePasswordModal";
  * toggles a floating dropdown (opens upward) with exactly two actions: Profile
  * and Change Password. Closes on outside-click or Escape.
  */
-export default function UserMenu() {
+export default function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
   const { user } = useAuthStore();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -53,22 +53,35 @@ export default function UserMenu() {
         onClick={() => setIsOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="w-full flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        title={collapsed ? displayName : undefined}
+        className={cn(
+          "flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-slate-300 hover:bg-slate-700 hover:text-white transition-colors",
+          collapsed ? "w-full justify-center" : "w-full justify-between"
+        )}
       >
-        <span className="flex items-center gap-2 min-w-0">
+        {collapsed ? (
           <UserIcon size={16} className="shrink-0" />
-          <span className="truncate text-sm font-medium">{displayName}</span>
-        </span>
-        <ChevronUp
-          size={14}
-          className={cn("shrink-0 transition-transform", isOpen ? "" : "rotate-180")}
-        />
+        ) : (
+          <>
+            <span className="flex items-center gap-2 min-w-0">
+              <UserIcon size={16} className="shrink-0" />
+              <span className="truncate text-sm font-medium">{displayName}</span>
+            </span>
+            <ChevronUp
+              size={14}
+              className={cn("shrink-0 transition-transform", isOpen ? "" : "rotate-180")}
+            />
+          </>
+        )}
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 mb-1 w-full overflow-hidden rounded-md border border-slate-600 bg-slate-700 shadow-lg"
+          className={cn(
+            "absolute z-50 w-40 overflow-hidden rounded-md border border-slate-600 bg-slate-700 shadow-lg",
+            collapsed ? "bottom-0 left-full ml-1" : "bottom-full left-0 mb-1 w-full"
+          )}
         >
           <button
             role="menuitem"

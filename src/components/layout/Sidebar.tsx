@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogOut, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
 import type { UserPermission } from "@/types";
@@ -97,38 +98,93 @@ function NavGroup({
   const pathname = usePathname();
   const isChildActive = links.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
   const [open, setOpen] = useState(isChildActive);
+  const [flyoutOpen, setFlyoutOpen] = useState(false);
+  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const flyoutRef = useRef<HTMLDivElement>(null);
+
+  // Click-to-open flyout (not hover) so it works on touch/mobile too. Portaled
+  // to <body> and fixed-positioned because the sidebar's overflow-y-auto
+  // otherwise clips anything that pokes past its right edge.
+  useEffect(() => {
+    if (!flyoutOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        flyoutRef.current &&
+        !flyoutRef.current.contains(target) &&
+        btnRef.current &&
+        !btnRef.current.contains(target)
+      ) {
+        setFlyoutOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFlyoutOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [flyoutOpen]);
+
+  const toggleFlyout = () => {
+    if (!flyoutOpen) {
+      const rect = btnRef.current?.getBoundingClientRect();
+      if (rect) setFlyoutPos({ top: rect.top, left: rect.right + 4 });
+    }
+    setFlyoutOpen((v) => !v);
+  };
 
   if (collapsed) {
-    // Icon-only rail: expand as a hover flyout instead of an inline accordion.
     return (
-      <div className="relative group">
+      <div className="relative">
         <button
+          ref={btnRef}
           title={label}
+          aria-haspopup="menu"
+          aria-expanded={flyoutOpen}
+          onClick={toggleFlyout}
           className={cn(
             "w-full flex items-center justify-center px-2 py-2 rounded-md text-sm transition-colors",
-            isChildActive ? "text-white bg-slate-700" : "text-slate-300 hover:bg-slate-700 hover:text-white"
+            isChildActive || flyoutOpen
+              ? "text-white bg-slate-700"
+              : "text-slate-300 hover:bg-slate-700 hover:text-white"
           )}
         >
           {icon}
         </button>
-        <div className="absolute left-full top-0 z-50 ml-1 hidden min-w-[170px] rounded-md border border-slate-700 bg-slate-800 py-1 shadow-lg group-hover:block">
-          <div className="px-3 py-1.5 text-xs font-semibold text-slate-400">{label}</div>
-          {links.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                pathname === child.href
-                  ? "bg-primary-800 text-white"
-                  : "text-slate-300 hover:bg-slate-700 hover:text-white"
-              )}
+        {flyoutOpen &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div
+              ref={flyoutRef}
+              role="menu"
+              style={{ position: "fixed", top: flyoutPos.top, left: flyoutPos.left }}
+              className="z-50 min-w-[170px] rounded-md border border-slate-700 bg-slate-800 py-1 shadow-lg"
             >
-              {child.icon}
-              <span>{child.label}</span>
-            </Link>
-          ))}
-        </div>
+              <div className="px-3 py-1.5 text-xs font-semibold text-slate-400">{label}</div>
+              {links.map((child) => (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  onClick={() => setFlyoutOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+                    pathname === child.href
+                      ? "bg-primary-800 text-white"
+                      : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                  )}
+                >
+                  {child.icon}
+                  <span>{child.label}</span>
+                </Link>
+              ))}
+            </div>,
+            document.body
+          )}
       </div>
     );
   }

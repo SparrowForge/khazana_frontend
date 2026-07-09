@@ -10,6 +10,7 @@ import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import { fetchItems, createAssortment, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function AssortmentPage() {
@@ -44,7 +45,7 @@ export default function AssortmentPage() {
       toast.success(savedCode ? `Assortment sale saved — ${savedCode}` : "Assortment sale saved");
       setItems([]);
       setCode(""); setPaidAmount("0");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

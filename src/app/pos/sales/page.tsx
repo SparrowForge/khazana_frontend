@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Edit2, Trash2 } from "lucide-react";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 function formatDT(iso: string) {
@@ -45,8 +46,8 @@ export default function PosSalesListPage() {
       await posSalesApi.remove(s.id);
       toast.success("Sale deleted");
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete"));
     }
   };
 

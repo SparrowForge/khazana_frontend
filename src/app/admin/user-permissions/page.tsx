@@ -16,6 +16,7 @@ import {
   type Role,
   type UserPermission,
 } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 type PermFlag = "isEnable" | "addAccess" | "editAccess" | "deleteAccess";
@@ -145,8 +146,8 @@ export default function UserPermissionsPage() {
       tpl.forEach((p) => p.controlName && (map[p.controlName] = p));
       setPerms(map);
       toast.success("Role template imported into grid");
-    } catch {
-      toast.error("Failed to import role");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to import role"));
     }
   };
 
@@ -165,8 +166,8 @@ export default function UserPermissionsPage() {
       // PUT /users/{userName}/permissions per selected user (delete-then-insert t_UserRole).
       await Promise.all(targets.map((userName) => saveUserPermissions(userName, payload)));
       toast.success(`Permissions updated for ${targets.length} user(s)`);
-    } catch {
-      toast.error("Failed to save permissions");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save permissions"));
     } finally {
       setSaving(false);
     }

@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { fetchItems, fetchBranches, transferStock, type AvailableItem, type BranchOption } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -47,7 +48,7 @@ export default function StockTransferPage() {
       toast.success("Stock transfer saved");
       setLines([{ itemCode: "", qty: "1" }]);
       setVoucherNo("");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

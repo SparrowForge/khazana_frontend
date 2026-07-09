@@ -22,6 +22,7 @@ import {
 import { uploadFile } from "@/lib/upload";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 // Password strength rules — same policy as the reset-password and change-password flows.
@@ -119,8 +120,8 @@ export default function UsersPage() {
       setForm((f) => ({ ...f, mediaFileId: mediaFile.id }));
       setPreviewUrl(mediaFile.fileUrl);
       toast.success("Avatar uploaded");
-    } catch {
-      toast.error("Avatar upload failed");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Avatar upload failed"));
     } finally {
       setUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -167,8 +168,7 @@ export default function UsersPage() {
       setModal(false);
       load();
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
-      toast.error(Array.isArray(msg) ? String(msg[0]) : (typeof msg === "string" ? msg : "Failed to save"));
+      toast.error(getErrorMessage(err, "Failed to save"));
     } finally {
       setSaving(false);
     }

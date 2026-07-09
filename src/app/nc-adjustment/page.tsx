@@ -9,6 +9,7 @@ import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import { fetchItems, createNcAdjustment, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function NCAdjustmentPage() {
@@ -36,7 +37,7 @@ export default function NCAdjustmentPage() {
       toast.success(savedCode ? `NC Adjustment saved — ${savedCode}` : "NC Adjustment saved");
       setItems([]);
       setCode(""); setName(""); setContactNo(""); setReference("");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

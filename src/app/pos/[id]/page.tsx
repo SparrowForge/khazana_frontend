@@ -11,6 +11,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import { ShoppingCart, Plus, Minus, Trash2, Search, Tag, ArrowLeft } from "lucide-react";
 
 interface CartItem {
@@ -179,8 +180,7 @@ export default function PosSaleEditPage() {
       toast.success(`Invoice ${invoiceNo} updated`);
       router.push("/pos/sales");
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to update sale");
+      toast.error(getErrorMessage(e, "Failed to update sale"));
     } finally {
       setSubmitting(false);
     }

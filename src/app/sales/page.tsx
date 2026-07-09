@@ -10,6 +10,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Edit2, Trash2 } from "lucide-react";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -46,8 +47,8 @@ export default function SalesListPage() {
       await target.del(s.id);
       toast.success("Sale deleted");
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete"));
     }
   };
 

@@ -16,6 +16,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function NCAdjustmentEditPage() {
@@ -79,8 +80,8 @@ export default function NCAdjustmentEditPage() {
       await updateNcAdjustment(id, { code, date, name, contactNo, reference, items, netAmount });
       toast.success("NC Adjustment updated");
       router.push("/nc-adjustment/list");
-    } catch {
-      toast.error("Failed to update");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to update"));
     } finally {
       setSubmitting(false);
     }

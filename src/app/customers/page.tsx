@@ -11,6 +11,7 @@ import { Plus, Edit2, Trash2, Eye } from "lucide-react";
 import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -50,13 +51,13 @@ export default function CustomersPage() {
       else await createCustomer(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   const handleDelete = async (c: Customer) => {
     if (!confirm(`Delete "${c.name}"?`)) return;
     try { await deleteCustomer(c.code); toast.success("Deleted"); load(); }
-    catch { toast.error("Failed to delete"); }
+    catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
 
   const handleSearch = (val: string) => { setSearch(val); resetPage(); };

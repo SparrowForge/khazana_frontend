@@ -13,6 +13,7 @@ import {
   type Menu,
   type Permission,
 } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const EMPTY_PERM = (menuId: string): Permission => ({
@@ -71,8 +72,8 @@ export default function PermissionsPage() {
       const payload: Permission[] = menus.map((m) => getPermForMenu(m.id));
       await savePermissions(selectedRole, payload);
       toast.success("Permissions saved");
-    } catch {
-      toast.error("Failed to save");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save"));
     } finally {
       setSaving(false);
     }

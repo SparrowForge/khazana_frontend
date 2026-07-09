@@ -26,4 +26,12 @@ api.interceptors.response.use(
   }
 );
 
+export function getErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+  const data = (err as { response?: { data?: { message?: unknown } } })?.response?.data;
+  const msg = data?.message;
+  if (Array.isArray(msg) && msg.length) return String(msg[0]);
+  if (typeof msg === "string" && msg) return msg;
+  return fallback;
+}
+
 export default api;

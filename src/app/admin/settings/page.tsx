@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { fetchSettings, updateSettings, type Settings } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function SettingsPage() {
@@ -22,7 +23,7 @@ export default function SettingsPage() {
     try {
       await updateSettings(form);
       toast.success("Settings saved");
-    } catch { toast.error("Failed to save settings"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save settings")); } finally { setSaving(false); }
   };
 
   if (loading) return <AppLayout><div className="text-gray-400 p-8">Loading settings...</div></AppLayout>;

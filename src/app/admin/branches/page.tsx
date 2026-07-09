@@ -11,6 +11,7 @@ import { Plus, Edit2 } from "lucide-react";
 import { fetchBranches, createBranch, updateBranch, type Branch } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "" };
@@ -47,7 +48,7 @@ export default function BranchesPage() {
       else await createBranch(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   return (

@@ -17,6 +17,7 @@ import {
 } from "@/lib/offline/offlineStore";
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
+import { getErrorMessage } from "@/lib/api";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Tag, PauseCircle, Clock, X,
   Wifi, WifiOff, RefreshCw,
@@ -397,15 +398,14 @@ export default function PosPage() {
         try {
           await saveOfflineBill(printWin);
           return;
-        } catch {
+        } catch (offlineErr) {
           printWin?.close();
-          toast.error("Failed to save sale offline");
+          toast.error(getErrorMessage(offlineErr, "Failed to save sale offline"));
           return;
         }
       }
       printWin?.close(); // nothing to show — don't leave a blank tab
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to generate bill");
+      toast.error(getErrorMessage(e, "Failed to generate bill"));
     } finally {
       setSubmitting(false);
     }

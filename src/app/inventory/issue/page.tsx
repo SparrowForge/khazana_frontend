@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { fetchItems, issueStock, type AvailableItem } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -40,7 +41,7 @@ export default function StockIssuePage() {
       toast.success("Stock issue saved");
       setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]);
       setVoucherNo("");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

@@ -8,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { authService } from "@/lib/services/auth.service";
+import { getErrorMessage } from "@/lib/api";
 
 // Password strength rules match the reset-password flow (stricter than the
 // backend ChangePasswordDto's min-6, which stays valid as a stricter subset).
@@ -60,8 +61,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
       toast.success("Password changed successfully");
       close();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Failed to change password");
+      toast.error(getErrorMessage(err, "Failed to change password"));
     } finally {
       setSubmitting(false);
     }

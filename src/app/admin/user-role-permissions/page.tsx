@@ -11,6 +11,7 @@ import {
   type UserItem,
   type Role,
 } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function UserRolePermissionsPage() {
@@ -75,8 +76,8 @@ export default function UserRolePermissionsPage() {
       const permissions = await buildPermissionsFromRoles(roleIds);
       await assignRolesToUsers(userNames, permissions);
       toast.success(`Assigned ${roleIds.length} role(s) to ${userNames.length} user(s)`);
-    } catch {
-      toast.error("Failed to assign roles");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to assign roles"));
     } finally {
       setSaving(false);
     }

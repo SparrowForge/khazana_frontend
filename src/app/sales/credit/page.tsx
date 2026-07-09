@@ -10,6 +10,7 @@ import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import { fetchItems, fetchCustomers, createCreditSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function CreditSalePage() {
@@ -45,8 +46,7 @@ export default function CreditSalePage() {
       setInvoiceNo("");
       setCustomerId("");
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to create sale");
+      toast.error(getErrorMessage(e, "Failed to create sale"));
     } finally {
       setSubmitting(false);
     }

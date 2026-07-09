@@ -11,6 +11,7 @@ import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchCategories, createCategory, updateCategory, deleteCategory, type Category } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function CategoriesPage() {
@@ -46,13 +47,13 @@ export default function CategoriesPage() {
       else await createCategory(form);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   const handleDelete = async (c: Category) => {
     if (!confirm(`Delete "${c.code}"?`)) return;
     try { await deleteCategory(c.id); toast.success("Deleted"); load(); }
-    catch { toast.error("Failed to delete"); }
+    catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
 
   return (

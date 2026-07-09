@@ -12,6 +12,7 @@ import { fetchCashPurchases, createCashPurchase, type CashPurchase } from "./ser
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const emptyForm = { voucherNo: "", voucherDate: new Date().toISOString().split("T")[0], supplier: "", amount: "", description: "" };
@@ -42,7 +43,7 @@ export default function CashPurchasePage() {
       await createCashPurchase({ ...form, amount: parseFloat(form.amount) });
       toast.success("Cash purchase recorded");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   return (

@@ -12,6 +12,7 @@ import { fetchBanks, createBank, updateBank, deleteBank, type Bank } from "./ser
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function BanksPage() {
@@ -47,7 +48,7 @@ export default function BanksPage() {
       else await createBank(name.trim());
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   const handleDelete = async (b: Bank) => {
@@ -56,9 +57,8 @@ export default function BanksPage() {
       await deleteBank(b.id);
       toast.success("Bank deleted");
       load();
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Failed to delete");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete"));
     }
   };
 

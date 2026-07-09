@@ -19,6 +19,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function CreditSaleEditPage() {
@@ -78,8 +79,7 @@ export default function CreditSaleEditPage() {
       toast.success("Credit sale updated");
       router.push("/sales");
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to update sale");
+      toast.error(getErrorMessage(e, "Failed to update sale"));
     } finally {
       setSubmitting(false);
     }

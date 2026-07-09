@@ -8,6 +8,7 @@ import { Edit2, Trash2, Plus } from "lucide-react";
 import { fetchNcAdjustments, deleteNcAdjustment, type NC } from "./server";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function NCAdjustmentListPage() {
@@ -32,8 +33,8 @@ export default function NCAdjustmentListPage() {
       await deleteNcAdjustment(nc.id);
       toast.success("NC Adjustment deleted");
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete"));
     }
   };
 

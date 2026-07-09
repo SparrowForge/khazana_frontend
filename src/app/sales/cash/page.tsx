@@ -11,6 +11,7 @@ import { POS_PAY_MODES } from "@/lib/services/pos.service";
 import { fetchItems, createCashSale, type AvailableItem } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function CashSalePage() {
@@ -48,8 +49,7 @@ export default function CashSalePage() {
       setInvoiceNo("");
       setPaidAmount("0");
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to create sale");
+      toast.error(getErrorMessage(e, "Failed to create sale"));
     } finally {
       setSubmitting(false);
     }

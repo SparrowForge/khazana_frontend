@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { fetchPackets, receivePackets, type PacketOption } from "./server";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -35,7 +36,7 @@ export default function PacketReceivePage() {
       await receivePackets({ voucherNo, receiveDate, items: valid.map((l) => ({ code: l.code, qty: parseFloat(l.qty) })) });
       toast.success("Packet receive saved");
       setLines([{ code: "", qty: "1" }]); setVoucherNo("");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

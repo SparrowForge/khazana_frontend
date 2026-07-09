@@ -23,6 +23,7 @@ import {
 import { fetchAllCategories, type Category } from "../categories/server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const ITEM_TYPES = [
@@ -125,8 +126,8 @@ export default function ItemsPage() {
       // Use fileUrl for the preview thumbnail
       setPreviewUrl(mediaFile.fileUrl);
       toast.success("Image uploaded");
-    } catch {
-      toast.error("Image upload failed");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Image upload failed"));
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -165,8 +166,8 @@ export default function ItemsPage() {
       toast.success(editing ? "Item updated" : "Item created");
       setModal(false);
       load();
-    } catch {
-      toast.error("Failed to save item");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save item"));
     } finally {
       setSaving(false);
     }
@@ -178,8 +179,8 @@ export default function ItemsPage() {
       await deleteItem(item.id);
       toast.success("Item deleted");
       load();
-    } catch {
-      toast.error("Failed to delete item");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete item"));
     }
   };
 

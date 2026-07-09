@@ -13,6 +13,7 @@ import { fetchPrices, createPrice, updatePrice, fetchItems, type Price, type Ava
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 type FormState = { priceItemOId: string; priceFromDate: string; priceToDate: string; priceListPrice: string; priceVatPercent: string; priceIsActive: string; };
@@ -57,7 +58,7 @@ export default function PricesPage() {
       else await createPrice(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   return (

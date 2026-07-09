@@ -8,6 +8,7 @@ import Table from "@/components/ui/Table";
 import { fetchAssortments, deleteAssortment, type Assortment } from "./server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function AssortmentListPage() {
@@ -29,8 +30,8 @@ export default function AssortmentListPage() {
       await deleteAssortment(a.id);
       toast.success("Assortment deleted");
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete"));
     }
   };
 

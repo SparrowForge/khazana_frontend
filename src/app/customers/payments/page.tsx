@@ -11,6 +11,7 @@ import { Plus } from "lucide-react";
 import { fetchPayments, createPayment, fetchCustomers, type Payment, type Customer } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", moneyReceptNo: "", bankName: "" };
@@ -41,7 +42,7 @@ export default function CustomerPaymentsPage() {
       await createPayment({ ...form, receiveAmount: parseFloat(form.receiveAmount) });
       toast.success("Money Receipt recorded");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   return (

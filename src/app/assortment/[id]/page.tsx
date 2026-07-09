@@ -12,6 +12,7 @@ import { fetchItems, fetchAssortment, updateAssortment, type AvailableItem } fro
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function AssortmentEditPage() {
@@ -70,8 +71,7 @@ export default function AssortmentEditPage() {
       toast.success("Assortment updated");
       router.push("/assortment/list");
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast.error(msg ?? "Failed to update assortment");
+      toast.error(getErrorMessage(e, "Failed to update assortment"));
     } finally {
       setSubmitting(false);
     }

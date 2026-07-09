@@ -8,6 +8,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { fetchItems, fetchBranches, receiveStock, type AvailableItem, type BranchOption } from "./server";
 import { useAuthStore } from "@/store/auth.store";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -47,7 +48,7 @@ export default function StockReceivePage() {
       setLines([{ itemCode: "", qty: "1" }]);
       setVoucherNo("");
       setFromBranchId("");
-    } catch { toast.error("Failed to save"); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (

@@ -13,6 +13,7 @@ import { fetchOrders, createOrder, fetchCustomers, fetchItems, type Order, type 
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 interface OrderLine { itemCode: string; qty: string; unitPrice: string; }
@@ -62,7 +63,7 @@ export default function OrdersPage() {
       });
       toast.success("Order created");
       setModal(false); load();
-    } catch { toast.error("Failed to create order"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to create order")); } finally { setSaving(false); }
   };
 
   return (

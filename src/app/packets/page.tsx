@@ -11,6 +11,7 @@ import { Plus, Edit2, Trash2 } from "lucide-react";
 import { fetchPackets, createPacket, updatePacket, deletePacket, type Packet } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const emptyForm = { code: "", name: "", uom: "pcs", weight: "", rate: "", isActive: "1" };
@@ -49,13 +50,13 @@ export default function PacketsPage() {
       else await createPacket(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   const handleDelete = async (p: Packet) => {
     if (!confirm(`Delete "${p.code}"?`)) return;
     try { await deletePacket(p.code); toast.success("Deleted"); load(); }
-    catch { toast.error("Failed to delete"); }
+    catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
 
   return (

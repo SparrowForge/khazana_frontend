@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
+import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,7 @@ interface ReceiveLine { itemCode: string; qty: string; }
 export default function StockReceivePage() {
   const user = useAuthStore((s) => s.user);
   const { can } = usePermissions();
+  const canAdd = can("StockReceive", "add");
   const canEdit = can("StockReceive", "edit");
   const canDelete = can("StockReceive", "delete");
 
@@ -32,7 +33,9 @@ export default function StockReceivePage() {
   const [listLoading, setListLoading] = useState(true);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
+  const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
   const [fromBranchId, setFromBranchId] = useState("");
@@ -63,31 +66,34 @@ export default function StockReceivePage() {
   const updateLine = (i: number, field: keyof ReceiveLine, val: string) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
 
-  const resetForm = () => {
+  const openCreate = () => {
     setEditingId(null);
+    setSerialNo("");
     setVoucherNo("");
     setPurDate(new Date().toISOString().split("T")[0]);
     setFromBranchId("");
     setLines([{ itemCode: "", qty: "1" }]);
+    setModal(true);
   };
 
   const openEdit = async (record: ReceiveRecord) => {
     try {
       const full = await fetchReceive(record.id);
       setEditingId(full.id);
+      setSerialNo(full.serialNo ?? "");
       setVoucherNo(full.voucharNo ?? "");
       setPurDate(full.purDate ? full.purDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setFromBranchId(full.branchId ?? "");
       setLines([{ itemCode: full.itemCode ?? "", qty: String(full.qty ?? 1) }]);
+      setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load receive record")); }
   };
 
   const handleDelete = async (record: ReceiveRecord) => {
-    if (!confirm(`Delete stock receive for "${record.itemCode}"?`)) return;
+    if (!confirm(`Delete stock receive "${record.serialNo ?? record.itemCode}"?`)) return;
     try {
       await deleteReceive(record.id);
       toast.success("Stock receive deleted");
-      if (editingId === record.id) resetForm();
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
@@ -111,16 +117,21 @@ export default function StockReceivePage() {
         });
         toast.success("Stock receive saved");
       }
-      resetForm();
+      setModal(false);
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
   return (
     <AppLayout>
-      <PageHeader title="Stock Receive" subtitle="Record incoming stock" />
+      <PageHeader
+        title="Stock Receive"
+        subtitle="Record incoming stock"
+        action={canAdd ? { label: "New Receive", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
+      />
       <Table loading={listLoading} data={receives}
         columns={[
+          { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
           { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
           { key: "itemCode", header: "Item" },
           { key: "qty", header: "Qty", className: "text-right" },
@@ -147,56 +158,53 @@ export default function StockReceivePage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
-        <div className="lg:col-span-2">
-          <Card title={editingId ? "Edit Stock Receive" : "Receive Details"}>
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
-              <Input label="Date" type="date" value={purDate} onChange={(e) => setPurDate(e.target.value)} />
+      <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Stock Receive" : "New Receive"} size="lg">
+        <div className="grid grid-cols-2 gap-4 mb-5">
+          {editingId && <Input label="Serial No" value={serialNo} disabled readOnly />}
+          <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
+          <Input label="Date" type="date" value={purDate} onChange={(e) => setPurDate(e.target.value)} />
+          <Select
+            label="Receive From Branch"
+            value={fromBranchId}
+            onChange={(e) => setFromBranchId(e.target.value)}
+            placeholder="Select source branch..."
+            options={branches.map((b) => ({ value: b.id, label: b.branchName }))}
+          />
+          <Input label="Received Branch" value={user?.branchName ?? "Your branch"} disabled readOnly />
+        </div>
+        <div className="space-y-2">
+          {lines.map((line, i) => (
+            <div key={i} className="flex gap-2 items-end">
               <Select
-                label="Receive From Branch"
-                value={fromBranchId}
-                onChange={(e) => setFromBranchId(e.target.value)}
-                placeholder="Select source branch..."
-                options={branches.map((b) => ({ value: b.id, label: b.branchName }))}
+                label={i === 0 ? "Item" : undefined}
+                value={line.itemCode}
+                onChange={(e) => updateLine(i, "itemCode", e.target.value)}
+                placeholder="Select item..."
+                options={availableItems.map((it) => ({ value: it.itmCode, label: `${it.itmCode} — ${it.itmName}` }))}
+                className="flex-1"
               />
-              <Input label="Received Branch" value={user?.branchName ?? "Your branch"} disabled readOnly />
-            </div>
-            <div className="space-y-2">
-              {lines.map((line, i) => (
-                <div key={i} className="flex gap-2 items-end">
-                  <Select
-                    label={i === 0 ? "Item" : undefined}
-                    value={line.itemCode}
-                    onChange={(e) => updateLine(i, "itemCode", e.target.value)}
-                    placeholder="Select item..."
-                    options={availableItems.map((it) => ({ value: it.itmCode, label: `${it.itmCode} — ${it.itmName}` }))}
-                    className="flex-1"
-                  />
-                  <div className="w-28">
-                    {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
-                    <input
-                      type="number" min="1" step="1" value={line.qty}
-                      onChange={(e) => updateLine(i, "qty", e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
-                    />
-                  </div>
-                  {!editingId && (
-                    <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-                  )}
-                </div>
-              ))}
+              <div className="w-28">
+                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
+                <input
+                  type="number" min="1" step="1" value={line.qty}
+                  onChange={(e) => updateLine(i, "qty", e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+                />
+              </div>
               {!editingId && (
-                <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+                <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
               )}
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              {editingId && <Button variant="secondary" onClick={resetForm}>Cancel</Button>}
-              <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Stock Receive" : "Save Stock Receive"}</Button>
-            </div>
-          </Card>
+          ))}
+          {!editingId && (
+            <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+          )}
         </div>
-      </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Stock Receive" : "Save Stock Receive"}</Button>
+        </div>
+      </Modal>
     </AppLayout>
   );
 }

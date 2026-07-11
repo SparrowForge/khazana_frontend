@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
+import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -23,6 +23,7 @@ interface TransferLine { itemCode: string; qty: string; }
 
 export default function StockTransferPage() {
   const { can } = usePermissions();
+  const canAdd = can("StockTransfer", "add");
   const canEdit = can("StockTransfer", "edit");
   const canDelete = can("StockTransfer", "delete");
 
@@ -30,7 +31,9 @@ export default function StockTransferPage() {
   const [listLoading, setListLoading] = useState(true);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
+  const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
   const [issueBranchId, setIssueBranchId] = useState("");
@@ -62,33 +65,36 @@ export default function StockTransferPage() {
   const updateLine = (i: number, field: keyof TransferLine, val: string) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
 
-  const resetForm = () => {
+  const openCreate = () => {
     setEditingId(null);
+    setSerialNo("");
     setVoucherNo("");
     setIssueDate(new Date().toISOString().split("T")[0]);
     setIssueBranchId("");
     setReceiveBranchId("");
     setLines([{ itemCode: "", qty: "1" }]);
+    setModal(true);
   };
 
   const openEdit = async (record: TransferRecord) => {
     try {
       const full = await fetchTransfer(record.id);
       setEditingId(full.id);
+      setSerialNo(full.serialNo ?? "");
       setVoucherNo(full.voucharNo ?? "");
       setIssueDate(full.issueDate ? full.issueDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setIssueBranchId(full.issueBranchId ?? "");
       setReceiveBranchId(full.receiveBranchId ?? "");
       setLines([{ itemCode: full.itemCode ?? "", qty: String(full.qty ?? 1) }]);
+      setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load transfer record")); }
   };
 
   const handleDelete = async (record: TransferRecord) => {
-    if (!confirm(`Delete stock transfer for "${record.itemCode}"?`)) return;
+    if (!confirm(`Delete stock transfer "${record.serialNo ?? record.itemCode}"?`)) return;
     try {
       await deleteTransfer(record.id);
       toast.success("Stock transfer deleted");
-      if (editingId === record.id) resetForm();
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
@@ -112,16 +118,21 @@ export default function StockTransferPage() {
         });
         toast.success("Stock transfer saved");
       }
-      resetForm();
+      setModal(false);
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
   return (
     <AppLayout>
-      <PageHeader title="Stock Transfer" subtitle="Transfer stock between branches" />
+      <PageHeader
+        title="Stock Transfer"
+        subtitle="Transfer stock between branches"
+        action={canAdd ? { label: "New Transfer", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
+      />
       <Table loading={listLoading} data={transfers}
         columns={[
+          { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
           { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
           { key: "itemCode", header: "Item" },
           { key: "qty", header: "Qty", className: "text-right" },
@@ -149,8 +160,9 @@ export default function StockTransferPage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <Card title={editingId ? "Edit Stock Transfer" : "Transfer Details"} className="mt-5">
+      <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Stock Transfer" : "New Transfer"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-5">
+          {editingId && <Input label="Serial No" value={serialNo} disabled readOnly />}
           <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
           <Input label="Date" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
           <Select label="From Branch" value={issueBranchId} onChange={(e) => setIssueBranchId(e.target.value)}
@@ -184,10 +196,10 @@ export default function StockTransferPage() {
           )}
         </div>
         <div className="flex justify-end gap-3 mt-6">
-          {editingId && <Button variant="secondary" onClick={resetForm}>Cancel</Button>}
+          <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
           <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Transfer" : "Save Transfer"}</Button>
         </div>
-      </Card>
+      </Modal>
     </AppLayout>
   );
 }

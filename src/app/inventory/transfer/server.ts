@@ -22,6 +22,7 @@ export interface TransferPayload {
 
 export interface TransferRecord {
   id: string;
+  serialNo?: string;
   voucharNo?: string;
   itemCode?: string;
   qty?: number;

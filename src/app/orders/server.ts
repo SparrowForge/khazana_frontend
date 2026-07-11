@@ -7,8 +7,22 @@ export interface Order {
   clientCode?: string;
   orderDate?: string;
   deliveryDate?: string;
+  deliveryAddress?: string;
+  advance?: number;
+  discount?: number;
   totalPrice?: number;
   isActive?: number;
+}
+
+export interface OrderDetail {
+  id: string;
+  itemCode: string;
+  qty: number;
+  unitPrice?: number;
+}
+
+export interface OrderRecord extends Order {
+  details?: OrderDetail[];
 }
 
 export interface Customer {
@@ -38,8 +52,17 @@ export interface OrderPayload {
 export const fetchOrders = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Order>> =>
   api.get(`/orders?page=${page}&limit=${limit}`).then(unwrapPaginated<Order>);
 
+export const fetchOrder = (id: number | string): Promise<OrderRecord> =>
+  api.get(`/orders/${id}`).then((r) => r.data);
+
 export const createOrder = (data: OrderPayload) =>
   api.post<Order>("/orders", data).then((r) => r.data);
+
+export const updateOrder = (id: number | string, data: OrderPayload) =>
+  api.patch<Order>(`/orders/${id}`, data).then((r) => r.data);
+
+export const deleteOrder = (id: number | string) =>
+  api.delete(`/orders/${id}`).then((r) => r.data);
 
 export const fetchCustomers = (): Promise<Customer[]> =>
   api.get("/customers?limit=100").then(unwrapList<Customer>);

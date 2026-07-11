@@ -8,8 +8,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Trash2 } from "lucide-react";
-import { fetchOrders, createOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
+import { Plus, Trash2, Edit2 } from "lucide-react";
+import { fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -24,12 +24,15 @@ export default function OrdersPage() {
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | string | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
   const [form, setForm] = useState({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
   const { can } = usePermissions();
   const canAdd = can("Orders", "add");
+  const canEdit = can("Orders", "edit");
+  const canDelete = can("Orders", "delete");
 
   const load = () => {
     setLoading(true);
@@ -54,21 +57,64 @@ export default function OrdersPage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSaving(true);
     try {
-      await createOrder({
+      const payload = {
         ...form,
         advance: parseFloat(form.advance),
         discount: parseFloat(form.discount),
         totalPrice,
         items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
-      });
-      toast.success("Order created");
+      };
+      if (editingId) {
+        await updateOrder(editingId, payload);
+        toast.success("Order updated");
+      } else {
+        await createOrder(payload);
+        toast.success("Order created");
+      }
       setModal(false); load();
-    } catch (err) { toast.error(getErrorMessage(err, "Failed to create order")); } finally { setSaving(false); }
+    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "create"} order`)); } finally { setSaving(false); }
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
+    setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]);
+    setModal(true);
+  };
+
+  const openEdit = async (order: Order) => {
+    try {
+      const full = await fetchOrder(order.id);
+      setEditingId(full.id);
+      setForm({
+        clientCode: full.clientCode ?? "",
+        orderDate: full.orderDate ? full.orderDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        deliveryDate: full.deliveryDate ? full.deliveryDate.split("T")[0] : "",
+        deliveryAddress: full.deliveryAddress ?? "",
+        advance: String(full.advance ?? 0),
+        discount: String(full.discount ?? 0),
+      });
+      setLines(
+        full.details?.length
+          ? full.details.map((d) => ({ itemCode: d.itemCode, qty: String(d.qty), unitPrice: String(d.unitPrice ?? 0) }))
+          : [{ itemCode: "", qty: "1", unitPrice: "0" }],
+      );
+      setModal(true);
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to load order")); }
+  };
+
+  const handleDelete = async (order: Order) => {
+    if (!confirm(`Delete order "${order.serialNo ?? order.id}"?`)) return;
+    try {
+      await deleteOrder(order.id);
+      toast.success("Order deleted");
+      load();
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to delete order")); }
   };
 
   return (
     <AppLayout>
-      <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: () => { setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
+      <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
           { key: "serialNo", header: "Order No" },
@@ -76,10 +122,27 @@ export default function OrdersPage() {
           { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
           { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
           { key: "totalPrice", header: "Total", render: (r) => `৳ ${formatCurrency(r.totalPrice ?? 0)}`, className: "text-right" },
+          {
+            key: "actions", header: "",
+            render: (r) => (
+              <div className="flex items-center gap-3">
+                {canEdit && (
+                  <button onClick={() => openEdit(r)} className="text-primary-800 hover:underline" title="Edit">
+                    <Edit2 size={14} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ),
+          },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
-      <Modal open={modal} onClose={() => setModal(false)} title="New Order" size="lg">
+      <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Order" : "New Order"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <Select label="Customer *" value={form.clientCode} onChange={(e) => {
             const clientCode = e.target.value;
@@ -114,7 +177,7 @@ export default function OrdersPage() {
           <span className="text-sm font-semibold">Total: ৳ {formatCurrency(totalPrice)}</span>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving}>Save Order</Button>
+            <Button onClick={handleSave} loading={saving}>{editingId ? "Update Order" : "Save Order"}</Button>
           </div>
         </div>
       </Modal>

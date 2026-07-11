@@ -3,19 +3,36 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
+import Table from "@/components/ui/Table";
+import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { fetchItems, fetchBranches, receiveStock, type AvailableItem, type BranchOption } from "./server";
+import {
+  fetchItems, fetchBranches, fetchReceives, fetchReceive, receiveStock, updateReceive, deleteReceive,
+  type AvailableItem, type BranchOption, type ReceiveRecord,
+} from "./server";
 import { useAuthStore } from "@/store/auth.store";
+import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
+import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Edit2 } from "lucide-react";
 
 interface ReceiveLine { itemCode: string; qty: string; }
 
 export default function StockReceivePage() {
   const user = useAuthStore((s) => s.user);
+  const { can } = usePermissions();
+  const canEdit = can("StockReceive", "edit");
+  const canDelete = can("StockReceive", "delete");
+
+  const [receives, setReceives] = useState<ReceiveRecord[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [voucherNo, setVoucherNo] = useState("");
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
   const [fromBranchId, setFromBranchId] = useState("");
@@ -24,15 +41,56 @@ export default function StockReceivePage() {
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
+
+  const loadList = () => {
+    setListLoading(true);
+    fetchReceives({ page, limit })
+      .then(({ items, meta }) => { setReceives(items); setMeta(meta); })
+      .catch(() => {})
+      .finally(() => setListLoading(false));
+  };
+
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchBranches().then(setBranches).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(loadList, [page, limit, refreshKey, setMeta]);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, field: keyof ReceiveLine, val: string) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
+
+  const resetForm = () => {
+    setEditingId(null);
+    setVoucherNo("");
+    setPurDate(new Date().toISOString().split("T")[0]);
+    setFromBranchId("");
+    setLines([{ itemCode: "", qty: "1" }]);
+  };
+
+  const openEdit = async (record: ReceiveRecord) => {
+    try {
+      const full = await fetchReceive(record.id);
+      setEditingId(full.id);
+      setVoucherNo(full.voucharNo ?? "");
+      setPurDate(full.purDate ? full.purDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+      setFromBranchId(full.branchId ?? "");
+      setLines([{ itemCode: full.itemCode ?? "", qty: String(full.qty ?? 1) }]);
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to load receive record")); }
+  };
+
+  const handleDelete = async (record: ReceiveRecord) => {
+    if (!confirm(`Delete stock receive for "${record.itemCode}"?`)) return;
+    try {
+      await deleteReceive(record.id);
+      toast.success("Stock receive deleted");
+      if (editingId === record.id) resetForm();
+      loadList();
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
+  };
 
   const handleSubmit = async () => {
     const valid = lines.filter((l) => l.itemCode && parseFloat(l.qty) > 0);
@@ -40,23 +98,58 @@ export default function StockReceivePage() {
     if (!fromBranchId) { toast.error("Select the branch to receive from"); return; }
     setSubmitting(true);
     try {
-      await receiveStock({
-        voucherNo, purDate, fromBranchId,
-        items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
-      });
-      toast.success("Stock receive saved");
-      setLines([{ itemCode: "", qty: "1" }]);
-      setVoucherNo("");
-      setFromBranchId("");
-    } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
+      if (editingId) {
+        await updateReceive(editingId, {
+          voucherNo, purDate, fromBranchId,
+          itemCode: valid[0].itemCode, qty: parseFloat(valid[0].qty),
+        });
+        toast.success("Stock receive updated");
+      } else {
+        await receiveStock({
+          voucherNo, purDate, fromBranchId,
+          items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
+        });
+        toast.success("Stock receive saved");
+      }
+      resetForm();
+      loadList();
+    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
   return (
     <AppLayout>
       <PageHeader title="Stock Receive" subtitle="Record incoming stock" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <Table loading={listLoading} data={receives}
+        columns={[
+          { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
+          { key: "itemCode", header: "Item" },
+          { key: "qty", header: "Qty", className: "text-right" },
+          { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
+          { key: "branchId", header: "From Branch", render: (r) => branchName(r.branchId) },
+          {
+            key: "actions", header: "",
+            render: (r) => (
+              <div className="flex items-center gap-3">
+                {canEdit && (
+                  <button onClick={() => openEdit(r)} className="text-primary-800 hover:underline" title="Edit">
+                    <Edit2 size={14} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
+      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
         <div className="lg:col-span-2">
-          <Card title="Receive Details">
+          <Card title={editingId ? "Edit Stock Receive" : "Receive Details"}>
             <div className="grid grid-cols-2 gap-4 mb-5">
               <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
               <Input label="Date" type="date" value={purDate} onChange={(e) => setPurDate(e.target.value)} />
@@ -88,13 +181,18 @@ export default function StockReceivePage() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
                     />
                   </div>
-                  <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
+                  {!editingId && (
+                    <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
+                  )}
                 </div>
               ))}
-              <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+              {!editingId && (
+                <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+              )}
             </div>
-            <div className="flex justify-end mt-6">
-              <Button onClick={handleSubmit} loading={submitting}>Save Stock Receive</Button>
+            <div className="flex justify-end gap-3 mt-6">
+              {editingId && <Button variant="secondary" onClick={resetForm}>Cancel</Button>}
+              <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Stock Receive" : "Save Stock Receive"}</Button>
             </div>
           </Card>
         </div>

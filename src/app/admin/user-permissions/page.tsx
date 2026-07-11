@@ -296,20 +296,6 @@ export default function UserPermissionsPage() {
                 className="ml-auto w-56 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
-              <button onClick={() => toggleColumn("all")} className="font-medium text-primary-800 hover:underline">
-                All
-              </button>
-              {FLAG_COLS.map((c) => (
-                <button
-                  key={c.key}
-                  onClick={() => toggleColumn(c.key)}
-                  className="hover:underline"
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto">
@@ -318,10 +304,22 @@ export default function UserPermissionsPage() {
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Module</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Main Menu</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Menu Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Menu Name</span>
+                      <button
+                        onClick={() => toggleColumn("all")}
+                        className="font-medium text-primary-800 hover:underline"
+                      >
+                        All
+                      </button>
+                    </div>
+                  </th>
                   {FLAG_COLS.map((c) => (
                     <th key={c.key} className="px-3 py-2 text-center text-xs font-semibold text-gray-600">
-                      {c.label}
+                      <button onClick={() => toggleColumn(c.key)} className="hover:underline">
+                        {c.label}
+                      </button>
                     </th>
                   ))}
                 </tr>

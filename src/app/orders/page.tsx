@@ -81,8 +81,11 @@ export default function OrdersPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title="New Order" size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <Select label="Customer *" value={form.clientCode} onChange={(e) => setForm({ ...form, clientCode: e.target.value })}
-            placeholder="Select customer..." options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} />
+          <Select label="Customer *" value={form.clientCode} onChange={(e) => {
+            const clientCode = e.target.value;
+            const customer = customers.find((c) => c.code === clientCode);
+            setForm({ ...form, clientCode, deliveryAddress: customer?.address ?? "" });
+          }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} />
           <Input label="Order Date" type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} />
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
           <Input label="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />

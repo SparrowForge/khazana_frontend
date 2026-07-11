@@ -15,6 +15,7 @@ export interface Customer {
   id: number;
   code: string;
   name: string;
+  address?: string;
 }
 
 export interface AvailableItem {

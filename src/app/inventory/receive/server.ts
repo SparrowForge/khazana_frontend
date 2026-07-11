@@ -19,25 +19,34 @@ export interface ReceivePayload {
   items: { itemCode: string; qty: number }[];
 }
 
+/** One row in the Stock Receive list — one per serial number, qty is the sum
+ *  of every item line sharing that serial. */
 export interface ReceiveRecord {
-  id: string;
-  serialNo?: string;
+  id?: string;
+  serialNo: string;
   voucharNo?: string;
-  itemCode?: string;
-  itemName?: string;
   qty?: number;
   purDate?: string;
   branchId?: string;
   receiveBranchID?: string;
 }
 
-export interface UpdateReceivePayload {
+/** Full receive document for a serial number, with all its item lines. */
+export interface ReceiveGroup {
+  serialNo: string;
   voucherNo?: string;
   purDate?: string;
+  branchId?: string;
+  fromBranchId?: string;
+  items: { itemCode: string; itemName?: string; qty: number }[];
+}
+
+export interface UpdateReceivePayload {
+  voucherNo?: string;
+  purDate: string;
   fromBranchId?: string;
   branchId?: string;
-  itemCode?: string;
-  qty?: number;
+  items: { itemCode: string; itemName?: string; qty: number }[];
 }
 
 export const fetchItems = () =>
@@ -52,11 +61,11 @@ export const receiveStock = (data: ReceivePayload) =>
 export const fetchReceives = ({ page = 1, limit = 10 } = {}): Promise<Paginated<ReceiveRecord>> =>
   api.get(`/inventory/receive/history?page=${page}&limit=${limit}`).then(unwrapPaginated<ReceiveRecord>);
 
-export const fetchReceive = (id: string): Promise<ReceiveRecord> =>
-  api.get(`/inventory/receive/${id}`).then((r) => r.data);
+export const fetchReceive = (serialNo: string): Promise<ReceiveGroup> =>
+  api.get(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
-export const updateReceive = (id: string, data: UpdateReceivePayload) =>
-  api.patch(`/inventory/receive/${id}`, data).then((r) => r.data);
+export const updateReceive = (serialNo: string, data: UpdateReceivePayload) =>
+  api.patch(`/inventory/receive/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
 
-export const deleteReceive = (id: string) =>
-  api.delete(`/inventory/receive/${id}`).then((r) => r.data);
+export const deleteReceive = (serialNo: string) =>
+  api.delete(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);

@@ -34,7 +34,7 @@ export default function StockReceivePage() {
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const [modal, setModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSerial, setEditingSerial] = useState<string | null>(null);
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
@@ -67,7 +67,7 @@ export default function StockReceivePage() {
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
 
   const openCreate = () => {
-    setEditingId(null);
+    setEditingSerial(null);
     setSerialNo("");
     setVoucherNo("");
     setPurDate(new Date().toISOString().split("T")[0]);
@@ -78,21 +78,21 @@ export default function StockReceivePage() {
 
   const openEdit = async (record: ReceiveRecord) => {
     try {
-      const full = await fetchReceive(record.id);
-      setEditingId(full.id);
-      setSerialNo(full.serialNo ?? "");
-      setVoucherNo(full.voucharNo ?? "");
+      const full = await fetchReceive(record.serialNo);
+      setEditingSerial(full.serialNo);
+      setSerialNo(full.serialNo);
+      setVoucherNo(full.voucherNo ?? "");
       setPurDate(full.purDate ? full.purDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-      setFromBranchId(full.branchId ?? "");
-      setLines([{ itemCode: full.itemCode ?? "", qty: String(full.qty ?? 1) }]);
+      setFromBranchId(full.fromBranchId ?? "");
+      setLines(full.items.map((it) => ({ itemCode: it.itemCode, qty: String(it.qty ?? 1) })));
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load receive record")); }
   };
 
   const handleDelete = async (record: ReceiveRecord) => {
-    if (!confirm(`Delete stock receive "${record.serialNo ?? record.itemCode}"?`)) return;
+    if (!confirm(`Delete stock receive "${record.serialNo}"?`)) return;
     try {
-      await deleteReceive(record.id);
+      await deleteReceive(record.serialNo);
       toast.success("Stock receive deleted");
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
@@ -104,10 +104,10 @@ export default function StockReceivePage() {
     if (!fromBranchId) { toast.error("Select the branch to receive from"); return; }
     setSubmitting(true);
     try {
-      if (editingId) {
-        await updateReceive(editingId, {
+      if (editingSerial) {
+        await updateReceive(editingSerial, {
           voucherNo, purDate, fromBranchId,
-          itemCode: valid[0].itemCode, qty: parseFloat(valid[0].qty),
+          items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
         });
         toast.success("Stock receive updated");
       } else {
@@ -119,7 +119,7 @@ export default function StockReceivePage() {
       }
       setModal(false);
       loadList();
-    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "save"}`)); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
   return (
@@ -133,8 +133,7 @@ export default function StockReceivePage() {
         columns={[
           { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
           { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
-          { key: "itemCode", header: "Item" },
-          { key: "qty", header: "Qty", className: "text-right" },
+          { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
           { key: "branchId", header: "From Branch", render: (r) => branchName(r.branchId) },
           {
@@ -158,9 +157,9 @@ export default function StockReceivePage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Stock Receive" : "New Receive"} size="lg">
+      <Modal open={modal} onClose={() => setModal(false)} title={editingSerial ? "Edit Stock Receive" : "New Receive"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-5">
-          {editingId && <Input label="Serial No" value={serialNo} disabled readOnly />}
+          {editingSerial && <Input label="Serial No" value={serialNo} disabled readOnly />}
           <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
           <Input label="Date" type="date" value={purDate} onChange={(e) => setPurDate(e.target.value)} />
           <Select
@@ -191,18 +190,14 @@ export default function StockReceivePage() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
                 />
               </div>
-              {!editingId && (
-                <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-              )}
+              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
             </div>
           ))}
-          {!editingId && (
-            <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Stock Receive" : "Save Stock Receive"}</Button>
+          <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Stock Receive" : "Save Stock Receive"}</Button>
         </div>
       </Modal>
     </AppLayout>

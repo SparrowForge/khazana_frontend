@@ -1,4 +1,4 @@
-﻿import api from "@/lib/api";
+import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface AvailableItem {
@@ -20,24 +20,34 @@ export interface TransferPayload {
   items: { itemCode: string; qty: number }[];
 }
 
+/** One row in the Stock Transfer list — one per serial number, qty is the sum
+ *  of every item line sharing that serial. */
 export interface TransferRecord {
-  id: string;
-  serialNo?: string;
+  id?: string;
+  serialNo: string;
   voucharNo?: string;
-  itemCode?: string;
   qty?: number;
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
 }
 
-export interface UpdateTransferPayload {
+/** Full transfer document for a serial number, with all its item lines. */
+export interface TransferGroup {
+  serialNo: string;
   voucherNo?: string;
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
-  itemCode?: string;
-  qty?: number;
+  items: { itemCode: string; qty: number }[];
+}
+
+export interface UpdateTransferPayload {
+  voucherNo?: string;
+  issueDate: string;
+  issueBranchId: string;
+  receiveBranchId: string;
+  items: { itemCode: string; qty: number }[];
 }
 
 export const fetchItems = () =>
@@ -52,11 +62,11 @@ export const transferStock = (data: TransferPayload) =>
 export const fetchTransfers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<TransferRecord>> =>
   api.get(`/inventory/transfer?page=${page}&limit=${limit}`).then(unwrapPaginated<TransferRecord>);
 
-export const fetchTransfer = (id: string): Promise<TransferRecord> =>
-  api.get(`/inventory/transfer/${id}`).then((r) => r.data);
+export const fetchTransfer = (serialNo: string): Promise<TransferGroup> =>
+  api.get(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
-export const updateTransfer = (id: string, data: UpdateTransferPayload) =>
-  api.patch(`/inventory/transfer/${id}`, data).then((r) => r.data);
+export const updateTransfer = (serialNo: string, data: UpdateTransferPayload) =>
+  api.patch(`/inventory/transfer/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
 
-export const deleteTransfer = (id: string) =>
-  api.delete(`/inventory/transfer/${id}`).then((r) => r.data);
+export const deleteTransfer = (serialNo: string) =>
+  api.delete(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => r.data);

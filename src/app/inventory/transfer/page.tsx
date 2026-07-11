@@ -32,7 +32,7 @@ export default function StockTransferPage() {
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const [modal, setModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSerial, setEditingSerial] = useState<string | null>(null);
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
@@ -66,7 +66,7 @@ export default function StockTransferPage() {
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
 
   const openCreate = () => {
-    setEditingId(null);
+    setEditingSerial(null);
     setSerialNo("");
     setVoucherNo("");
     setIssueDate(new Date().toISOString().split("T")[0]);
@@ -78,22 +78,22 @@ export default function StockTransferPage() {
 
   const openEdit = async (record: TransferRecord) => {
     try {
-      const full = await fetchTransfer(record.id);
-      setEditingId(full.id);
-      setSerialNo(full.serialNo ?? "");
-      setVoucherNo(full.voucharNo ?? "");
+      const full = await fetchTransfer(record.serialNo);
+      setEditingSerial(full.serialNo);
+      setSerialNo(full.serialNo);
+      setVoucherNo(full.voucherNo ?? "");
       setIssueDate(full.issueDate ? full.issueDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setIssueBranchId(full.issueBranchId ?? "");
       setReceiveBranchId(full.receiveBranchId ?? "");
-      setLines([{ itemCode: full.itemCode ?? "", qty: String(full.qty ?? 1) }]);
+      setLines(full.items.map((it) => ({ itemCode: it.itemCode, qty: String(it.qty ?? 1) })));
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load transfer record")); }
   };
 
   const handleDelete = async (record: TransferRecord) => {
-    if (!confirm(`Delete stock transfer "${record.serialNo ?? record.itemCode}"?`)) return;
+    if (!confirm(`Delete stock transfer "${record.serialNo}"?`)) return;
     try {
-      await deleteTransfer(record.id);
+      await deleteTransfer(record.serialNo);
       toast.success("Stock transfer deleted");
       loadList();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
@@ -105,10 +105,10 @@ export default function StockTransferPage() {
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSubmitting(true);
     try {
-      if (editingId) {
-        await updateTransfer(editingId, {
+      if (editingSerial) {
+        await updateTransfer(editingSerial, {
           voucherNo, issueDate, issueBranchId, receiveBranchId,
-          itemCode: valid[0].itemCode, qty: parseFloat(valid[0].qty),
+          items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty) })),
         });
         toast.success("Stock transfer updated");
       } else {
@@ -120,7 +120,7 @@ export default function StockTransferPage() {
       }
       setModal(false);
       loadList();
-    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "save"}`)); } finally { setSubmitting(false); }
+    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
   return (
@@ -134,8 +134,7 @@ export default function StockTransferPage() {
         columns={[
           { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
           { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
-          { key: "itemCode", header: "Item" },
-          { key: "qty", header: "Qty", className: "text-right" },
+          { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
           { key: "receiveBranchId", header: "To Branch", render: (r) => branchName(r.receiveBranchId) },
@@ -160,9 +159,9 @@ export default function StockTransferPage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Stock Transfer" : "New Transfer"} size="lg">
+      <Modal open={modal} onClose={() => setModal(false)} title={editingSerial ? "Edit Stock Transfer" : "New Transfer"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-5">
-          {editingId && <Input label="Serial No" value={serialNo} disabled readOnly />}
+          {editingSerial && <Input label="Serial No" value={serialNo} disabled readOnly />}
           <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
           <Input label="Date" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
           <Select label="From Branch" value={issueBranchId} onChange={(e) => setIssueBranchId(e.target.value)}
@@ -186,18 +185,14 @@ export default function StockTransferPage() {
                 <input type="number" min="1" step="1" value={line.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
               </div>
-              {!editingId && (
-                <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-              )}
+              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
             </div>
           ))}
-          {!editingId && (
-            <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Update Transfer" : "Save Transfer"}</Button>
+          <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Transfer" : "Save Transfer"}</Button>
         </div>
       </Modal>
     </AppLayout>

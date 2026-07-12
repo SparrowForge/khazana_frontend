@@ -2,7 +2,7 @@ import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface AvailableItem {
-  id: number;
+  id: string;
   itmCode: string;
   itmName?: string;
 }
@@ -16,7 +16,7 @@ export interface ReceivePayload {
   voucherNo?: string;
   purDate: string;
   fromBranchId?: string;
-  items: { itemCode: string; qty: number }[];
+  items: { itemId: string; qty: number }[];
 }
 
 /** One row in the Stock Receive list — one per serial number, qty is the sum
@@ -38,7 +38,7 @@ export interface ReceiveGroup {
   purDate?: string;
   branchId?: string;
   fromBranchId?: string;
-  items: { itemCode: string; itemName?: string; qty: number }[];
+  items: { itemId: string; itemName?: string; qty: number }[];
 }
 
 export interface UpdateReceivePayload {
@@ -46,7 +46,7 @@ export interface UpdateReceivePayload {
   purDate: string;
   fromBranchId?: string;
   branchId?: string;
-  items: { itemCode: string; itemName?: string; qty: number }[];
+  items: { itemId: string; itemName?: string; qty: number }[];
 }
 
 export const fetchItems = () =>

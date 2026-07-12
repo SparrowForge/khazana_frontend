@@ -19,7 +19,7 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 
-interface IssueLine { itemCode: string; qty: string; unitPrice: string; }
+interface IssueLine { itemId: string; qty: string; unitPrice: string; }
 
 export default function StockIssuePage() {
   const { can } = usePermissions();
@@ -38,7 +38,7 @@ export default function StockIssuePage() {
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
   const [issueBranchId, setIssueBranchId] = useState("");
   const [receiveBranchId, setReceiveBranchId] = useState("");
-  const [lines, setLines] = useState<IssueLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
+  const [lines, setLines] = useState<IssueLine[]>([{ itemId: "", qty: "1", unitPrice: "0" }]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +60,7 @@ export default function StockIssuePage() {
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta]);
 
-  const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
+  const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, field: keyof IssueLine, val: string) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
@@ -72,7 +72,7 @@ export default function StockIssuePage() {
     setIssueDate(new Date().toISOString().split("T")[0]);
     setIssueBranchId("");
     setReceiveBranchId("");
-    setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]);
+    setLines([{ itemId: "", qty: "1", unitPrice: "0" }]);
     setModal(true);
   };
 
@@ -85,7 +85,7 @@ export default function StockIssuePage() {
       setIssueDate(full.issueDate ? full.issueDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setIssueBranchId(full.issueBranchId ?? "");
       setReceiveBranchId(full.receiveBranchId ?? "");
-      setLines(full.items.map((it) => ({ itemCode: it.itemCode, qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? 0) })));
+      setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? 0) })));
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load issue record")); }
   };
@@ -101,20 +101,20 @@ export default function StockIssuePage() {
 
   const handleSubmit = async () => {
     if (!issueBranchId || !receiveBranchId) { toast.error("Select both branches"); return; }
-    const valid = lines.filter((l) => l.itemCode && parseFloat(l.qty) > 0);
+    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
     if (!valid.length) { toast.error("Add at least one valid line"); return; }
     setSubmitting(true);
     try {
       if (editingSerial) {
         await updateIssue(editingSerial, {
           voucherNo, issueDate, issueBranchId, receiveBranchId,
-          items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
+          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
         });
         toast.success("Stock issue updated");
       } else {
         await issueStock({
           voucherNo, issueDate, issueBranchId, receiveBranchId,
-          items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
+          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
         });
         toast.success("Stock issue saved");
       }
@@ -174,10 +174,10 @@ export default function StockIssuePage() {
             <div key={i} className="flex gap-2 items-end">
               <Select
                 label={i === 0 ? "Item" : undefined}
-                value={line.itemCode}
-                onChange={(e) => updateLine(i, "itemCode", e.target.value)}
+                value={line.itemId}
+                onChange={(e) => updateLine(i, "itemId", e.target.value)}
                 placeholder="Select item..."
-                options={availableItems.map((it) => ({ value: it.itmCode, label: `${it.itmCode} — ${it.itmName}` }))}
+                options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
                 className="flex-1"
               />
               <div className="w-24">

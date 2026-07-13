@@ -9,6 +9,7 @@ import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
+import { adminService, type Branch } from "@/lib/services/admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import {
@@ -49,9 +50,14 @@ interface HeldOrder {
 }
 
 const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
+const BRANCH_STORAGE_KEY = "pos.branch.v1";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toFixed(2);
+/** Qty is decimal (2dp) for weight-priced items — show whole numbers cleanly. */
+const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+const QTY_STEP = 0.01;
+const MIN_QTY = 0.01;
 
 /** Gross (incl. VAT, pre-discount) for a held order — used for queue display. */
 const heldOrderGross = (h: HeldOrder) =>
@@ -72,6 +78,11 @@ export default function PosPage() {
   const [payMode, setPayMode] = useState<string>("Cash");
   const [banks, setBanks] = useState<PosBank[]>([]);
   const [bankId, setBankId] = useState("");
+  const [branch, setBranch] = useState<Branch | null>(null);
+  /** In-flight text for the qty boxes, keyed by itemId. Held separately from the
+   *  cart so a half-typed value ("1." / "") isn't parsed and clobbered on every
+   *  keystroke; committed on blur/Enter. */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -133,6 +144,33 @@ export default function PosPage() {
     posBanksApi.getAll().then(setBanks).catch(() => {});
   }, []);
 
+  // Session branch letterhead (address / VAT Reg No / tel). Kept in localStorage
+  // so an offline receipt can still print the same header the online one does.
+  useEffect(() => {
+    if (!user?.branchId) return;
+    try {
+      const cached = localStorage.getItem(`${BRANCH_STORAGE_KEY}.${user.branchId}`);
+      if (cached) setBranch(JSON.parse(cached) as Branch);
+    } catch {
+      /* corrupt/unavailable storage — fall back to the fetch below */
+    }
+    adminService
+      .listBranches()
+      .then((list) => {
+        const mine = list.find((b) => String(b.id) === String(user.branchId));
+        if (!mine) return;
+        setBranch(mine);
+        try {
+          localStorage.setItem(`${BRANCH_STORAGE_KEY}.${user.branchId}`, JSON.stringify(mine));
+        } catch {
+          /* storage full/unavailable — non-fatal, receipt just omits the header */
+        }
+      })
+      .catch(() => {
+        /* offline or no access — the cached copy (if any) is already set */
+      });
+  }, [user?.branchId]);
+
   /** Reflect a sale in the on-screen stock counts (and not just the cache). */
   const decrementProductStock = (sold: CartItem[]) => {
     setProducts((prev) =>
@@ -187,11 +225,27 @@ export default function PosPage() {
     });
   };
 
+  /** +/- stepper. Rounds to 2dp so 0.1 + 0.2 style drift can't creep in. */
   const changeQty = (itemId: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((c) => (c.itemId === itemId ? { ...c, qty: c.qty + delta } : c))
+        .map((c) => (c.itemId === itemId ? { ...c, qty: r2(c.qty + delta) } : c))
         .filter((c) => c.qty > 0)
+    );
+  };
+
+  /** Commit a typed qty. Blank/invalid/<=0 reverts to the previous value rather
+   *  than silently dropping the line — removal is an explicit action. */
+  const commitQty = (itemId: string, raw: string) => {
+    setQtyDraft((d) => {
+      const next = { ...d };
+      delete next[itemId];
+      return next;
+    });
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    setCart((prev) =>
+      prev.map((c) => (c.itemId === itemId ? { ...c, qty: Math.max(MIN_QTY, r2(parsed)) } : c)),
     );
   };
 
@@ -327,6 +381,14 @@ export default function PosPage() {
       display: {
         dateTime: at.toLocaleString(),
         servedBy: servedBy || user.name || user.userName,
+        branch: branch
+          ? {
+              name: branch.branchName,
+              address: branch.address,
+              vatNo: branch.vatNo,
+              mobileNo: branch.mobileNo,
+            }
+          : undefined,
         lines: cart.map((c) => ({
           name: c.name, qty: c.qty, rate: c.price,
           vatPct: c.vatPercentage, vat: itemVat(c), total: itemSubtotal(c),
@@ -458,9 +520,13 @@ export default function PosPage() {
         )}
       </div>
 
-      <div className="flex gap-5 h-[calc(100vh-14rem)]">
+      {/* Stacks on narrow/short screens and only becomes a fixed-height split at
+          lg. `min-w-0` on the product column is load-bearing: without it the
+          product grid's min-content width can exceed the row and shove the cart
+          off-screen entirely — which is why some terminals showed no cart. */}
+      <div className="flex flex-col lg:flex-row gap-5 lg:h-[calc(100vh-14rem)]">
         {/* ─── Product Grid ─────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Pending order queue (Hold / Resume) — only shown when parked orders exist */}
           {queue.length > 0 && (
             <div className="mb-3">
@@ -539,7 +605,9 @@ export default function PosPage() {
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {/* Column counts step back down at lg because the cart now takes
+                  half the row — keeps the product cards from being squeezed. */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                 {filtered.map((p) => (
                   <button
                     key={p.id}
@@ -589,16 +657,16 @@ export default function PosPage() {
         </div>
 
         {/* ─── Cart + Payment ────────────────────────────────── */}
-        <div className="w-80 flex flex-col gap-3 shrink-0">
+        <div className="w-full lg:w-1/2 flex flex-col gap-3 shrink-0 min-w-0">
           {/* Cart */}
-          <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden flex-1">
+          <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[16rem]">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-700 flex items-center gap-2">
                 <ShoppingCart size={16} />
                 Cart
                 {cart.length > 0 && (
                   <span className="bg-primary-100 text-primary-700 text-xs rounded-full px-2 py-0.5">
-                    {cart.reduce((s, c) => s + c.qty, 0)}
+                    {fmtQty(r2(cart.reduce((s, c) => s + c.qty, 0)))}
                   </span>
                 )}
               </span>
@@ -624,7 +692,7 @@ export default function PosPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
                         <p className="text-xs text-gray-400">
-                          ৳{fmt(c.price)} × {c.qty} {c.uom}
+                          ৳{fmt(c.price)} × {fmtQty(c.qty)} {c.uom}
                           {c.vatPercentage > 0 && (
                             <span className="text-orange-400 ml-1">+{c.vatPercentage}% VAT</span>
                           )}
@@ -645,7 +713,23 @@ export default function PosPage() {
                         >
                           <Minus size={12} />
                         </button>
-                        <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={MIN_QTY}
+                          step={QTY_STEP}
+                          value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
+                          onChange={(e) =>
+                            setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
+                          }
+                          onBlur={(e) => commitQty(c.itemId, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                          }}
+                          onFocus={(e) => e.currentTarget.select()}
+                          aria-label={`Quantity for ${c.name}`}
+                          className="w-16 text-center text-sm font-semibold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
                         <button
                           onClick={() => changeQty(c.itemId, 1)}
                           className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"

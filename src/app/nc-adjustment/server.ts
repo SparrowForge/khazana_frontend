@@ -7,14 +7,16 @@ export interface AvailableItem {
   itmCode: string;
   itmName?: string;
   price?: number;
+  vatPercentage?: number;
 }
 
 export interface NcPayload {
   code?: string;
   date: string;
-  name?: string;
-  contactNo?: string;
-  reference?: string;
+  /** Required — the backend rejects a blank name/contact/reference. */
+  name: string;
+  contactNo: string;
+  reference: string;
   items: SaleItem[];
   netAmount: number;
 }
@@ -49,9 +51,10 @@ export interface NcRecord {
 const toPayload = (data: NcPayload) => ({
   code: data.code || undefined,
   date: data.date,
-  name: data.name || undefined,
-  contactNo: data.contactNo || undefined,
-  reference: data.reference || undefined,
+  // Sent verbatim (not `|| undefined`) — these are mandatory server-side.
+  name: data.name.trim(),
+  contactNo: data.contactNo.trim(),
+  reference: data.reference.trim(),
   items: data.items.map((it) => ({
     itemId: it.itemId,
     qty: it.quantity,

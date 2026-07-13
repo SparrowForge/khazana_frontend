@@ -4,13 +4,98 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchDailyFinalReport, type DailyFinalReport } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
 
 const money = (n: number) => formatCurrency(n ?? 0);
 const kg = (n: number) => (n ?? 0).toFixed(2);
 const pcs = (n: number) => String(Math.round(n ?? 0));
+
+/** The report is a multi-section sheet, not one table, so PDF/Excel get a
+ *  flattened Section/Label/Detail/Amount view of the same numbers. Print keeps
+ *  the bespoke layout below — that's the document people actually hand over. */
+interface FinalFlatRow {
+  section: string;
+  label: string;
+  detail: string;
+  amount: number;
+}
+
+const exportColumns: ExportColumn<FinalFlatRow>[] = [
+  { header: "Section", value: (r) => r.section, width: 26 },
+  { header: "Label", value: (r) => r.label, width: 24 },
+  { header: "Detail", value: (r) => r.detail, width: 20 },
+  { header: "Amount", value: (r) => r.amount, numeric: true },
+];
+
+function toFlatRows(d: DailyFinalReport): FinalFlatRow[] {
+  const { categories: c, payments: p, totals: t, breakdown, cardBank, salesCorrection, hourwise } = d;
+  const rows: FinalFlatRow[] = [];
+
+  const categories: [string, DailyFinalReport["categories"]["regular"]][] = [
+    ["Regular Sale", c.regular],
+    ["Assorted Sale", c.assorted],
+    ["Issue Sale", c.issue],
+    ["Credit Sale", c.credit],
+  ];
+  for (const [label, r] of categories) {
+    rows.push({
+      section: "Sale Categories",
+      label,
+      detail: `Kg ${kg(r.kg)} / Pcs ${pcs(r.pcs)}`,
+      amount: r.amount ?? 0,
+    });
+  }
+
+  const payModes: [string, number][] = [
+    ["Bkash", p.bkash], ["Card", p.card], ["Cash", p.cash], ["Credit", p.credit],
+  ];
+  for (const [label, amount] of payModes) {
+    rows.push({ section: "Payment Modes", label, detail: "", amount: amount ?? 0 });
+  }
+
+  const totals: [string, number][] = [
+    ["Total Sale", t.totalSale], ["NC Sale", t.ncSale],
+    ["Discount", t.discount], ["Grand Total", t.grandTotal],
+  ];
+  for (const [label, amount] of totals) {
+    rows.push({ section: "Totals", label, detail: "", amount: amount ?? 0 });
+  }
+
+  for (const r of breakdown.credit) {
+    rows.push({ section: "Discount & NC BreakDown", label: `Credit — ${r.name}`, detail: r.contact, amount: r.amount ?? 0 });
+  }
+  for (const r of breakdown.discount) {
+    // `detail` is the human-readable breakdown the sheet prints in place of the
+    // amount; keep the numeric amount for Excel and carry detail alongside it.
+    rows.push({
+      section: "Discount & NC BreakDown",
+      label: `Discount — ${r.name}`,
+      detail: [r.contact, r.detail].filter(Boolean).join(" · "),
+      amount: r.amount ?? 0,
+    });
+  }
+  for (const r of breakdown.nc) {
+    rows.push({ section: "Discount & NC BreakDown", label: `NC — ${r.name}`, detail: r.contact, amount: r.amount ?? 0 });
+  }
+
+  for (const b of cardBank) {
+    rows.push({ section: "Card Bank BreakDown", label: b.bank, detail: "", amount: b.amount ?? 0 });
+  }
+
+  for (const r of salesCorrection) {
+    rows.push({ section: "Sales Correction BreakDown", label: r.invNo, detail: r.name, amount: r.chgAmt ?? 0 });
+  }
+
+  for (const h of hourwise) {
+    rows.push({ section: "Hourwise Sales BreakDown", label: h.label, detail: `Qty ${kg(h.qty)}`, amount: h.amount ?? 0 });
+  }
+
+  return rows;
+}
 
 export default function DailyFinalReportPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -38,6 +123,18 @@ export default function DailyFinalReportPage() {
         {report && (
           <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>
         )}
+        {/* Print above renders the bespoke sheet; PDF/Excel export the same
+            figures in a flattened, spreadsheet-friendly form. */}
+        <ReportExportButtons
+          className="mb-0.5 ml-auto"
+          showPrint={false}
+          rows={report ? toFlatRows(report) : []}
+          columns={exportColumns}
+          meta={{
+            title: "Daily Final Report",
+            subtitle: `${report?.branch.name ?? ""} · ${formatDate(date)}`.trim(),
+          }}
+        />
       </div>
 
       {report && (

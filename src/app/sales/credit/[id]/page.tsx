@@ -61,8 +61,13 @@ export default function CreditSaleEditPage() {
       .finally(() => setLoading(false));
   }, [id, canEdit, router]);
 
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+
+  const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
   const netAmount = items.reduce((s, i) => s + i.total, 0);
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
+  const totalVat = items.reduce((s, i) => s + i.vat, 0);
+  const grandTotal = netAmount + totalVat;
 
   const handleSubmit = async () => {
     if (!id) return;
@@ -73,8 +78,8 @@ export default function CreditSaleEditPage() {
       // Full edit: master fields update; detail lines are purged then recreated.
       await updateCreditSale(id, {
         invoiceDate, customerId, poNo, items,
-        totalAmount: items.reduce((s, i) => s + i.rate * i.quantity, 0),
-        totalDiscount, totalVat: items.reduce((s, i) => s + i.vat, 0),
+        totalAmount: subtotal,
+        totalDiscount, totalVat,
       });
       toast.success("Credit sale updated");
       router.push("/sales");
@@ -105,6 +110,21 @@ export default function CreditSaleEditPage() {
                   options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
                 />
                 <Input label="PO No" value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Optional" />
+                {selectedCustomer && (
+                  <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
+                    <span className="text-gray-500">
+                      Contact No:{" "}
+                      <span className="font-medium text-gray-800">
+                        {selectedCustomer.mobile || "— not on file —"}
+                      </span>
+                    </span>
+                    {selectedCustomer.address && (
+                      <span className="text-gray-500">
+                        Address: <span className="font-medium text-gray-800">{selectedCustomer.address}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </Card>
             <Card title="Items">
@@ -116,18 +136,34 @@ export default function CreditSaleEditPage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Subtotal</span>
-                  <span>৳ {formatCurrency(items.reduce((s, i) => s + i.rate * i.quantity, 0))}</span>
+                  <span>৳ {formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Discount</span>
                   <span>৳ {formatCurrency(totalDiscount)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-semibold border-t pt-2">
-                  <span>Net Amount</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Net Amount</span>
                   <span>৳ {formatCurrency(netAmount)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">VAT Amount</span>
+                  <span>৳ {formatCurrency(totalVat)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                  <span>Total Payable</span>
+                  <span>৳ {formatCurrency(grandTotal)}</span>
                 </div>
                 <Button className="w-full mt-4" onClick={handleSubmit} loading={submitting} disabled={!items.length}>
                   Update Credit Sale
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => router.push(`/sales/credit/invoice/${id}`)}
+                  disabled={!id}
+                >
+                  View / Print Invoice
                 </Button>
               </div>
             </Card>

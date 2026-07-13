@@ -7,12 +7,15 @@ export interface AvailableItem {
   itmCode: string;
   itmName?: string;
   price?: number;
+  vatPercentage?: number;
 }
 
 export interface CreditCustomer {
   id: string;
   code: string;
   name: string;
+  mobile?: string;
+  address?: string;
 }
 
 /** Shape returned by GET /sales/credit/:id (already mapped to the UI's SaleItem). */

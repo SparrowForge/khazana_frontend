@@ -5,10 +5,12 @@ import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchStockAnalysis, type StockAnalysisReport, type StockAnalysisRow } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
 import { formatCurrency} from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
 
 const formatDate = (dateString : string | Date) => {
   if (!dateString) return "";
@@ -95,6 +97,23 @@ export default function StockAnalysisPage() {
         </label>
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}
+        {/* Print above renders the bespoke landscape sheet (with its summary
+            blocks); PDF/Excel export the item table. */}
+        <ReportExportButtons
+          className="mb-0.5 ml-auto"
+          showPrint={false}
+          rows={report?.items ?? []}
+          columns={exportColumns}
+          meta={{
+            title: "Stock Analysis Report",
+            subtitle: [
+              allBranches ? "All Branches" : report?.branch.name,
+              `${formatDate(fromDate)} — ${formatDate(toDate)}`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          }}
+        />
       </div>
 
       {report && (
@@ -129,6 +148,20 @@ const COLS: { key: keyof StockAnalysisRow; label: string; amount?: boolean }[] =
   { key: "short", label: "Short" },
   { key: "excess", label: "Excess" },
   { key: "closing", label: "Closing St." },
+];
+
+// Derived from COLS so the export can't drift from the on-screen table. Every
+// COLS entry is numeric (quantities or money); the identity columns lead.
+const exportColumns: ExportColumn<StockAnalysisRow>[] = [
+  { header: "SL", value: (r) => r.sl, numeric: true },
+  { header: "Item Code", value: (r) => r.itemCode },
+  { header: "Item Name", value: (r) => r.itemName, width: 30 },
+  { header: "UOM", value: (r) => r.uom },
+  ...COLS.map((c) => ({
+    header: c.label,
+    value: (r: StockAnalysisRow) => Number(r[c.key] ?? 0),
+    numeric: true,
+  })),
 ];
 
 function Report({ data }: { data: StockAnalysisReport }) {

@@ -6,8 +6,16 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchDailySummary, type DailySummary, type SaleRow } from "./server";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
+
+const exportColumns: ExportColumn<SaleRow>[] = [
+  { header: "Invoice No", value: (r) => r.invNo },
+  { header: "Type", value: (r) => r.type },
+  { header: "Amount", value: (r) => r.netAmount ?? 0, numeric: true },
+];
 
 export default function DailySummaryPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -27,9 +35,23 @@ export default function DailySummaryPage() {
   return (
     <AppLayout>
       <PageHeader title="Daily Summary" />
-      <div className="flex items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="flex items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200 flex-wrap">
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
         <Button onClick={runReport} loading={loading}>Run Report</Button>
+        <ReportExportButtons
+          className="ml-auto"
+          rows={details}
+          columns={exportColumns}
+          meta={{
+            title: "Daily Summary",
+            subtitle: formatDate(date),
+            footer: [
+              "",
+              "Total",
+              formatCurrency(details.reduce((s, r) => s + (r.netAmount ?? 0), 0)),
+            ],
+          }}
+        />
       </div>
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">

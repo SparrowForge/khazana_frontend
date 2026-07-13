@@ -5,8 +5,19 @@ import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
 import Select from "@/components/ui/Select";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchCustomers, fetchCustomerStatement, type Customer, type StatementRow } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
+
+const exportColumns: ExportColumn<StatementRow>[] = [
+  { header: "Date", value: (r) => formatDate(r.date) },
+  { header: "Invoice No", value: (r) => r.invoiceNo },
+  { header: "Description", value: (r) => r.description, width: 34 },
+  { header: "Debit", value: (r) => r.debit ?? 0, numeric: true },
+  { header: "Credit", value: (r) => r.credit ?? 0, numeric: true },
+  { header: "Balance", value: (r) => r.balance ?? 0, numeric: true },
+];
 
 export default function CustomerStatementPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -36,6 +47,19 @@ export default function CustomerStatementPage() {
             className="w-56" />
         }
       />
+      <div className="mb-3 flex justify-end">
+        <ReportExportButtons
+          rows={data}
+          columns={exportColumns}
+          meta={{
+            title: "Customer Statement",
+            subtitle: [
+              customers.find((c) => c.code === customerCode)?.name ?? "All customers",
+              `${formatDate(from)} — ${formatDate(to)}`,
+            ].join(" · "),
+          }}
+        />
+      </div>
       <Table loading={loading} data={data}
         columns={[
           { key: "date", header: "Date", render: (r) => formatDate(r.date) },

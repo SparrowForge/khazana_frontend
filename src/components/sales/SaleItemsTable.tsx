@@ -5,36 +5,62 @@ import { formatCurrency } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { SaleItem } from "@/types";
 
+interface AvailableItem {
+  id: string;
+  itmCode: string;
+  itmName?: string;
+  price?: number;
+  vatPercentage?: number;
+}
+
 interface SaleItemsTableProps {
   items: SaleItem[];
   onItemsChange: (items: SaleItem[]) => void;
-  availableItems: { id: string; itmCode: string; itmName?: string; price?: number }[];
+  availableItems: AvailableItem[];
 }
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export default function SaleItemsTable({ items, onItemsChange, availableItems }: SaleItemsTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
   const [disc, setDisc] = useState("0");
 
+  /** The line's VAT rate. Prefers the rate captured on the line, then the
+   *  catalog; finally back-computes it from a saved line's vat/net so editing an
+   *  existing invoice (whose lines carry an amount but no rate) keeps its VAT. */
+  const vatPctFor = (item: SaleItem): number => {
+    if (item.vatPercentage != null) return item.vatPercentage;
+    const meta = availableItems.find((a) => a.id === item.itemId);
+    if (meta?.vatPercentage != null) return meta.vatPercentage;
+    const net = item.rate * item.quantity - item.discount;
+    return net > 0 && item.vat > 0 ? (item.vat / net) * 100 : 0;
+  };
+
+  /** VAT is charged on the discounted (taxable) line value, and `total` stays
+   *  net-of-VAT — the shape the sales/NC endpoints expect. */
+  const recalc = (item: SaleItem): SaleItem => {
+    const net = r2(item.rate * item.quantity - item.discount);
+    const pct = vatPctFor(item);
+    return { ...item, vatPercentage: pct, total: net, vat: r2((net * pct) / 100) };
+  };
+
   const addItem = () => {
     const itemMeta = availableItems.find((i) => i.id === selectedItemId);
     if (!itemMeta) return;
-    const rate = itemMeta.price ?? 0;
-    const quantity = parseFloat(qty) || 1;
-    const discount = parseFloat(disc) || 0;
-    const total = rate * quantity - discount;
     onItemsChange([
       ...items,
-      {
+      recalc({
         itemId: itemMeta.id,
         itemCode: itemMeta.itmCode,
         itemName: itemMeta.itmName,
-        quantity,
-        rate,
-        discount,
+        quantity: parseFloat(qty) || 1,
+        rate: itemMeta.price ?? 0,
+        discount: parseFloat(disc) || 0,
+        vatPercentage: itemMeta.vatPercentage ?? 0,
         vat: 0,
-        total,
-      },
+        total: 0,
+      }),
     ]);
     setSelectedItemId("");
     setQty("1");
@@ -46,18 +72,14 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
   };
 
   const updateItem = (idx: number, field: keyof SaleItem, value: number) => {
-    const updated = items.map((item, i) => {
-      if (i !== idx) return item;
-      const next = { ...item, [field]: value };
-      next.total = next.rate * next.quantity - next.discount;
-      return next;
-    });
-    onItemsChange(updated);
+    onItemsChange(items.map((item, i) => (i === idx ? recalc({ ...item, [field]: value }) : item)));
   };
 
   const totalAmount = items.reduce((s, i) => s + i.rate * i.quantity, 0);
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
   const netAmount = items.reduce((s, i) => s + i.total, 0);
+  const totalVat = items.reduce((s, i) => s + i.vat, 0);
+  const grandTotal = netAmount + totalVat;
 
   return (
     <div className="space-y-3">
@@ -78,7 +100,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
         <div className="w-24">
           <label className="text-xs font-medium text-gray-600 mb-1 block">Qty</label>
           <input
-            type="number" min="1" step="1"
+            type="number" min="0.01" step="0.01" inputMode="decimal"
             value={qty} onChange={(e) => setQty(e.target.value)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
           />
@@ -105,13 +127,14 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Rate</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Qty</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Disc</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">VAT</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {items.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-6 text-gray-400">No items added</td></tr>
+              <tr><td colSpan={8} className="text-center py-6 text-gray-400">No items added</td></tr>
             )}
             {items.map((item, i) => (
               <tr key={i} className="hover:bg-gray-50">
@@ -120,7 +143,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
                 <td className="px-3 py-2 text-right">{formatCurrency(item.rate)}</td>
                 <td className="px-3 py-2 text-right">
                   <input
-                    type="number" min="1" step="1"
+                    type="number" min="0.01" step="0.01" inputMode="decimal"
                     value={item.quantity}
                     onChange={(e) => updateItem(i, "quantity", parseFloat(e.target.value) || 0)}
                     className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
@@ -133,6 +156,12 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
                     onChange={(e) => updateItem(i, "discount", parseFloat(e.target.value) || 0)}
                     className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
                   />
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600">
+                  {formatCurrency(item.vat)}
+                  {!!item.vatPercentage && (
+                    <span className="text-[10px] text-orange-500 ml-1">{item.vatPercentage}%</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.total)}</td>
                 <td className="px-3 py-2">
@@ -148,6 +177,7 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
               <tr>
                 <td colSpan={4} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Subtotal</td>
                 <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalDiscount)}</td>
+                <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalVat)}</td>
                 <td className="px-3 py-2 text-right font-bold text-gray-800">{formatCurrency(netAmount)}</td>
                 <td></td>
               </tr>
@@ -158,7 +188,9 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
       <div className="text-right text-sm text-gray-500">
         Gross: <span className="font-medium">{formatCurrency(totalAmount)}</span>
         {" | "}Discount: <span className="font-medium">{formatCurrency(totalDiscount)}</span>
-        {" | "}Net: <span className="font-bold text-gray-800 text-base">{formatCurrency(netAmount)}</span>
+        {" | "}Net: <span className="font-medium">{formatCurrency(netAmount)}</span>
+        {" | "}VAT: <span className="font-medium">{formatCurrency(totalVat)}</span>
+        {" | "}Total: <span className="font-bold text-gray-800 text-base">{formatCurrency(grandTotal)}</span>
       </div>
     </div>
   );

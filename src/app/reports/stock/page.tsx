@@ -4,8 +4,20 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchStockReport, type StockRow } from "./server";
 import { formatCurrency } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
+
+const exportColumns: ExportColumn<StockRow>[] = [
+  { header: "Item Code", value: (r) => r.itemCode },
+  { header: "Item Name", value: (r) => r.itemName },
+  { header: "UOM", value: (r) => r.uom },
+  { header: "Opening", value: (r) => r.openingQty ?? 0, numeric: true },
+  { header: "In", value: (r) => r.inwardQty ?? 0, numeric: true },
+  { header: "Out", value: (r) => r.outwardQty ?? 0, numeric: true },
+  { header: "Closing", value: (r) => r.closingQty ?? 0, numeric: true },
+];
 
 export default function StockReportPage() {
   const [data, setData] = useState<StockRow[]>([]);
@@ -19,8 +31,16 @@ export default function StockReportPage() {
   return (
     <AppLayout>
       <PageHeader title="Stock Report" />
-      <div className="mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="mb-5 p-4 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-3 flex-wrap">
         <Button onClick={runReport} loading={loading}>Run Report</Button>
+        <ReportExportButtons
+          rows={data}
+          columns={exportColumns}
+          meta={{
+            title: "Stock Report",
+            subtitle: `As at ${new Date().toLocaleDateString("en-BD")}`,
+          }}
+        />
       </div>
       <Table loading={loading} data={data}
         columns={[

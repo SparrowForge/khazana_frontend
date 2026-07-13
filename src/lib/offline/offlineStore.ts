@@ -18,9 +18,20 @@ export interface OfflineDisplayLine {
   total: number;
 }
 
+/** Branch header snapshot, so an offline receipt prints the same letterhead
+ *  (address / VAT Reg No / Mushak 6.3) as the online one. Cached at sale time
+ *  because the terminal can't look the branch up while offline. */
+export interface OfflineDisplayBranch {
+  name?: string | null;
+  address?: string | null;
+  vatNo?: string | null;
+  mobileNo?: string | null;
+}
+
 export interface OfflineDisplay {
   dateTime: string;
   servedBy: string;
+  branch?: OfflineDisplayBranch;
   lines: OfflineDisplayLine[];
   subtotal: number;
   vatAmount: number;

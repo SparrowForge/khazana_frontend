@@ -6,6 +6,11 @@ import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n: number | string) => Number(n).toFixed(2);
+/** Qty can be fractional (weight-priced items) — never round it away. */
+const fmtQty = (n: number | string) => {
+  const v = Number(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
+};
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -40,6 +45,7 @@ function Receipt({ sale }: { sale: PosSale }) {
         <div className="text-[10px]">{sale.branch?.name} Branch</div>
         <div className="text-[10px]">{sale.branch?.address}</div>
         <div className="text-[10px]">VAT Reg No: {sale.branch?.vatNo || "—"}</div>
+        <div className="text-[10px]">[Mushak 6.3]</div>
         <div className="text-[10px]">Tel: {sale.branch?.mobileNo || "—"}</div>
         <div className="text-[10px]">www.khazanamithai.com</div>
       </div>
@@ -83,7 +89,7 @@ function Receipt({ sale }: { sale: PosSale }) {
           {/* Values row */}
           <div className="flex text-[10px] mb-0.5">
             <span className="flex-1 text-gray-500 pl-2"></span>
-            <span className="w-8 text-center">{Number(item.qty).toFixed(0)}</span>
+            <span className="w-8 text-center">{fmtQty(item.qty)}</span>
             <span className="w-12 text-right">{fmt(item.rate)}</span>
             <span className="w-8 text-right">{fmt(item.vat)}</span>
             <span className="w-14 text-right font-semibold">{fmt(Number(item.total) + Number(item.vat))}</span>

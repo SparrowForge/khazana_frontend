@@ -63,7 +63,12 @@ export interface SaleItem {
   quantity: number;
   rate: number;
   discount: number;
+  /** VAT rate for the line, carried so qty/discount edits can re-derive `vat`.
+   *  Display-only — the sale server actions map lines explicitly and drop it. */
+  vatPercentage?: number;
+  /** VAT amount, charged on the discounted (taxable) line value. */
   vat: number;
+  /** Net line value excl. VAT — rate x qty - discount. */
   total: number;
 }
 

@@ -31,6 +31,18 @@ export function printOfflineReceipt(order: OfflineOrder, win?: Window | null): v
     )
     .join("");
 
+  const b = d.branch;
+  const header = [
+    b?.name ? `${esc(b.name)} Branch` : "",
+    b?.address ? esc(b.address) : "",
+    `VAT Reg No: ${b?.vatNo ? esc(b.vatNo) : "—"}`,
+    "[Mushak 6.3]",
+    `Tel: ${b?.mobileNo ? esc(b.mobileNo) : "—"}`,
+  ]
+    .filter(Boolean)
+    .map((line) => `<div>${line}</div>`)
+    .join("");
+
   w.document.write(`<!doctype html><html><head><meta charset="utf-8">
   <title>${esc(order.invoiceNo)}</title>
   <style>
@@ -52,8 +64,7 @@ export function printOfflineReceipt(order: OfflineOrder, win?: Window | null): v
   </style></head><body>
     <div class="center">
       <div class="bold big">KHAZANA MITHAI</div>
-      <div>Gulshan-1, Dhaka-1212</div>
-      <div>Tel: +880 1700-000000</div>
+      ${header}
     </div>
     <div class="hr"></div>
     <div class="meta">

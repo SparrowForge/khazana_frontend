@@ -32,6 +32,11 @@ function Receipt({ sale }: { sale: PosSale }) {
   const payableAmount = Number(sale.payableAmount);
   const paidAmount = Number(sale.paidAmount);
   const changeAmount = Number(sale.changeAmount);
+  const discountAmount = Number(sale.discountAmount);
+  // Discount is only ever stored as a flat amount — derive the % (of the
+  // VAT-inclusive gross) so it always displays as a percentage on the invoice.
+  const grossAmount = totalAmount + vatAmount;
+  const discountPercent = grossAmount > 0 ? (discountAmount / grossAmount) * 100 : 0;
 
   return (
     <div
@@ -109,6 +114,12 @@ function Receipt({ sale }: { sale: PosSale }) {
           <span>VAT Amount</span>
           <span>৳ {fmt(vatAmount)}</span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between">
+            <span>Discount ({fmt(discountPercent)}%)</span>
+            <span>- ৳ {fmt(discountAmount)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-bold border-t border-dashed border-black pt-0.5 mt-0.5">
           <span>Total Payable</span>
           <span>৳ {fmt(payableAmount)}</span>

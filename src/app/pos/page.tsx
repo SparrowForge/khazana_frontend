@@ -88,7 +88,7 @@ export default function PosPage() {
   const [loading, setLoading] = useState(true);
 
   // Discount state
-  const [discountType, setDiscountType] = useState<DiscountType>("fixed");
+  const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
   // Discount authoriser (mandatory when a discount is applied)
   const [discountName, setDiscountName] = useState("");

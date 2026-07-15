@@ -33,6 +33,12 @@ const VAT_RATE = 0.15; // flat rate the VAT pages apply
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** POST /sales/vat/credit responds with the created row — we only need the
+ *  id, to jump straight to its invoice. */
+interface CreatedVatCreditSale {
+  id?: string;
+}
+
 export const createVatCreditSale = (data: VatCreditSalePayload) => {
   // Map the UI's SaleItem shape onto CreateVatCreditSaleDto (items keyed by
   // itemId/qty/disc). Derive per-line vatValue/vatAmount from the flat 15%.
@@ -57,5 +63,5 @@ export const createVatCreditSale = (data: VatCreditSalePayload) => {
       };
     }),
   };
-  return api.post("/sales/vat/credit", payload).then((r) => r.data);
+  return api.post<CreatedVatCreditSale>("/sales/vat/credit", payload).then((r) => r.data);
 };

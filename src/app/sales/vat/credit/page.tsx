@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -16,6 +17,7 @@ import toast from "react-hot-toast";
 const VAT_RATE = 0.15;
 
 export default function VatCreditSalePage() {
+  const router = useRouter();
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [customers, setCustomers] = useState<{ id: number; code: string; name: string }[]>([]);
@@ -41,7 +43,7 @@ export default function VatCreditSalePage() {
     if (!clientCode) { toast.error("Select a customer"); return; }
     setSubmitting(true);
     try {
-      await createVatCreditSale({
+      const saved = await createVatCreditSale({
         invoiceNo, invoiceDate, clientCode, vatClnNo, items,
         totalAmount: subtotal, totalDiscount, totalVat: vat, netAmount,
       });
@@ -49,6 +51,8 @@ export default function VatCreditSalePage() {
       setItems([]);
       setInvoiceNo("");
       setClientCode("");
+      // Straight to the invoice so the user can pick a print format.
+      if (saved?.id) router.push(`/sales/vat/credit/invoice/${saved.id}`);
     } catch (e: unknown) {
       toast.error(getErrorMessage(e, "Failed to create sale"));
     } finally {

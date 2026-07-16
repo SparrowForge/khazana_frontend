@@ -8,31 +8,29 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Trash2, Edit2 } from "lucide-react";
-import ReportExportButtons from "@/components/reports/ReportExportButtons";
-import { fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, type Order, type OrderRecord, type Customer, type AvailableItem } from "./server";
+import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet } from "lucide-react";
+import {
+  fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, fetchBranches,
+  type Order, type OrderRecord, type Customer, type AvailableItem, type BranchInfo,
+} from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import type { ExportColumn } from "@/lib/export/reportExport";
+import {
+  previewOrderInvoice, printOrderInvoice, exportOrderInvoicePdf,
+  type OrderInvoiceData, type OrderInvoiceLine,
+} from "@/lib/export/orderInvoiceDocument";
+import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
 
 interface OrderLine { itemCode: string; qty: string; unitPrice: string; }
-
-interface InvoiceLine { itemName: string; qty: number; unitPrice: number; amount: number; }
-
-const invoiceColumns: ExportColumn<InvoiceLine>[] = [
-  { header: "Item", value: (r) => r.itemName },
-  { header: "Qty", value: (r) => r.qty, numeric: true },
-  { header: "Unit Price", value: (r) => r.unitPrice, numeric: true },
-  { header: "Amount", value: (r) => r.amount, numeric: true },
-];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
+  const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<number | string | null>(null);
@@ -56,7 +54,12 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); fetchCustomers().then(setCustomers).catch(() => {}); fetchItems().then(setAvailableItems).catch(() => {}); }, []);
+  useEffect(() => {
+    load();
+    fetchCustomers().then(setCustomers).catch(() => {});
+    fetchItems().then(setAvailableItems).catch(() => {});
+    fetchBranches().then(setBranches).catch(() => {});
+  }, []);
   useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
@@ -148,6 +151,64 @@ export default function OrdersPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete order")); }
   };
 
+  // Builds the receipt-style invoice payload from a loaded order — same shape
+  // the POS terminal's printed invoice uses, minus paid/change which don't
+  // apply to an order (advance/due stand in for those instead).
+  const buildInvoiceData = (order: OrderRecord): OrderInvoiceData => {
+    const branch = branches.find((b) => b.id === order.branchId);
+    const grandTotal = order.totalPrice ?? 0;
+    const discPercent = order.discount ?? 0;
+    const items: OrderInvoiceLine[] = (order.details ?? []).map((d) => ({
+      itemName: itemName(d.itemCode),
+      qty: d.qty,
+      rate: d.unitPrice ?? 0,
+      vat: 0,
+      total: d.qty * (d.unitPrice ?? 0),
+    }));
+    const vatAmount = 0;
+    const discAmount = grandTotal * (discPercent / 100);
+    const totalPayable = grandTotal + vatAmount - discAmount;
+    const advance = order.advance ?? 0;
+    return {
+      branchName: branch?.branchName,
+      branchAddress: branch?.address,
+      branchVatNo: branch?.vatNo,
+      branchMobile: branch?.mobileNo,
+      orderDate: order.orderDate ?? new Date().toISOString(),
+      serialNo: order.serialNo ?? String(order.id),
+      customerName: customerName(order.clientCode),
+      servedBy: order.createBy,
+      items,
+      totalAmount: grandTotal,
+      vatAmount,
+      discountPercent: discPercent,
+      discountAmount: discAmount,
+      totalPayable,
+      advance,
+      totalDue: totalPayable - advance,
+    };
+  };
+
+  const handlePreviewInvoice = () => { if (report) previewOrderInvoice(buildInvoiceData(report)); };
+  const handlePrintInvoice = () => { if (report) printOrderInvoice(buildInvoiceData(report)); };
+  const handleDownloadPdf = () => { if (report) exportOrderInvoicePdf(buildInvoiceData(report)).catch(() => toast.error("Failed to export PDF")); };
+  const handleDownloadExcel = () => {
+    if (!report) return;
+    const inv = buildInvoiceData(report);
+    const excelColumns: ExportColumn<OrderInvoiceLine>[] = [
+      { header: "Item", value: (r) => r.itemName },
+      { header: "Qty", value: (r) => r.qty, numeric: true },
+      { header: "Rate", value: (r) => r.rate, numeric: true },
+      { header: "VAT", value: (r) => r.vat, numeric: true },
+      { header: "Total", value: (r) => r.total, numeric: true },
+    ];
+    exportExcel(inv.items, excelColumns, {
+      title: "Order Invoice",
+      subtitle: `Invoice: ${inv.serialNo} · Customer: ${inv.customerName} · ${formatDate(inv.orderDate)}`,
+      footer: ["", "", "", "Total Due", formatCurrency(inv.totalDue)],
+    }).catch(() => toast.error("Failed to export Excel"));
+  };
+
   return (
     <AppLayout>
       <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
@@ -236,16 +297,7 @@ export default function OrdersPage() {
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
           (() => {
-            const grandTotal = report.totalPrice ?? 0;
-            const discPercent = report.discount ?? 0;
-            const discAmount = grandTotal * (discPercent / 100);
-            const netAmt = grandTotal - discAmount;
-            const invoiceRows: InvoiceLine[] = (report.details ?? []).map((d) => ({
-              itemName: itemName(d.itemCode),
-              qty: d.qty,
-              unitPrice: d.unitPrice ?? 0,
-              amount: d.qty * (d.unitPrice ?? 0),
-            }));
+            const inv = buildInvoiceData(report);
             return (
               <>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
@@ -256,40 +308,32 @@ export default function OrdersPage() {
                   <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>
                   <div><span className="text-gray-500">Advance:</span> <span className="font-medium">৳ {formatCurrency(report.advance ?? 0)}</span></div>
                 </div>
-                <div className="mb-3 flex justify-end">
-                  <ReportExportButtons
-                    rows={invoiceRows}
-                    columns={invoiceColumns}
-                    meta={{
-                      title: "Order Invoice",
-                      subtitle: [
-                        `Order No: ${report.serialNo}`,
-                        `Customer: ${customerName(report.clientCode)}`,
-                        `Date: ${formatDate(report.orderDate)}`,
-                        `Grand Total: ৳ ${formatCurrency(grandTotal)}`,
-                        `Discount: ${discPercent}% (- ৳ ${formatCurrency(discAmount)})`,
-                        `Net Amount: ৳ ${formatCurrency(netAmt)}`,
-                      ].join(" · "),
-                    }}
-                    showPreview
-                  />
+                <div className="mb-3 flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={handlePreviewInvoice}><Eye size={14} /> Preview</Button>
+                  <Button variant="secondary" size="sm" onClick={handlePrintInvoice}><Printer size={14} /> Print</Button>
+                  <Button variant="secondary" size="sm" onClick={handleDownloadPdf}><FileText size={14} /> PDF</Button>
+                  <Button variant="secondary" size="sm" onClick={handleDownloadExcel}><FileSpreadsheet size={14} /> Excel</Button>
                 </div>
                 <Table
-                  data={invoiceRows.map((r, i) => ({ id: i, ...r }))}
+                  data={inv.items.map((r, i) => ({ id: i, ...r }))}
                   columns={[
                     { key: "itemName", header: "Item" },
                     { key: "qty", header: "Qty", className: "text-right" },
-                    { key: "unitPrice", header: "Unit Price", className: "text-right", render: (r) => formatCurrency(r.unitPrice) },
-                    { key: "amount", header: "Amount", className: "text-right", render: (r) => formatCurrency(r.amount) },
+                    { key: "rate", header: "Rate", className: "text-right", render: (r) => formatCurrency(r.rate) },
+                    { key: "vat", header: "VAT", className: "text-right", render: (r) => formatCurrency(r.vat) },
+                    { key: "total", header: "Total", className: "text-right", render: (r) => formatCurrency(r.total) },
                   ]}
                 />
                 <div className="mt-4 flex justify-end">
                   <div className="text-sm space-y-0.5 text-right">
-                    <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(grandTotal)}</span></div>
-                    {discPercent > 0 && (
-                      <div>Discount ({discPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discAmount)}</span></div>
+                    <div>Total Amount: <span className="font-semibold">৳ {formatCurrency(inv.totalAmount)}</span></div>
+                    <div>VAT Amount: <span className="font-semibold">৳ {formatCurrency(inv.vatAmount)}</span></div>
+                    {inv.discountAmount > 0 && (
+                      <div>Discount ({inv.discountPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(inv.discountAmount)}</span></div>
                     )}
-                    <div className="font-semibold text-base">Net Amount: ৳ {formatCurrency(netAmt)}</div>
+                    <div className="font-semibold">Total Payable: ৳ {formatCurrency(inv.totalPayable)}</div>
+                    {inv.advance > 0 && <div>Advance: <span className="font-semibold">৳ {formatCurrency(inv.advance)}</span></div>}
+                    <div className="font-semibold text-base text-red-600">Total Due: ৳ {formatCurrency(inv.totalDue)}</div>
                   </div>
                 </div>
               </>

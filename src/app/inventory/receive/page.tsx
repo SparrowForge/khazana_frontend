@@ -8,9 +8,10 @@ import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchItems, fetchBranches, fetchReceives, fetchReceive, receiveStock, updateReceive, deleteReceive,
-  type AvailableItem, type BranchOption, type ReceiveRecord,
+  type AvailableItem, type BranchOption, type ReceiveRecord, type ReceiveGroup,
 } from "./server";
 import { useAuthStore } from "@/store/auth.store";
 import { usePagination } from "@/hooks/usePagination";
@@ -19,8 +20,14 @@ import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
+import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
 
 interface ReceiveLine { itemId: string; qty: string; }
+
+const reportColumns: ExportColumn<{ itemName?: string; qty: number }>[] = [
+  { header: "Item Name", value: (r) => r.itemName ?? "-" },
+  { header: "Qty", value: (r) => r.qty, numeric: true },
+];
 
 export default function StockReceivePage() {
   const user = useAuthStore((s) => s.user);
@@ -35,6 +42,9 @@ export default function StockReceivePage() {
 
   const [modal, setModal] = useState(false);
   const [editingSerial, setEditingSerial] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [report, setReport] = useState<ReceiveGroup | null>(null);
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
@@ -89,6 +99,21 @@ export default function StockReceivePage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load receive record")); }
   };
 
+  const openReport = async (record: ReceiveRecord) => {
+    setReport(null);
+    setReportOpen(true);
+    setReportLoading(true);
+    try {
+      const full = await fetchReceive(record.serialNo);
+      setReport(full);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load receive report"));
+      setReportOpen(false);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const handleDelete = async (record: ReceiveRecord) => {
     if (!confirm(`Delete stock receive "${record.serialNo}"?`)) return;
     try {
@@ -122,6 +147,25 @@ export default function StockReceivePage() {
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
+  const handlePreview = () => {
+    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
+    if (!valid.length) { toast.error("Add at least one valid line to preview"); return; }
+    const rows = valid.map((l) => ({
+      itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
+      qty: parseFloat(l.qty),
+    }));
+    previewReport(rows, reportColumns, {
+      title: "Stock Receive Preview",
+      subtitle: [
+        `Serial No: ${editingSerial || "New"}`,
+        `Voucher No: ${voucherNo || "-"}`,
+        `Date: ${formatDate(purDate)}`,
+        `From: ${branchName(fromBranchId)}`,
+        `To: ${user?.branchName ?? "-"}`,
+      ].join(" · "),
+    });
+  };
+
   return (
     <AppLayout>
       <PageHeader
@@ -131,8 +175,14 @@ export default function StockReceivePage() {
       />
       <Table loading={listLoading} data={receives}
         columns={[
-          { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
-          { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
+          {
+            key: "serialNo", header: "Serial No",
+            render: (r) => r.serialNo ? (
+              <button onClick={() => openReport(r)} className="text-primary-800 hover:underline font-medium">
+                {r.serialNo}
+              </button>
+            ) : "-",
+          },
           { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
           { key: "branchId", header: "From Branch", render: (r) => branchName(r.branchId) },
@@ -197,8 +247,49 @@ export default function StockReceivePage() {
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
+          <Button variant="secondary" onClick={handlePreview}>Preview</Button>
           <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Stock Receive" : "Save Stock Receive"}</Button>
         </div>
+      </Modal>
+
+      <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Stock Receive Report" size="lg">
+        {reportLoading || !report ? (
+          <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+              <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
+              <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
+              <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.purDate)}</span></div>
+              <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.fromBranchId)}</span></div>
+              <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.branchId)}</span></div>
+            </div>
+            <div className="mb-3 flex justify-end">
+              <ReportExportButtons
+                rows={report.items}
+                columns={reportColumns}
+                meta={{
+                  title: "Stock Receive Report",
+                  subtitle: [
+                    `Serial No: ${report.serialNo}`,
+                    `Voucher No: ${report.voucherNo || "-"}`,
+                    `Date: ${formatDate(report.purDate)}`,
+                    `From: ${branchName(report.fromBranchId)}`,
+                    `To: ${branchName(report.branchId)}`,
+                  ].join(" · "),
+                }}
+                showPreview
+              />
+            </div>
+            <Table
+              data={report.items.map((it, i) => ({ id: i, ...it }))}
+              columns={[
+                { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
+                { key: "qty", header: "Qty", className: "text-right" },
+              ]}
+            />
+          </>
+        )}
       </Modal>
     </AppLayout>
   );

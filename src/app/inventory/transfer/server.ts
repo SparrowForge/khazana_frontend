@@ -39,7 +39,7 @@ export interface TransferGroup {
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
-  items: { itemId: string; qty: number }[];
+  items: { itemId: string; itemName?: string; qty: number }[];
 }
 
 export interface UpdateTransferPayload {

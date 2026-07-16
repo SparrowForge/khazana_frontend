@@ -5,6 +5,7 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  price?: number;
 }
 
 export interface BranchOption {
@@ -39,7 +40,7 @@ export interface IssueGroup {
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
-  items: { itemId: string; qty: number; unitPrice?: number }[];
+  items: { itemId: string; itemName?: string; qty: number; unitPrice?: number }[];
 }
 
 export interface UpdateIssuePayload {

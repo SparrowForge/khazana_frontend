@@ -8,9 +8,10 @@ import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchItems, fetchBranches, fetchIssues, fetchIssue, issueStock, updateIssue, deleteIssue,
-  type AvailableItem, type BranchOption, type IssueRecord,
+  type AvailableItem, type BranchOption, type IssueRecord, type IssueGroup,
 } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -18,8 +19,15 @@ import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
+import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
 
 interface IssueLine { itemId: string; qty: string; unitPrice: string; }
+
+const reportColumns: ExportColumn<{ itemName?: string; qty: number; unitPrice?: number }>[] = [
+  { header: "Item Name", value: (r) => r.itemName ?? "-" },
+  { header: "Qty", value: (r) => r.qty, numeric: true },
+  { header: "Unit Price", value: (r) => r.unitPrice ?? 0, numeric: true },
+];
 
 export default function StockIssuePage() {
   const { can } = usePermissions();
@@ -33,6 +41,9 @@ export default function StockIssuePage() {
 
   const [modal, setModal] = useState(false);
   const [editingSerial, setEditingSerial] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [report, setReport] = useState<IssueGroup | null>(null);
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
@@ -63,7 +74,14 @@ export default function StockIssuePage() {
   const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, field: keyof IssueLine, val: string) =>
-    setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
+    setLines(lines.map((l, idx) => {
+      if (idx !== i) return l;
+      if (field === "itemId") {
+        const salesPrice = availableItems.find((it) => it.id === val)?.price;
+        return { ...l, itemId: val, unitPrice: String(salesPrice ?? 0) };
+      }
+      return { ...l, [field]: val };
+    }));
 
   const openCreate = () => {
     setEditingSerial(null);
@@ -88,6 +106,21 @@ export default function StockIssuePage() {
       setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? 0) })));
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load issue record")); }
+  };
+
+  const openReport = async (record: IssueRecord) => {
+    setReport(null);
+    setReportOpen(true);
+    setReportLoading(true);
+    try {
+      const full = await fetchIssue(record.serialNo);
+      setReport(full);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load issue report"));
+      setReportOpen(false);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const handleDelete = async (record: IssueRecord) => {
@@ -123,6 +156,26 @@ export default function StockIssuePage() {
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
+  const handlePreview = () => {
+    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
+    if (!valid.length) { toast.error("Add at least one valid line to preview"); return; }
+    const rows = valid.map((l) => ({
+      itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
+      qty: parseFloat(l.qty),
+      unitPrice: parseFloat(l.unitPrice || "0"),
+    }));
+    previewReport(rows, reportColumns, {
+      title: "Stock Issue Preview",
+      subtitle: [
+        `Serial No: ${editingSerial || "New"}`,
+        `Voucher No: ${voucherNo || "-"}`,
+        `Date: ${formatDate(issueDate)}`,
+        `From: ${branchName(issueBranchId)}`,
+        `To: ${branchName(receiveBranchId)}`,
+      ].join(" · "),
+    });
+  };
+
   return (
     <AppLayout>
       <PageHeader
@@ -132,8 +185,14 @@ export default function StockIssuePage() {
       />
       <Table loading={listLoading} data={issues}
         columns={[
-          { key: "serialNo", header: "Serial No", render: (r) => r.serialNo || "-" },
-          { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
+          {
+            key: "serialNo", header: "Serial No",
+            render: (r) => r.serialNo ? (
+              <button onClick={() => openReport(r)} className="text-primary-800 hover:underline font-medium">
+                {r.serialNo}
+              </button>
+            ) : "-",
+          },
           { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
@@ -197,8 +256,50 @@ export default function StockIssuePage() {
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
+          <Button variant="secondary" onClick={handlePreview}>Preview</Button>
           <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Stock Issue" : "Save Stock Issue"}</Button>
         </div>
+      </Modal>
+
+      <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Stock Issue Report" size="lg">
+        {reportLoading || !report ? (
+          <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+              <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
+              <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
+              <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.issueDate)}</span></div>
+              <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.issueBranchId)}</span></div>
+              <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.receiveBranchId)}</span></div>
+            </div>
+            <div className="mb-3 flex justify-end">
+              <ReportExportButtons
+                rows={report.items}
+                columns={reportColumns}
+                meta={{
+                  title: "Stock Issue Report",
+                  subtitle: [
+                    `Serial No: ${report.serialNo}`,
+                    `Voucher No: ${report.voucherNo || "-"}`,
+                    `Date: ${formatDate(report.issueDate)}`,
+                    `From: ${branchName(report.issueBranchId)}`,
+                    `To: ${branchName(report.receiveBranchId)}`,
+                  ].join(" · "),
+                }}
+                showPreview
+              />
+            </div>
+            <Table
+              data={report.items.map((it, i) => ({ id: i, ...it }))}
+              columns={[
+                { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
+                { key: "qty", header: "Qty", className: "text-right" },
+                { key: "unitPrice", header: "Unit Price", className: "text-right", render: (r) => (r.unitPrice ?? 0).toFixed(2) },
+              ]}
+            />
+          </>
+        )}
       </Modal>
     </AppLayout>
   );

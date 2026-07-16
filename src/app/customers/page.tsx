@@ -8,17 +8,27 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2, Trash2, Eye } from "lucide-react";
-import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import { fetchCustomers, fetchAllCustomers, createCustomer, updateCustomer, deleteCustomer, type Customer } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import type { ExportColumn } from "@/lib/export/reportExport";
 
 const emptyForm = { code: "", name: "", mobile: "", address: "", email: "" };
 
+const exportColumns: ExportColumn<Customer>[] = [
+  { header: "Code", value: (r) => r.code },
+  { header: "Name", value: (r) => r.name },
+  { header: "Mobile", value: (r) => r.mobile ?? "-" },
+  { header: "Address", value: (r) => r.address ?? "-" },
+];
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
@@ -39,6 +49,12 @@ export default function CustomersPage() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [page, limit, refreshKey, setMeta]);
+
+  // Full, unpaginated list backing Print/Excel/PDF — those need every matching
+  // row, not just the page currently on screen.
+  useEffect(() => {
+    fetchAllCustomers().then(setAllCustomers).catch(() => {});
+  }, [refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };
@@ -62,17 +78,24 @@ export default function CustomersPage() {
 
   const handleSearch = (val: string) => { setSearch(val); resetPage(); };
 
-  const filtered = customers.filter((c) =>
+  const matchesSearch = (c: Customer) =>
     c.code.toLowerCase().includes(search.toLowerCase()) ||
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.mobile ?? "").includes(search)
-  );
+    (c.mobile ?? "").includes(search);
+
+  const filtered = customers.filter(matchesSearch);
+  const exportRows = allCustomers.filter(matchesSearch);
 
   return (
     <AppLayout>
       <PageHeader title="Customers" action={canAdd ? { label: "New Customer", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
         <Input placeholder="Search by code, name, or mobile..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
+        <ReportExportButtons
+          rows={exportRows}
+          columns={exportColumns}
+          meta={{ title: "Customer List", subtitle: `As at ${new Date().toLocaleDateString("en-BD")}` }}
+        />
       </div>
       <Table loading={loading} data={filtered}
         columns={[

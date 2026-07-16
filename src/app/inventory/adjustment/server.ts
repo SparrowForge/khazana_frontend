@@ -13,26 +13,30 @@ export interface AdjustmentPayload {
   items: { itmOId: string; reject: number; excess: number; short: number; assort: number }[];
 }
 
+/** One row in the Stock Adjustment list — one per reference number, each
+ *  figure is the sum across every item line sharing that reference. */
 export interface AdjustmentRecord {
-  id: string;
-  invNo?: string;
-  itmOId?: string;
+  id?: string;
+  invNo: string;
   reject?: number;
   excess?: number;
   short?: number;
   assort?: number;
   date?: string;
-  item?: { itmCode?: string; itmName?: string };
+  branchId?: string;
+}
+
+/** Full adjustment document for a reference number, with all its item lines. */
+export interface AdjustmentGroup {
+  invNo: string;
+  date?: string;
+  branchId?: string;
+  items: { itmOId: string; itemName?: string; reject: number; excess: number; short: number; assort: number }[];
 }
 
 export interface UpdateAdjustmentPayload {
-  invNo?: string;
   date?: string;
-  itmOId?: string;
-  reject?: number;
-  excess?: number;
-  short?: number;
-  assort?: number;
+  items: { itmOId: string; reject: number; excess: number; short: number; assort: number }[];
 }
 
 export const fetchItems = () =>
@@ -44,11 +48,11 @@ export const adjustStock = (data: AdjustmentPayload) =>
 export const fetchAdjustments = ({ page = 1, limit = 10 } = {}): Promise<Paginated<AdjustmentRecord>> =>
   api.get(`/inventory/adjust/history?page=${page}&limit=${limit}`).then(unwrapPaginated<AdjustmentRecord>);
 
-export const fetchAdjustment = (id: string): Promise<AdjustmentRecord> =>
-  api.get(`/inventory/adjust/${id}`).then((r) => r.data);
+export const fetchAdjustment = (invNo: string): Promise<AdjustmentGroup> =>
+  api.get(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => r.data);
 
-export const updateAdjustment = (id: string, data: UpdateAdjustmentPayload) =>
-  api.patch(`/inventory/adjust/${id}`, data).then((r) => r.data);
+export const updateAdjustment = (invNo: string, data: UpdateAdjustmentPayload) =>
+  api.patch(`/inventory/adjust/${encodeURIComponent(invNo)}`, data).then((r) => r.data);
 
-export const deleteAdjustment = (id: string) =>
-  api.delete(`/inventory/adjust/${id}`).then((r) => r.data);
+export const deleteAdjustment = (invNo: string) =>
+  api.delete(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => r.data);

@@ -9,14 +9,25 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2, Edit2 } from "lucide-react";
-import { fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, type Order, type Customer, type AvailableItem } from "./server";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import { fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, type Order, type OrderRecord, type Customer, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
+import type { ExportColumn } from "@/lib/export/reportExport";
 
 interface OrderLine { itemCode: string; qty: string; unitPrice: string; }
+
+interface InvoiceLine { itemName: string; qty: number; unitPrice: number; amount: number; }
+
+const invoiceColumns: ExportColumn<InvoiceLine>[] = [
+  { header: "Item", value: (r) => r.itemName },
+  { header: "Qty", value: (r) => r.qty, numeric: true },
+  { header: "Unit Price", value: (r) => r.unitPrice, numeric: true },
+  { header: "Amount", value: (r) => r.amount, numeric: true },
+];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -28,6 +39,9 @@ export default function OrdersPage() {
   const [lines, setLines] = useState<OrderLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
   const [form, setForm] = useState({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [report, setReport] = useState<OrderRecord | null>(null);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
   const { can } = usePermissions();
   const canAdd = can("Orders", "add");
@@ -49,7 +63,14 @@ export default function OrdersPage() {
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, f: keyof OrderLine, v: string) => setLines(lines.map((l, idx) => idx === i ? { ...l, [f]: v } : l));
 
+  // Grand Total is the pre-discount line-item sum; Discount is a % of it.
   const totalPrice = lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0);
+  const discountPercent = parseFloat(form.discount || "0") || 0;
+  const discountAmount = totalPrice * (discountPercent / 100);
+  const netAmount = totalPrice - discountAmount;
+
+  const itemName = (itemCode: string) => availableItems.find((it) => it.itmCode === itemCode)?.itmName ?? itemCode;
+  const customerName = (clientCode?: string) => customers.find((c) => c.code === clientCode)?.name ?? clientCode ?? "-";
 
   const handleSave = async () => {
     if (!form.clientCode) { toast.error("Select a customer"); return; }
@@ -103,6 +124,21 @@ export default function OrdersPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load order")); }
   };
 
+  const openReport = async (order: Order) => {
+    setReport(null);
+    setReportOpen(true);
+    setReportLoading(true);
+    try {
+      const full = await fetchOrder(order.id);
+      setReport(full);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load order invoice"));
+      setReportOpen(false);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const handleDelete = async (order: Order) => {
     if (!confirm(`Delete order "${order.serialNo ?? order.id}"?`)) return;
     try {
@@ -117,7 +153,14 @@ export default function OrdersPage() {
       <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
-          { key: "serialNo", header: "Order No" },
+          {
+            key: "serialNo", header: "Order No",
+            render: (r) => r.serialNo ? (
+              <button onClick={() => openReport(r)} className="text-primary-800 hover:underline font-medium">
+                {r.serialNo}
+              </button>
+            ) : "-",
+          },
           { key: "clientCode", header: "Customer" },
           { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
           { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
@@ -153,7 +196,7 @@ export default function OrdersPage() {
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
           <Input label="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />
           <Input label="Advance" type="number" value={form.advance} onChange={(e) => setForm({ ...form, advance: e.target.value })} />
-          <Input label="Discount" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
+          <Input label="Discount (%)" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
         </div>
         <div className="space-y-2 mb-4">
           <p className="text-sm font-medium text-gray-700">Order Items</p>
@@ -173,13 +216,86 @@ export default function OrdersPage() {
           ))}
           <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Item</Button>
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-semibold">Total: ৳ {formatCurrency(totalPrice)}</span>
+        <div className="flex justify-between items-end">
+          <div className="text-sm space-y-0.5">
+            <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(totalPrice)}</span></div>
+            {discountPercent > 0 && (
+              <div>Discount ({discountPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discountAmount)}</span></div>
+            )}
+            <div className="font-semibold text-base">Net Amount: ৳ {formatCurrency(netAmount)}</div>
+          </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
             <Button onClick={handleSave} loading={saving}>{editingId ? "Update Order" : "Save Order"}</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Order Invoice" size="lg">
+        {reportLoading || !report ? (
+          <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
+        ) : (
+          (() => {
+            const grandTotal = report.totalPrice ?? 0;
+            const discPercent = report.discount ?? 0;
+            const discAmount = grandTotal * (discPercent / 100);
+            const netAmt = grandTotal - discAmount;
+            const invoiceRows: InvoiceLine[] = (report.details ?? []).map((d) => ({
+              itemName: itemName(d.itemCode),
+              qty: d.qty,
+              unitPrice: d.unitPrice ?? 0,
+              amount: d.qty * (d.unitPrice ?? 0),
+            }));
+            return (
+              <>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+                  <div><span className="text-gray-500">Order No:</span> <span className="font-medium">{report.serialNo}</span></div>
+                  <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{customerName(report.clientCode)}</span></div>
+                  <div><span className="text-gray-500">Order Date:</span> <span className="font-medium">{formatDate(report.orderDate)}</span></div>
+                  <div><span className="text-gray-500">Delivery Date:</span> <span className="font-medium">{formatDate(report.deliveryDate)}</span></div>
+                  <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>
+                  <div><span className="text-gray-500">Advance:</span> <span className="font-medium">৳ {formatCurrency(report.advance ?? 0)}</span></div>
+                </div>
+                <div className="mb-3 flex justify-end">
+                  <ReportExportButtons
+                    rows={invoiceRows}
+                    columns={invoiceColumns}
+                    meta={{
+                      title: "Order Invoice",
+                      subtitle: [
+                        `Order No: ${report.serialNo}`,
+                        `Customer: ${customerName(report.clientCode)}`,
+                        `Date: ${formatDate(report.orderDate)}`,
+                        `Grand Total: ৳ ${formatCurrency(grandTotal)}`,
+                        `Discount: ${discPercent}% (- ৳ ${formatCurrency(discAmount)})`,
+                        `Net Amount: ৳ ${formatCurrency(netAmt)}`,
+                      ].join(" · "),
+                    }}
+                    showPreview
+                  />
+                </div>
+                <Table
+                  data={invoiceRows.map((r, i) => ({ id: i, ...r }))}
+                  columns={[
+                    { key: "itemName", header: "Item" },
+                    { key: "qty", header: "Qty", className: "text-right" },
+                    { key: "unitPrice", header: "Unit Price", className: "text-right", render: (r) => formatCurrency(r.unitPrice) },
+                    { key: "amount", header: "Amount", className: "text-right", render: (r) => formatCurrency(r.amount) },
+                  ]}
+                />
+                <div className="mt-4 flex justify-end">
+                  <div className="text-sm space-y-0.5 text-right">
+                    <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(grandTotal)}</span></div>
+                    {discPercent > 0 && (
+                      <div>Discount ({discPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discAmount)}</span></div>
+                    )}
+                    <div className="font-semibold text-base">Net Amount: ৳ {formatCurrency(netAmt)}</div>
+                  </div>
+                </div>
+              </>
+            );
+          })()
+        )}
       </Modal>
     </AppLayout>
   );

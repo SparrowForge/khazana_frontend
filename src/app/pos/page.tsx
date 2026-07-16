@@ -689,57 +689,57 @@ export default function PosPage() {
                 {cart.map((c) => (
                   <div key={c.itemId} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                        <p className="text-xs text-gray-400">
-                          ৳{fmt(c.price)} × {fmtQty(c.qty)} {c.uom}
-                          {c.vatPercentage > 0 && (
-                            <span className="text-orange-400 ml-1">+{c.vatPercentage}% VAT</span>
-                          )}
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
                       <button
                         onClick={() => removeFromCart(c.itemId)}
-                        className="text-gray-300 hover:text-red-500 transition-colors mt-0.5"
+                        className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => changeQty(c.itemId, -1)}
-                          className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={MIN_QTY}
-                          step={QTY_STEP}
-                          value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
-                          onChange={(e) =>
-                            setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
-                          }
-                          onBlur={(e) => commitQty(c.itemId, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") e.currentTarget.blur();
-                          }}
-                          onFocus={(e) => e.currentTarget.select()}
-                          aria-label={`Quantity for ${c.name}`}
-                          className="w-16 text-center text-sm font-semibold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        />
-                        <button
-                          onClick={() => changeQty(c.itemId, 1)}
-                          className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                        >
-                          <Plus size={12} />
-                        </button>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <p className="text-xs text-gray-400 truncate">
+                        ৳{fmt(c.price)} × {fmtQty(c.qty)} {c.uom}
+                        {c.vatPercentage > 0 && (
+                          <span className="text-orange-400 ml-1">+{c.vatPercentage}% VAT</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => changeQty(c.itemId, -1)}
+                            className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min={MIN_QTY}
+                            step={QTY_STEP}
+                            value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
+                            onChange={(e) =>
+                              setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
+                            }
+                            onBlur={(e) => commitQty(c.itemId, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.select()}
+                            aria-label={`Quantity for ${c.name}`}
+                            className="w-14 text-center text-sm font-semibold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          />
+                          <button
+                            onClick={() => changeQty(c.itemId, 1)}
+                            className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                        <span className="text-sm font-bold text-primary-700 whitespace-nowrap">
+                          ৳{fmt(itemSubtotal(c) + itemVat(c))}
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-primary-700">
-                        ৳{fmt(itemSubtotal(c) + itemVat(c))}
-                      </span>
                     </div>
                   </div>
                 ))}

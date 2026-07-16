@@ -36,16 +36,15 @@ function filename(meta: ReportMeta, ext: string) {
   return `${stem}_${stamp}.${ext}`;
 }
 
-/**
- * Print via a standalone document rather than a print stylesheet on the page —
- * the printed sheet then contains exactly the exported columns, with no app
- * chrome to hide and no per-page print CSS to maintain.
- */
-export function printReport<T>(rows: T[], columns: ExportColumn<T>[], meta: ReportMeta): void {
-  if (typeof window === "undefined") return;
-  const w = window.open("", "_blank");
-  if (!w) return; // popup blocked — caller surfaces the toast
-
+/** Builds the standalone print/preview document — a print stylesheet on the
+ *  page itself would need per-page CSS and app chrome hiding; a dedicated
+ *  document just contains exactly the exported columns. */
+function buildReportDocument<T>(
+  rows: T[],
+  columns: ExportColumn<T>[],
+  meta: ReportMeta,
+  autoPrint: boolean,
+): string {
   const head = columns
     .map((c) => `<th class="${c.numeric ? "num" : ""}">${esc(c.header)}</th>`)
     .join("");
@@ -65,7 +64,7 @@ export function printReport<T>(rows: T[], columns: ExportColumn<T>[], meta: Repo
         .join("")}</tr></tfoot>`
     : "";
 
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+  return `<!doctype html><html><head><meta charset="utf-8">
   <title>${esc(meta.title)}</title>
   <style>
     @page { size: A4 landscape; margin: 12mm; }
@@ -87,8 +86,26 @@ export function printReport<T>(rows: T[], columns: ExportColumn<T>[], meta: Repo
       <tbody>${body}</tbody>
       ${foot}
     </table>
-    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
-  </body></html>`);
+    ${autoPrint ? `<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>` : ""}
+  </body></html>`;
+}
+
+/** Print via a standalone document — see {@link buildReportDocument}. */
+export function printReport<T>(rows: T[], columns: ExportColumn<T>[], meta: ReportMeta): void {
+  if (typeof window === "undefined") return;
+  const w = window.open("", "_blank");
+  if (!w) return; // popup blocked — caller surfaces the toast
+  w.document.write(buildReportDocument(rows, columns, meta, true));
+  w.document.close();
+}
+
+/** Open the same document as {@link printReport} in a new tab, without
+ *  triggering the print dialog — lets the user check layout/content first. */
+export function previewReport<T>(rows: T[], columns: ExportColumn<T>[], meta: ReportMeta): void {
+  if (typeof window === "undefined") return;
+  const w = window.open("", "_blank");
+  if (!w) return; // popup blocked — caller surfaces the toast
+  w.document.write(buildReportDocument(rows, columns, meta, false));
   w.document.close();
 }
 

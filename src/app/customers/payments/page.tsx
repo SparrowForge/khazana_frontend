@@ -8,13 +8,24 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus } from "lucide-react";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchPayments, createPayment, fetchCustomers, type Payment, type Customer } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
+import type { ExportColumn } from "@/lib/export/reportExport";
 
-const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", moneyReceptNo: "", bankName: "" };
+const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", bankName: "" };
+
+const reportColumns: ExportColumn<Payment>[] = [
+  { header: "Receipt No", value: (r) => r.moneyReceptNo ?? "-" },
+  { header: "Customer", value: (r) => r.customer?.name ?? r.customer?.code ?? "-" },
+  { header: "Date", value: (r) => formatDate(r.receiveDate) },
+  { header: "Type", value: (r) => r.tType ?? "-" },
+  { header: "Amount", value: (r) => r.receiveAmount ?? 0, numeric: true },
+  { header: "Bank", value: (r) => r.bankName ?? "-" },
+];
 
 export default function CustomerPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -23,6 +34,8 @@ export default function CustomerPaymentsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [report, setReport] = useState<Payment | null>(null);
   const { can } = usePermissions();
   const canAdd = can("Customers", "add");
 
@@ -45,12 +58,21 @@ export default function CustomerPaymentsPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
+  const openReport = (p: Payment) => { setReport(p); setReportOpen(true); };
+
   return (
     <AppLayout>
       <PageHeader title="Customer Money Receipt" action={canAdd ? { label: "New Money Receipt", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={payments}
         columns={[
-          { key: "moneyReceptNo", header: "Receipt No" },
+          {
+            key: "moneyReceptNo", header: "Receipt No",
+            render: (r) => r.moneyReceptNo ? (
+              <button onClick={() => openReport(r)} className="text-primary-800 hover:underline font-medium">
+                {r.moneyReceptNo}
+              </button>
+            ) : "-",
+          },
           { key: "customer", header: "Customer", render: (r) => r.customer?.name ?? r.customer?.code ?? "" },
           { key: "receiveDate", header: "Date", render: (r) => formatDate(r.receiveDate) },
           { key: "tType", header: "Type" },
@@ -66,13 +88,38 @@ export default function CustomerPaymentsPage() {
           <Input label="Amount *" type="number" min="0" value={form.receiveAmount} onChange={(e) => setForm({ ...form, receiveAmount: e.target.value })} />
           <Select label="Payment Type" value={form.tType} onChange={(e) => setForm({ ...form, tType: e.target.value })}
             options={[{ value: "Cash", label: "Cash" }, { value: "Cheque", label: "Cheque" }, { value: "Transfer", label: "Bank Transfer" }]} />
-          <Input label="Receipt No" value={form.moneyReceptNo} onChange={(e) => setForm({ ...form, moneyReceptNo: e.target.value })} />
           <Input label="Bank Name" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
           <Button onClick={handleSave} loading={saving}>Save</Button>
         </div>
+      </Modal>
+
+      <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Money Receipt Report" size="lg">
+        {report && (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+              <div><span className="text-gray-500">Receipt No:</span> <span className="font-medium">{report.moneyReceptNo}</span></div>
+              <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.receiveDate)}</span></div>
+              <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{report.customer?.name ?? report.customer?.code ?? "-"}</span></div>
+              <div><span className="text-gray-500">Type:</span> <span className="font-medium">{report.tType ?? "-"}</span></div>
+              <div><span className="text-gray-500">Amount:</span> <span className="font-medium">৳ {formatCurrency(report.receiveAmount ?? 0)}</span></div>
+              <div><span className="text-gray-500">Bank:</span> <span className="font-medium">{report.bankName ?? "-"}</span></div>
+            </div>
+            <div className="flex justify-end">
+              <ReportExportButtons
+                rows={[report]}
+                columns={reportColumns}
+                meta={{
+                  title: "Money Receipt",
+                  subtitle: `Receipt No: ${report.moneyReceptNo} · ${formatDate(report.receiveDate)}`,
+                }}
+                showPreview
+              />
+            </div>
+          </>
+        )}
       </Modal>
     </AppLayout>
   );

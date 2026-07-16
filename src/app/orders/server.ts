@@ -12,6 +12,16 @@ export interface Order {
   discount?: number;
   totalPrice?: number;
   isActive?: number;
+  branchId?: string;
+  createBy?: string;
+}
+
+export interface BranchInfo {
+  id: string;
+  branchName?: string;
+  address?: string;
+  vatNo?: string;
+  mobileNo?: string;
 }
 
 export interface OrderDetail {
@@ -69,3 +79,6 @@ export const fetchCustomers = (): Promise<Customer[]> =>
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
   api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+
+export const fetchBranches = (): Promise<BranchInfo[]> =>
+  api.get("/admin/branches?limit=100").then(unwrapList<BranchInfo>);

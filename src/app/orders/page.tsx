@@ -24,7 +24,7 @@ import {
 } from "@/lib/export/orderInvoiceDocument";
 import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
 
-interface OrderLine { itemCode: string; qty: string; unitPrice: string; }
+interface OrderLine { itemId: string; qty: string; unitPrice: string; }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -34,8 +34,8 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<number | string | null>(null);
-  const [lines, setLines] = useState<OrderLine[]>([{ itemCode: "", qty: "1", unitPrice: "0" }]);
-  const [form, setForm] = useState({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
+  const [lines, setLines] = useState<OrderLine[]>([{ itemId: "", qty: "1", unitPrice: "0" }]);
+  const [form, setForm] = useState({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function OrdersPage() {
   }, []);
   useEffect(load, [page, limit, refreshKey, setMeta]);
 
-  const addLine = () => setLines([...lines, { itemCode: "", qty: "1", unitPrice: "0" }]);
+  const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, f: keyof OrderLine, v: string) => setLines(lines.map((l, idx) => idx === i ? { ...l, [f]: v } : l));
 
@@ -72,12 +72,12 @@ export default function OrdersPage() {
   const discountAmount = totalPrice * (discountPercent / 100);
   const netAmount = totalPrice - discountAmount;
 
-  const itemName = (itemCode: string) => availableItems.find((it) => it.itmCode === itemCode)?.itmName ?? itemCode;
-  const customerName = (clientCode?: string) => customers.find((c) => c.code === clientCode)?.name ?? clientCode ?? "-";
+  const itemName = (itemId?: string) => availableItems.find((it) => it.id === itemId)?.itmName ?? itemId ?? "-";
+  const customerName = (clientId?: string) => customers.find((c) => c.id === clientId)?.name ?? clientId ?? "-";
 
   const handleSave = async () => {
-    if (!form.clientCode) { toast.error("Select a customer"); return; }
-    const valid = lines.filter((l) => l.itemCode);
+    if (!form.clientId) { toast.error("Select a customer"); return; }
+    const valid = lines.filter((l) => l.itemId);
     if (!valid.length) { toast.error("Add at least one item"); return; }
     setSaving(true);
     try {
@@ -86,7 +86,7 @@ export default function OrdersPage() {
         advance: parseFloat(form.advance),
         discount: parseFloat(form.discount),
         totalPrice,
-        items: valid.map((l) => ({ itemCode: l.itemCode, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
+        items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
       };
       if (editingId) {
         await updateOrder(editingId, payload);
@@ -101,8 +101,8 @@ export default function OrdersPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ clientCode: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
-    setLines([{ itemCode: "", qty: "1", unitPrice: "0" }]);
+    setForm({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
+    setLines([{ itemId: "", qty: "1", unitPrice: "0" }]);
     setModal(true);
   };
 
@@ -111,7 +111,7 @@ export default function OrdersPage() {
       const full = await fetchOrder(order.id);
       setEditingId(full.id);
       setForm({
-        clientCode: full.clientCode ?? "",
+        clientId: full.clientId ?? "",
         orderDate: full.orderDate ? full.orderDate.split("T")[0] : new Date().toISOString().split("T")[0],
         deliveryDate: full.deliveryDate ? full.deliveryDate.split("T")[0] : "",
         deliveryAddress: full.deliveryAddress ?? "",
@@ -120,8 +120,8 @@ export default function OrdersPage() {
       });
       setLines(
         full.details?.length
-          ? full.details.map((d) => ({ itemCode: d.itemCode, qty: String(d.qty), unitPrice: String(d.unitPrice ?? 0) }))
-          : [{ itemCode: "", qty: "1", unitPrice: "0" }],
+          ? full.details.map((d) => ({ itemId: d.itemId, qty: String(d.qty), unitPrice: String(d.unitPrice ?? 0) }))
+          : [{ itemId: "", qty: "1", unitPrice: "0" }],
       );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load order")); }
@@ -159,7 +159,7 @@ export default function OrdersPage() {
     const grandTotal = order.totalPrice ?? 0;
     const discPercent = order.discount ?? 0;
     const items: OrderInvoiceLine[] = (order.details ?? []).map((d) => ({
-      itemName: itemName(d.itemCode),
+      itemName: itemName(d.itemId),
       qty: d.qty,
       rate: d.unitPrice ?? 0,
       vat: 0,
@@ -176,7 +176,7 @@ export default function OrdersPage() {
       branchMobile: branch?.mobileNo,
       orderDate: order.orderDate ?? new Date().toISOString(),
       serialNo: order.serialNo ?? String(order.id),
-      customerName: customerName(order.clientCode),
+      customerName: customerName(order.clientId),
       servedBy: order.createBy,
       items,
       totalAmount: grandTotal,
@@ -222,7 +222,7 @@ export default function OrdersPage() {
               </button>
             ) : "-",
           },
-          { key: "clientCode", header: "Customer" },
+          { key: "clientId", header: "Customer", render: (r) => customerName(r.clientId) },
           { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
           { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
           { key: "totalPrice", header: "Total", render: (r) => `৳ ${formatCurrency(r.totalPrice ?? 0)}`, className: "text-right" },
@@ -248,11 +248,11 @@ export default function OrdersPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Order" : "New Order"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <Select label="Customer *" value={form.clientCode} onChange={(e) => {
-            const clientCode = e.target.value;
-            const customer = customers.find((c) => c.code === clientCode);
-            setForm({ ...form, clientCode, deliveryAddress: customer?.address ?? "" });
-          }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} />
+          <Select label="Customer *" value={form.clientId} onChange={(e) => {
+            const clientId = e.target.value;
+            const customer = customers.find((c) => c.id === clientId);
+            setForm({ ...form, clientId, deliveryAddress: customer?.address ?? "" });
+          }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
           <Input label="Order Date" type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} />
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
           <Input label="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />
@@ -263,10 +263,10 @@ export default function OrdersPage() {
           <p className="text-sm font-medium text-gray-700">Order Items</p>
           {lines.map((l, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <select value={l.itemCode} onChange={(e) => updateLine(i, "itemCode", e.target.value)}
+              <select value={l.itemId} onChange={(e) => updateLine(i, "itemId", e.target.value)}
                 className="flex-1 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
                 <option value="">Select item...</option>
-                {availableItems.map((it) => <option key={it.id} value={it.itmCode}>{it.itmCode} — {it.itmName}</option>)}
+                {availableItems.map((it) => <option key={it.id} value={it.id}>{it.itmCode} — {it.itmName}</option>)}
               </select>
               <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
                 className="w-20 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
@@ -302,7 +302,7 @@ export default function OrdersPage() {
               <>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
                   <div><span className="text-gray-500">Order No:</span> <span className="font-medium">{report.serialNo}</span></div>
-                  <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{customerName(report.clientCode)}</span></div>
+                  <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{customerName(report.clientId)}</span></div>
                   <div><span className="text-gray-500">Order Date:</span> <span className="font-medium">{formatDate(report.orderDate)}</span></div>
                   <div><span className="text-gray-500">Delivery Date:</span> <span className="font-medium">{formatDate(report.deliveryDate)}</span></div>
                   <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>

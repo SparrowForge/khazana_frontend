@@ -4,7 +4,7 @@ import { unwrapList } from "@/lib/unwrap";
 export interface Order {
   id: number;
   serialNo?: string;
-  clientCode?: string;
+  clientId?: string;
   orderDate?: string;
   deliveryDate?: string;
   deliveryAddress?: string;
@@ -15,13 +15,13 @@ export interface Order {
 }
 
 export interface OrderLine {
-  itemCode: string;
+  itemId: string;
   qty: number;
   unitPrice: number;
 }
 
 export interface OrderPayload {
-  clientCode: string;
+  clientId: string;
   orderDate: string;
   deliveryDate?: string;
   deliveryAddress?: string;

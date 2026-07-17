@@ -4,7 +4,7 @@ import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 export interface Order {
   id: number;
   serialNo?: string;
-  clientCode?: string;
+  clientId?: string;
   orderDate?: string;
   deliveryDate?: string;
   deliveryAddress?: string;
@@ -26,7 +26,7 @@ export interface BranchInfo {
 
 export interface OrderDetail {
   id: string;
-  itemCode: string;
+  itemId: string;
   qty: number;
   unitPrice?: number;
 }
@@ -36,27 +36,27 @@ export interface OrderRecord extends Order {
 }
 
 export interface Customer {
-  id: number;
+  id: string;
   code: string;
   name: string;
   address?: string;
 }
 
 export interface AvailableItem {
-  id: number;
+  id: string;
   itmCode: string;
   itmName?: string;
 }
 
 export interface OrderPayload {
-  clientCode: string;
+  clientId: string;
   orderDate: string;
   deliveryDate?: string;
   deliveryAddress?: string;
   advance?: number;
   discount?: number;
   totalPrice: number;
-  items: { itemCode: string; qty: number; unitPrice: number }[];
+  items: { itemId: string; qty: number; unitPrice: number }[];
 }
 
 export const fetchOrders = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Order>> =>

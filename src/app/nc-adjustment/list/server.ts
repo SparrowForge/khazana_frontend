@@ -10,7 +10,7 @@ export interface NC {
   ncmstrReference?: string;
 }
 
-export const fetchNcAdjustments = (fromDate?: string, toDate?: string) => {
+export const fetchNcAdjustments = (fromDate?: string, toDate?: string): Promise<NC[]> => {
   const params = new URLSearchParams();
   if (fromDate) params.append("fromDate", fromDate);
   if (toDate) params.append("toDate", toDate);

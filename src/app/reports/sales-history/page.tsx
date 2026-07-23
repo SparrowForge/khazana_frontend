@@ -158,7 +158,7 @@ export default function SalesHistoryPage() {
           <div className="overflow-x-auto">
             <Table
               loading={false}
-              data={report.items.map((item, idx) => ({ ...item, si: idx + 1 }))}
+              data={report.items.map((item, idx) => ({ id: idx, ...item, si: idx + 1 }))}
               columns={[
                 { key: "si", header: "SI#", className: "w-12" },
                 { key: "date", header: "Date", render: (r) => formatDate(r.date) },
@@ -191,7 +191,7 @@ export default function SalesHistoryPage() {
               <div className="overflow-x-auto">
                 <Table
                   loading={false}
-                  data={report.dailySubTotals}
+                  data={report.dailySubTotals.map((row, idx) => ({ id: idx, ...row }))}
                   columns={[
                     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
                     { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },

@@ -45,7 +45,7 @@ export const fetchItems = () =>
 export const adjustStock = (data: AdjustmentPayload) =>
   api.post("/inventory/adjust", data).then((r) => r.data);
 
-export const fetchAdjustments = ({ page = 1, limit = 10, fromDate, toDate } = {}): Promise<Paginated<AdjustmentRecord>> => {
+export const fetchAdjustments = ({ page = 1, limit = 10, fromDate, toDate }: { page?: number; limit?: number; fromDate?: string; toDate?: string } = {}): Promise<Paginated<AdjustmentRecord>> => {
   const params = new URLSearchParams();
   params.append("page", String(page));
   params.append("limit", String(limit));

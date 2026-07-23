@@ -7,7 +7,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import { useAuthStore } from "@/store/auth.store";
-import { fetchSalesHistory, type SalesHistoryReport, type SalesHistoryRow } from "./server";
+import { fetchSalesHistory, type SalesHistoryReport } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
 import { formatCurrency } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
@@ -59,39 +59,119 @@ export default function SalesHistoryPage() {
 
   const handleExport = () => {
     if (!report) return;
-    const rows: Array<SalesHistoryRow & { si: number }> = report.items.map((item, idx) => ({
-      ...item,
-      si: idx + 1,
-    }));
 
-    const columns: ExportColumn<SalesHistoryRow & { si: number }>[] = [
-      { header: "SI#", value: (r) => r.si },
-      { header: "Date", value: (r) => formatDate(r.date) },
-      { header: "Inv No", value: (r) => r.invoiceNo },
-      { header: "Item Name", value: (r) => r.itemName },
-      { header: "Qty", value: (r) => fmtQty(r.qty), numeric: true },
-      { header: "Price", value: (r) => fmt(r.price), numeric: true },
-      { header: "Amount", value: (r) => fmt(r.amount), numeric: true },
-      { header: "Discount", value: (r) => fmt(r.discount), numeric: true },
-      { header: "Vat", value: (r) => fmt(r.vat), numeric: true },
-      { header: "Total Amt", value: (r) => fmt(r.totalAmount), numeric: true },
-      { header: "Cash", value: (r) => fmt(r.cash), numeric: true },
-      { header: "Bkash", value: (r) => fmt(r.bkash), numeric: true },
-      { header: "Nagad", value: (r) => fmt(r.nagad), numeric: true },
-      { header: "Brac", value: (r) => fmt(r.brac), numeric: true },
-      { header: "UCB", value: (r) => fmt(r.ucb), numeric: true },
-      { header: "CITY", value: (r) => fmt(r.city), numeric: true },
-      { header: "EBL", value: (r) => fmt(r.ebl), numeric: true },
-      { header: "F Panda", value: (r) => fmt(r.fpanda), numeric: true },
-      { header: "Pathao", value: (r) => fmt(r.pathao), numeric: true },
-      { header: "Foodi", value: (r) => fmt(r.foodi), numeric: true },
-      { header: "Credit", value: (r) => fmt(r.credit), numeric: true },
+    interface ExportRow {
+      si?: number | string;
+      dateHeader?: string;
+      type?: string;
+      [key: string]: unknown;
+    }
+
+    const rows: ExportRow[] = [];
+    const groupedByDate = groupByDate();
+    let siCounter = 1;
+
+    groupedByDate.forEach(([dateStr, dateItems]) => {
+      dateItems.forEach((item) => {
+        rows.push({
+          ...item,
+          type: "item",
+          si: siCounter++,
+          dateHeader: formatDate(dateStr),
+        });
+      });
+
+      const dateSubTotal = report.dailySubTotals.find((d) => {
+        const dStr = String(d.date).split('T')[0];
+        return dStr === dateStr;
+      });
+
+      if (dateSubTotal) {
+        rows.push({
+          ...dateSubTotal,
+          type: "date-subtotal",
+          si: "",
+          dateHeader: "Date Subtotal",
+        });
+      }
+
+      rows.push({ type: "spacer" });
+    });
+
+    const grandTotal = calculateGrandTotal();
+    if (grandTotal) {
+      rows.push({
+        ...grandTotal,
+        type: "grand-total",
+        si: "",
+        dateHeader: "GRAND TOTAL",
+      });
+    }
+
+    const columns: ExportColumn<ExportRow>[] = [
+      { header: "SI#", value: (r) => String(r.si ?? "") },
+      { header: "Date", value: (r) => String(r.dateHeader ?? "") },
+      { header: "Inv No", value: (r) => String(r.invoiceNo ?? "") },
+      { header: "Item Name", value: (r) => String(r.itemName ?? "") },
+      { header: "Qty", value: (r) => (r.type === "item" ? fmtQty(Number(r.qty) || 0) : ""), numeric: true },
+      { header: "Price", value: (r) => (r.type === "item" ? fmt(Number(r.price) || 0) : ""), numeric: true },
+      { header: "Amount", value: (r) => fmt(Number(r.amount) || 0), numeric: true },
+      { header: "Discount", value: (r) => fmt(Number(r.discount) || 0), numeric: true },
+      { header: "Vat", value: (r) => fmt(Number(r.vat) || 0), numeric: true },
+      { header: "Total Amt", value: (r) => fmt(Number(r.totalAmount) || 0), numeric: true },
+      { header: "Cash", value: (r) => fmt(Number(r.cash) || 0), numeric: true },
+      { header: "Bkash", value: (r) => fmt(Number(r.bkash) || 0), numeric: true },
+      { header: "Nagad", value: (r) => fmt(Number(r.nagad) || 0), numeric: true },
+      { header: "Brac", value: (r) => fmt(Number(r.brac) || 0), numeric: true },
+      { header: "UCB", value: (r) => fmt(Number(r.ucb) || 0), numeric: true },
+      { header: "CITY", value: (r) => fmt(Number(r.city) || 0), numeric: true },
+      { header: "EBL", value: (r) => fmt(Number(r.ebl) || 0), numeric: true },
+      { header: "F Panda", value: (r) => fmt(Number(r.fpanda) || 0), numeric: true },
+      { header: "Pathao", value: (r) => fmt(Number(r.pathao) || 0), numeric: true },
+      { header: "Foodi", value: (r) => fmt(Number(r.foodi) || 0), numeric: true },
+      { header: "Credit", value: (r) => fmt(Number(r.credit) || 0), numeric: true },
     ];
 
     exportExcel(rows, columns, {
       title: "Sales History Summary",
       subtitle: `${report.branchName || "All Branches"} · ${formatDate(report.fromDate)} to ${formatDate(report.toDate)}`,
     }).catch(() => {});
+  };
+
+  const groupByDate = (): Array<[string, SalesHistoryReport['items']]> => {
+    if (!report) return [];
+    const grouped = new Map<string, SalesHistoryReport['items']>();
+    report.items.forEach((item) => {
+      const dateStr = String(item.date).split('T')[0];
+      if (!grouped.has(dateStr)) grouped.set(dateStr, []);
+      grouped.get(dateStr)!.push(item);
+    });
+    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  };
+
+  const calculateGrandTotal = () => {
+    if (!report) return null;
+    return report.dailySubTotals.reduce(
+      (acc, daily) => ({
+        qty: acc.qty + (daily.qty || 0),
+        amount: acc.amount + (daily.amount || 0),
+        discount: acc.discount + (daily.discount || 0),
+        vat: acc.vat + (daily.vat || 0),
+        totalAmount: acc.totalAmount + (daily.totalAmount || 0),
+        cash: acc.cash + (daily.cash || 0),
+        bkash: acc.bkash + (daily.bkash || 0),
+        nagad: acc.nagad + (daily.nagad || 0),
+        brac: acc.brac + (daily.brac || 0),
+        ucb: acc.ucb + (daily.ucb || 0),
+        city: acc.city + (daily.city || 0),
+        ebl: acc.ebl + (daily.ebl || 0),
+        fpanda: acc.fpanda + (daily.fpanda || 0),
+        pathao: acc.pathao + (daily.pathao || 0),
+        foodi: acc.foodi + (daily.foodi || 0),
+        credit: acc.credit + (daily.credit || 0),
+      }),
+      { qty: 0, amount: 0, discount: 0, vat: 0, totalAmount: 0, cash: 0, bkash: 0, nagad: 0, brac: 0, ucb: 0, city: 0, ebl: 0, fpanda: 0, pathao: 0, foodi: 0, credit: 0 }
+    );
   };
 
   return (
@@ -155,66 +235,106 @@ export default function SalesHistoryPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table
-              loading={false}
-              data={report.items.map((item, idx) => ({ id: idx, ...item, si: idx + 1 }))}
-              columns={[
-                { key: "si", header: "SI#", className: "w-12" },
-                { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-                { key: "invoiceNo", header: "Inv No" },
-                { key: "itemName", header: "Item Name" },
-                { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },
-                { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price) },
-                { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
-                { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },
-                { key: "vat", header: "Vat", className: "text-right", render: (r) => fmt(r.vat) },
-                { key: "totalAmount", header: "Total Amt", className: "text-right", render: (r) => fmt(r.totalAmount) },
-                { key: "cash", header: "Cash", className: "text-right", render: (r) => fmt(r.cash) },
-                { key: "bkash", header: "Bkash", className: "text-right", render: (r) => fmt(r.bkash) },
-                { key: "nagad", header: "Nagad", className: "text-right", render: (r) => fmt(r.nagad) },
-                { key: "brac", header: "Brac", className: "text-right", render: (r) => fmt(r.brac) },
-                { key: "ucb", header: "UCB", className: "text-right", render: (r) => fmt(r.ucb) },
-                { key: "city", header: "CITY", className: "text-right", render: (r) => fmt(r.city) },
-                { key: "ebl", header: "EBL", className: "text-right", render: (r) => fmt(r.ebl) },
-                { key: "fpanda", header: "F Panda", className: "text-right", render: (r) => fmt(r.fpanda) },
-                { key: "pathao", header: "Pathao", className: "text-right", render: (r) => fmt(r.pathao) },
-                { key: "foodi", header: "Foodi", className: "text-right", render: (r) => fmt(r.foodi) },
-                { key: "credit", header: "Credit", className: "text-right", render: (r) => fmt(r.credit) },
-              ]}
-            />
-          </div>
+          {groupByDate().map(([dateStr, dateItems]) => {
+            const dateSubTotal = report.dailySubTotals.find((d) => {
+              const dStr = String(d.date).split('T')[0];
+              return dStr === dateStr;
+            });
 
-          {report.dailySubTotals.length > 0 && (
-            <div className="border-t border-gray-200 p-4">
-              <h3 className="text-sm font-semibold mb-3">Daily Sub Totals</h3>
-              <div className="overflow-x-auto">
+            return (
+              <div key={dateStr} className="border-b border-gray-200">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <h3 className="font-semibold text-sm">Date: {formatDate(dateStr)}</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table
+                    loading={false}
+                    data={dateItems.map((item, idx) => ({ id: `${dateStr}-${idx}`, ...item, si: idx + 1 }))}
+                    columns={[
+                      { key: "si", header: "SI#", className: "w-12" },
+                      { key: "invoiceNo", header: "Inv No" },
+                      { key: "itemName", header: "Item Name" },
+                      { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },
+                      { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price) },
+                      { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
+                      { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },
+                      { key: "vat", header: "Vat", className: "text-right", render: (r) => fmt(r.vat) },
+                      { key: "totalAmount", header: "Total Amt", className: "text-right", render: (r) => fmt(r.totalAmount) },
+                      { key: "cash", header: "Cash", className: "text-right", render: (r) => fmt(r.cash) },
+                      { key: "bkash", header: "Bkash", className: "text-right", render: (r) => fmt(r.bkash) },
+                      { key: "nagad", header: "Nagad", className: "text-right", render: (r) => fmt(r.nagad) },
+                      { key: "brac", header: "Brac", className: "text-right", render: (r) => fmt(r.brac) },
+                      { key: "ucb", header: "UCB", className: "text-right", render: (r) => fmt(r.ucb) },
+                      { key: "city", header: "CITY", className: "text-right", render: (r) => fmt(r.city) },
+                      { key: "ebl", header: "EBL", className: "text-right", render: (r) => fmt(r.ebl) },
+                      { key: "fpanda", header: "F Panda", className: "text-right", render: (r) => fmt(r.fpanda) },
+                      { key: "pathao", header: "Pathao", className: "text-right", render: (r) => fmt(r.pathao) },
+                      { key: "foodi", header: "Foodi", className: "text-right", render: (r) => fmt(r.foodi) },
+                      { key: "credit", header: "Credit", className: "text-right", render: (r) => fmt(r.credit) },
+                    ]}
+                  />
+                </div>
+                {dateSubTotal && (
+                  <div className="bg-blue-50 overflow-x-auto border-t border-gray-200">
+                    <Table
+                      loading={false}
+                      data={[{ id: `subtotal-${dateStr}`, ...dateSubTotal }]}
+                      columns={[
+                        { key: "date", header: "Date Subtotal", render: () => "Subtotal" },
+                        { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },
+                        { key: "amount", header: "Amount", className: "text-right font-semibold", render: (r) => fmt(r.amount) },
+                        { key: "discount", header: "Discount", className: "text-right font-semibold", render: (r) => fmt(r.discount) },
+                        { key: "vat", header: "Vat", className: "text-right font-semibold", render: (r) => fmt(r.vat) },
+                        { key: "totalAmount", header: "Total Amt", className: "text-right font-semibold", render: (r) => fmt(r.totalAmount) },
+                        { key: "cash", header: "Cash", className: "text-right font-semibold", render: (r) => fmt(r.cash) },
+                        { key: "bkash", header: "Bkash", className: "text-right font-semibold", render: (r) => fmt(r.bkash) },
+                        { key: "nagad", header: "Nagad", className: "text-right font-semibold", render: (r) => fmt(r.nagad) },
+                        { key: "brac", header: "Brac", className: "text-right font-semibold", render: (r) => fmt(r.brac) },
+                        { key: "ucb", header: "UCB", className: "text-right font-semibold", render: (r) => fmt(r.ucb) },
+                        { key: "city", header: "CITY", className: "text-right font-semibold", render: (r) => fmt(r.city) },
+                        { key: "ebl", header: "EBL", className: "text-right font-semibold", render: (r) => fmt(r.ebl) },
+                        { key: "fpanda", header: "F Panda", className: "text-right font-semibold", render: (r) => fmt(r.fpanda) },
+                        { key: "pathao", header: "Pathao", className: "text-right font-semibold", render: (r) => fmt(r.pathao) },
+                        { key: "foodi", header: "Foodi", className: "text-right font-semibold", render: (r) => fmt(r.foodi) },
+                        { key: "credit", header: "Credit", className: "text-right font-semibold", render: (r) => fmt(r.credit) },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {report.dailySubTotals.length > 0 && (() => {
+            const grand = calculateGrandTotal();
+            return (
+              <div className="bg-green-50 overflow-x-auto border-t-2 border-green-200">
                 <Table
                   loading={false}
-                  data={report.dailySubTotals.map((row, idx) => ({ id: idx, ...row }))}
+                  data={[{ id: "grand-total", ...(grand || {}) }]}
                   columns={[
-                    { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-                    { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },
-                    { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
-                    { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },
-                    { key: "vat", header: "Vat", className: "text-right", render: (r) => fmt(r.vat) },
-                    { key: "totalAmount", header: "Total Amt", className: "text-right", render: (r) => fmt(r.totalAmount) },
-                    { key: "cash", header: "Cash", className: "text-right", render: (r) => fmt(r.cash) },
-                    { key: "bkash", header: "Bkash", className: "text-right", render: (r) => fmt(r.bkash) },
-                    { key: "nagad", header: "Nagad", className: "text-right", render: (r) => fmt(r.nagad) },
-                    { key: "brac", header: "Brac", className: "text-right", render: (r) => fmt(r.brac) },
-                    { key: "ucb", header: "UCB", className: "text-right", render: (r) => fmt(r.ucb) },
-                    { key: "city", header: "CITY", className: "text-right", render: (r) => fmt(r.city) },
-                    { key: "ebl", header: "EBL", className: "text-right", render: (r) => fmt(r.ebl) },
-                    { key: "fpanda", header: "F Panda", className: "text-right", render: (r) => fmt(r.fpanda) },
-                    { key: "pathao", header: "Pathao", className: "text-right", render: (r) => fmt(r.pathao) },
-                    { key: "foodi", header: "Foodi", className: "text-right", render: (r) => fmt(r.foodi) },
-                    { key: "credit", header: "Credit", className: "text-right", render: (r) => fmt(r.credit) },
+                    { key: "qty", header: "GRAND TOTAL", className: "text-right font-bold text-green-900", render: () => "GRAND TOTAL" },
+                    { key: "qty", header: "Qty", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmtQty(Number(r.qty) || 0) },
+                    { key: "amount", header: "Amount", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.amount) || 0) },
+                    { key: "discount", header: "Discount", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.discount) || 0) },
+                    { key: "vat", header: "Vat", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.vat) || 0) },
+                    { key: "totalAmount", header: "Total Amt", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.totalAmount) || 0) },
+                    { key: "cash", header: "Cash", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.cash) || 0) },
+                    { key: "bkash", header: "Bkash", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.bkash) || 0) },
+                    { key: "nagad", header: "Nagad", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.nagad) || 0) },
+                    { key: "brac", header: "Brac", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.brac) || 0) },
+                    { key: "ucb", header: "UCB", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.ucb) || 0) },
+                    { key: "city", header: "CITY", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.city) || 0) },
+                    { key: "ebl", header: "EBL", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.ebl) || 0) },
+                    { key: "fpanda", header: "F Panda", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.fpanda) || 0) },
+                    { key: "pathao", header: "Pathao", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.pathao) || 0) },
+                    { key: "foodi", header: "Foodi", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.foodi) || 0) },
+                    { key: "credit", header: "Credit", className: "text-right font-bold text-green-900", render: (r: Record<string, unknown>) => fmt(Number(r.credit) || 0) },
                   ]}
                 />
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </AppLayout>

@@ -15,6 +15,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { ExportColumn } from "@/lib/export/reportExport";
+import { posBanksApi, POS_PAY_MODES, type PosBank } from "@/lib/services/pos.service";
 
 const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", bankName: "" };
 
@@ -30,6 +31,7 @@ const reportColumns: ExportColumn<Payment>[] = [
 export default function CustomerPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [banks, setBanks] = useState<PosBank[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -46,6 +48,7 @@ export default function CustomerPaymentsPage() {
   useEffect(() => {
     load();
     fetchCustomers().then(setCustomers).catch(() => {});
+    posBanksApi.getAll().then(setBanks).catch(() => {});
   }, []);
 
   const handleSave = async () => {
@@ -86,9 +89,16 @@ export default function CustomerPaymentsPage() {
             placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
           <Input label="Date" type="date" value={form.receiveDate} onChange={(e) => setForm({ ...form, receiveDate: e.target.value })} />
           <Input label="Amount *" type="number" min="0" value={form.receiveAmount} onChange={(e) => setForm({ ...form, receiveAmount: e.target.value })} />
-          <Select label="Payment Type" value={form.tType} onChange={(e) => setForm({ ...form, tType: e.target.value })}
-            options={[{ value: "Cash", label: "Cash" }, { value: "Cheque", label: "Cheque" }, { value: "Transfer", label: "Bank Transfer" }]} />
-          <Input label="Bank Name" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
+          <Select label="Payment Type" value={form.tType}
+            onChange={(e) => {
+              const next = e.target.value;
+              setForm({ ...form, tType: next, bankName: next === "Card" ? form.bankName : "" });
+            }}
+            options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))} />
+          {form.tType === "Card" && (
+            <Select label="Bank" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+              placeholder="Select bank..." options={banks.map((b) => ({ value: b.name, label: b.name }))} />
+          )}
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>

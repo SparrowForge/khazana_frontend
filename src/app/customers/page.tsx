@@ -60,7 +60,7 @@ export default function CustomersPage() {
   const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };
 
   const handleSave = async () => {
-    if (!form.code || !form.name) { toast.error("Code and name are required"); return; }
+    if (!form.code || !form.name || !form.mobile) { toast.error("Code, name, and mobile are required"); return; }
     setSaving(true);
     try {
       if (editing) await updateCustomer(editing.code, form);
@@ -117,7 +117,7 @@ export default function CustomersPage() {
         <div className="grid grid-cols-2 gap-4">
           <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />
           <Input label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input label="Mobile" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+          <Input label="Mobile *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="col-span-2" />
         </div>

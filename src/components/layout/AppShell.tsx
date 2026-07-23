@@ -39,6 +39,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/prices", "PriceSetup"],
   ["/cost-prices", "CostPriceSetup"],
   ["/orders/vat", "VatOrders"],
+  ["/orders/demand", "DemandOrders"],
   ["/orders", "OrdersList"],
   ["/finance/cash-purchase", "CashPurchase"],
   ["/finance", "Finance"],

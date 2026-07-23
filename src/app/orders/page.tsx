@@ -64,7 +64,15 @@ export default function OrdersPage() {
 
   const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, f: keyof OrderLine, v: string) => setLines(lines.map((l, idx) => idx === i ? { ...l, [f]: v } : l));
+  const updateLine = (i: number, f: keyof OrderLine, v: string) =>
+    setLines(lines.map((l, idx) => {
+      if (idx !== i) return l;
+      if (f === "itemId") {
+        const price = availableItems.find((it) => it.id === v)?.price;
+        return { ...l, itemId: v, unitPrice: String(price ?? 0) };
+      }
+      return { ...l, [f]: v };
+    }));
 
   // Grand Total is the pre-discount line-item sum; Discount is a % of it.
   const totalPrice = lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0);

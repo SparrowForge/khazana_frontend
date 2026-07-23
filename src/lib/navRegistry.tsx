@@ -33,17 +33,11 @@ export interface NavMeta {
 export const NAV_REGISTRY: Record<string, NavMeta> = {
   Dashboard: { icon: <LayoutDashboard size={18} />, route: "/" },
 
-  POS: {
-    icon: <Receipt size={18} />,
-    links: [
-      { label: "POS Terminal", route: "/pos", icon: <ShoppingCart size={16} />, controlName: "POSTerminal" },
-      { label: "POS Sales", route: "/pos/sales", icon: <FileText size={16} />, controlName: "POSSales" },
-    ],
-  },
-
   Sales: {
     icon: <ShoppingCart size={18} />,
     links: [
+      { label: "POS Terminal", route: "/pos", icon: <Receipt size={16} />, controlName: "POSTerminal" },
+      { label: "POS Sales", route: "/pos/sales", icon: <Receipt size={16} />, controlName: "POSSales" },
       { label: "Cash Sales", route: "/sales/cash", icon: <DollarSign size={16} />, controlName: "CashSales" },
       { label: "Credit Sales", route: "/sales/credit", icon: <DollarSign size={16} />, controlName: "CreditSales" },
       { label: "VAT Cash Sales", route: "/sales/vat/cash", icon: <DollarSign size={16} />, controlName: "VatCashSales" },
@@ -112,6 +106,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     links: [
       { label: "Orders", route: "/orders", icon: <ClipboardList size={16} />, controlName: "OrdersList" },
       { label: "VAT Orders", route: "/orders/vat", icon: <ClipboardList size={16} />, controlName: "VatOrders" },
+      { label: "Demand Order", route: "/orders/demand", icon: <FileText size={16} />, controlName: "DemandOrders" },
     ],
   },
 

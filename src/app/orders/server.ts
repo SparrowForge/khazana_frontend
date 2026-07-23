@@ -46,6 +46,7 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  price?: number;
 }
 
 export interface OrderPayload {

@@ -121,6 +121,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     icon: <BarChart2 size={18} />,
     links: [
       { label: "Sales Report", route: "/reports/sales", icon: <BarChart2 size={16} />, controlName: "SalesReport" },
+      { label: "Sales History Summary", route: "/reports/sales-history", icon: <BarChart2 size={16} />, controlName: "SalesHistorySummary" },
       { label: "Stock Report", route: "/reports/stock", icon: <BarChart2 size={16} />, controlName: "StockReport" },
       { label: "Stock Analysis", route: "/reports/stock-analysis", icon: <BarChart2 size={16} />, controlName: "StockAnalysis" },
       { label: "Customer Statement", route: "/reports/customer-statement", icon: <FileText size={16} />, controlName: "CustomerStatement" },

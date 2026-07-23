@@ -32,6 +32,15 @@ const reportColumns: ExportColumn<AdjReportRow>[] = [
   { header: "Assort", value: (r) => r.assort, numeric: true },
 ];
 
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
+
 export default function StockAdjustmentPage() {
   const { can } = usePermissions();
   const canAdd = can("StockAdjustment", "add");
@@ -41,6 +50,10 @@ export default function StockAdjustmentPage() {
   const [adjustments, setAdjustments] = useState<AdjustmentRecord[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
 
   const [modal, setModal] = useState(false);
   const [editingInvNo, setEditingInvNo] = useState<string | null>(null);
@@ -60,7 +73,7 @@ export default function StockAdjustmentPage() {
 
   const loadList = () => {
     setListLoading(true);
-    fetchAdjustments({ page, limit })
+    fetchAdjustments({ page, limit, fromDate, toDate })
       .then(({ items, meta }) => { setAdjustments(items); setMeta(meta); })
       .catch(() => {})
       .finally(() => setListLoading(false));
@@ -70,7 +83,7 @@ export default function StockAdjustmentPage() {
     fetchItems().then(setAvailableItems).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(loadList, [page, limit, refreshKey, setMeta]);
+  useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate]);
 
   const addLine = () => setLines([...lines, { itmOId: "", reject: "0", excess: "0", short: "0", assort: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -173,6 +186,20 @@ export default function StockAdjustmentPage() {
         subtitle="Record reject, excess, short, assort adjustments"
         action={canAdd ? { label: "New Adjustment", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
+      <div className="mb-4 flex gap-4 items-end">
+        <Input
+          label="From Date"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
+        <Input
+          label="To Date"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
+      </div>
       <Table loading={listLoading} data={adjustments}
         columns={[
           {

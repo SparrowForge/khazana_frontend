@@ -47,6 +47,7 @@ export interface AvailableItem {
   itmCode: string;
   itmName?: string;
   price?: number;
+  vatPercentage?: number;
 }
 
 export interface OrderPayload {

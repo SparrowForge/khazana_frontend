@@ -29,6 +29,15 @@ const reportColumns: ExportColumn<{ itemName?: string; qty: number; unitPrice?: 
   { header: "Unit Price", value: (r) => r.unitPrice ?? 0, numeric: true },
 ];
 
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
+
 export default function StockIssuePage() {
   const { can } = usePermissions();
   const canAdd = can("StockIssue", "add");
@@ -38,6 +47,11 @@ export default function StockIssuePage() {
   const [issues, setIssues] = useState<IssueRecord[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
+
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
+  const [filterBranchId, setFilterBranchId] = useState("");
 
   const [modal, setModal] = useState(false);
   const [editingSerial, setEditingSerial] = useState<string | null>(null);
@@ -58,7 +72,7 @@ export default function StockIssuePage() {
 
   const loadList = () => {
     setListLoading(true);
-    fetchIssues({ page, limit })
+    fetchIssues({ page, limit, fromDate, toDate, branchId: filterBranchId || undefined })
       .then(({ items, meta }) => { setIssues(items); setMeta(meta); })
       .catch(() => {})
       .finally(() => setListLoading(false));
@@ -69,7 +83,7 @@ export default function StockIssuePage() {
     fetchBranches().then(setBranches).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(loadList, [page, limit, refreshKey, setMeta]);
+  useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
 
   const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -183,6 +197,27 @@ export default function StockIssuePage() {
         subtitle="Record outgoing stock"
         action={canAdd ? { label: "New Issue", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
+      <div className="mb-4 flex gap-4 items-end">
+        <Input
+          label="From Date"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
+        <Input
+          label="To Date"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
+        <Select
+          label="Branch"
+          value={filterBranchId}
+          onChange={(e) => setFilterBranchId(e.target.value)}
+          placeholder="All branches"
+          options={[{ value: "", label: "All branches" }, ...branches.map((b) => ({ value: b.id, label: b.branchName }))]}
+        />
+      </div>
       <Table loading={listLoading} data={issues}
         columns={[
           {

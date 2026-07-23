@@ -59,8 +59,15 @@ export const fetchBranches = () =>
 export const transferStock = (data: TransferPayload) =>
   api.post("/inventory/transfer", data).then((r) => r.data);
 
-export const fetchTransfers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<TransferRecord>> =>
-  api.get(`/inventory/transfer?page=${page}&limit=${limit}`).then(unwrapPaginated<TransferRecord>);
+export const fetchTransfers = ({ page = 1, limit = 10, fromDate, toDate, branchId } = {}): Promise<Paginated<TransferRecord>> => {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  if (branchId) params.append("branchId", branchId);
+  return api.get(`/inventory/transfer?${params.toString()}`).then(unwrapPaginated<TransferRecord>);
+};
 
 export const fetchTransfer = (serialNo: string): Promise<TransferGroup> =>
   api.get(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => r.data);

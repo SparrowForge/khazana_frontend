@@ -60,8 +60,15 @@ export const fetchBranches = () =>
 export const issueStock = (data: IssuePayload) =>
   api.post("/inventory/issue", data).then((r) => r.data);
 
-export const fetchIssues = ({ page = 1, limit = 10 } = {}): Promise<Paginated<IssueRecord>> =>
-  api.get(`/inventory/issue/history?page=${page}&limit=${limit}`).then(unwrapPaginated<IssueRecord>);
+export const fetchIssues = ({ page = 1, limit = 10, fromDate, toDate, branchId } = {}): Promise<Paginated<IssueRecord>> => {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  if (branchId) params.append("branchId", branchId);
+  return api.get(`/inventory/issue/history?${params.toString()}`).then(unwrapPaginated<IssueRecord>);
+};
 
 export const fetchIssue = (serialNo: string): Promise<IssueGroup> =>
   api.get(`/inventory/issue/${encodeURIComponent(serialNo)}`).then((r) => r.data);

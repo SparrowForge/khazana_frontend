@@ -24,7 +24,7 @@ import {
 } from "@/lib/export/orderInvoiceDocument";
 import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
 
-interface OrderLine { itemId: string; qty: string; unitPrice: string; }
+interface OrderLine { itemId: string; qty: string; unitPrice: string; vatPercentage?: number; }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -68,17 +68,23 @@ export default function OrdersPage() {
     setLines(lines.map((l, idx) => {
       if (idx !== i) return l;
       if (f === "itemId") {
-        const price = availableItems.find((it) => it.id === v)?.price;
-        return { ...l, itemId: v, unitPrice: String(price ?? 0) };
+        const item = availableItems.find((it) => it.id === v);
+        return { ...l, itemId: v, unitPrice: String(item?.price ?? 0), vatPercentage: item?.vatPercentage ?? 0 };
       }
       return { ...l, [f]: v };
     }));
 
   // Grand Total is the pre-discount line-item sum; Discount is a % of it.
-  const totalPrice = lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const totalPrice = r2(lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0));
+  const vatAmount = r2(lines.reduce((s, l) => {
+    const lineSubtotal = parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0");
+    const lineVat = lineSubtotal * ((l.vatPercentage ?? 0) / 100);
+    return s + lineVat;
+  }, 0));
   const discountPercent = parseFloat(form.discount || "0") || 0;
-  const discountAmount = totalPrice * (discountPercent / 100);
-  const netAmount = totalPrice - discountAmount;
+  const discountAmount = r2(totalPrice * (discountPercent / 100));
+  const netAmount = r2(totalPrice + vatAmount - discountAmount);
 
   const itemName = (itemId?: string) => availableItems.find((it) => it.id === itemId)?.itmName ?? itemId ?? "-";
   const customerName = (clientId?: string) => customers.find((c) => c.id === clientId)?.name ?? clientId ?? "-";
@@ -166,16 +172,20 @@ export default function OrdersPage() {
     const branch = branches.find((b) => b.id === order.branchId);
     const grandTotal = order.totalPrice ?? 0;
     const discPercent = order.discount ?? 0;
-    const items: OrderInvoiceLine[] = (order.details ?? []).map((d) => ({
-      itemName: itemName(d.itemId),
-      qty: d.qty,
-      rate: d.unitPrice ?? 0,
-      vat: 0,
-      total: d.qty * (d.unitPrice ?? 0),
-    }));
-    const vatAmount = 0;
-    const discAmount = grandTotal * (discPercent / 100);
-    const totalPayable = grandTotal + vatAmount - discAmount;
+    const items: OrderInvoiceLine[] = (order.details ?? []).map((d) => {
+      const item = availableItems.find((it) => it.id === d.itemId);
+      const itemVat = (d.qty * (d.unitPrice ?? 0)) * ((item?.vatPercentage ?? 0) / 100);
+      return {
+        itemName: itemName(d.itemId),
+        qty: d.qty,
+        rate: d.unitPrice ?? 0,
+        vat: itemVat,
+        total: d.qty * (d.unitPrice ?? 0),
+      };
+    });
+    const vatAmount = r2(items.reduce((s, i) => s + i.vat, 0));
+    const discAmount = r2(grandTotal * (discPercent / 100));
+    const totalPayable = r2(grandTotal + vatAmount - discAmount);
     const advance = order.advance ?? 0;
     return {
       branchName: branch?.branchName,
@@ -288,6 +298,9 @@ export default function OrdersPage() {
         <div className="flex justify-between items-end">
           <div className="text-sm space-y-0.5">
             <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(totalPrice)}</span></div>
+            {vatAmount > 0 && (
+              <div>VAT Amount: <span className="font-semibold text-blue-600">+ ৳ {formatCurrency(vatAmount)}</span></div>
+            )}
             {discountPercent > 0 && (
               <div>Discount ({discountPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discountAmount)}</span></div>
             )}

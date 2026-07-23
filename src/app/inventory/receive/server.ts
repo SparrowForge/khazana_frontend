@@ -58,8 +58,15 @@ export const fetchBranches = () =>
 export const receiveStock = (data: ReceivePayload) =>
   api.post("/inventory/receive", data).then((r) => r.data);
 
-export const fetchReceives = ({ page = 1, limit = 10 } = {}): Promise<Paginated<ReceiveRecord>> =>
-  api.get(`/inventory/receive/history?page=${page}&limit=${limit}`).then(unwrapPaginated<ReceiveRecord>);
+export const fetchReceives = ({ page = 1, limit = 10, fromDate, toDate, branchId } = {}): Promise<Paginated<ReceiveRecord>> => {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  if (branchId) params.append("branchId", branchId);
+  return api.get(`/inventory/receive/history?${params.toString()}`).then(unwrapPaginated<ReceiveRecord>);
+};
 
 export const fetchReceive = (serialNo: string): Promise<ReceiveGroup> =>
   api.get(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
+import Input from "@/components/ui/Input";
 import { Edit2, Trash2, Plus } from "lucide-react";
 import { fetchNcAdjustments, deleteNcAdjustment, type NC } from "./server";
 import { formatDate } from "@/lib/utils";
@@ -11,10 +12,22 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
+
 export default function NCAdjustmentListPage() {
   const router = useRouter();
   const [list, setList] = useState<NC[]>([]);
   const [loading, setLoading] = useState(true);
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
 
   const { can } = usePermissions();
   const canAdd = can("NCAdjustment", "add");
@@ -23,9 +36,9 @@ export default function NCAdjustmentListPage() {
 
   const load = () => {
     setLoading(true);
-    fetchNcAdjustments().then(setList).catch(() => {}).finally(() => setLoading(false));
+    fetchNcAdjustments(fromDate, toDate).then(setList).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [fromDate, toDate]);
 
   const handleDelete = async (nc: NC) => {
     if (!confirm(`Delete NC adjustment "${nc.ncmstrCode ?? nc.id}"? Master + details are removed and its stock additions reversed.`)) return;
@@ -44,6 +57,20 @@ export default function NCAdjustmentListPage() {
         title="NC Adjustment List"
         action={canAdd ? { label: "New NC", onClick: () => router.push("/nc-adjustment"), icon: <Plus size={16} /> } : undefined}
       />
+      <div className="mb-4 flex gap-4 items-end">
+        <Input
+          label="From Date"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
+        <Input
+          label="To Date"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
+      </div>
       <Table loading={loading} data={list}
         columns={[
           { key: "ncmstrCode", header: "NC Code" },

@@ -45,8 +45,14 @@ export const fetchItems = () =>
 export const adjustStock = (data: AdjustmentPayload) =>
   api.post("/inventory/adjust", data).then((r) => r.data);
 
-export const fetchAdjustments = ({ page = 1, limit = 10 } = {}): Promise<Paginated<AdjustmentRecord>> =>
-  api.get(`/inventory/adjust/history?page=${page}&limit=${limit}`).then(unwrapPaginated<AdjustmentRecord>);
+export const fetchAdjustments = ({ page = 1, limit = 10, fromDate, toDate } = {}): Promise<Paginated<AdjustmentRecord>> => {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  return api.get(`/inventory/adjust/history?${params.toString()}`).then(unwrapPaginated<AdjustmentRecord>);
+};
 
 export const fetchAdjustment = (invNo: string): Promise<AdjustmentGroup> =>
   api.get(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => r.data);

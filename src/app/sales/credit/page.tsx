@@ -8,11 +8,23 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import { fetchItems, fetchCustomers, fetchOrders, createCreditSale, type AvailableItem, type CreditCustomer, type OrderOption } from "./server";
-import { formatCurrency } from "@/lib/utils";
+import {
+  fetchItems,
+  fetchCustomers,
+  fetchOrdersForCustomer,
+  fetchOrder,
+  createCreditSale,
+  type AvailableItem,
+  type CreditCustomer,
+  type OrderOption,
+  type OrderLine,
+} from "./server";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export default function CreditSalePage() {
   const router = useRouter();
@@ -20,6 +32,8 @@ export default function CreditSalePage() {
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
   const [orders, setOrders] = useState<OrderOption[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [loadingOrderItems, setLoadingOrderItems] = useState(false);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
@@ -29,10 +43,104 @@ export default function CreditSalePage() {
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchCustomers().then(setCustomers).catch(() => {});
-    fetchOrders().then(setOrders).catch(() => {});
   }, []);
 
+  // The PO picker is customer-driven: choosing a customer loads that customer's
+  // open (not yet invoiced) orders, and switching customer drops the PO link so
+  // an invoice can never carry another customer's order number.
+  useEffect(() => {
+    setPoNo("");
+    if (!customerId) {
+      setOrders([]);
+      return;
+    }
+    let stale = false;
+    setOrdersLoading(true);
+    fetchOrdersForCustomer(customerId)
+      .then((rows) => { if (!stale) setOrders(rows); })
+      .catch(() => {
+        if (stale) return;
+        setOrders([]);
+        toast.error("Failed to load this customer's orders");
+      })
+      .finally(() => { if (!stale) setOrdersLoading(false); });
+    // A slow response for the previous customer must not land on the new one.
+    return () => { stale = true; };
+  }, [customerId]);
+
   const selectedCustomer = customers.find((c) => c.id === customerId);
+
+  const orderOptions = orders
+    .filter((o) => !!o.serialNo)
+    .map((o) => ({
+      value: o.serialNo!,
+      label: [
+        o.serialNo!,
+        o.orderDate ? formatDate(o.orderDate) : null,
+        o.totalPrice != null ? `৳ ${formatCurrency(o.totalPrice)}` : null,
+      ].filter(Boolean).join(" — "),
+    }));
+
+  const poPlaceholder = !customerId
+    ? "Select a customer first"
+    : ordersLoading
+      ? "Loading orders…"
+      : orderOptions.length
+        ? "No order (optional)"
+        : "No open orders for this customer";
+
+  /** An order line becomes an invoice line at the order's agreed unit price.
+   *  VAT % comes from the catalog (orders don't store a rate) and mirrors
+   *  SaleItemsTable's maths: VAT on the discounted value, `total` net of VAT. */
+  const orderLineToSaleItem = (line: OrderLine, catalog: AvailableItem[]): SaleItem => {
+    const meta = catalog.find((a) => a.id === line.itemId);
+    const quantity = Number(line.qty) || 0;
+    const rate = Number(line.unitPrice ?? meta?.price ?? 0) || 0;
+    const pct = meta?.vatPercentage ?? 0;
+    const net = r2(rate * quantity);
+    return {
+      itemId: line.itemId ?? "",
+      itemCode: line.item?.itmCode ?? meta?.itmCode ?? "",
+      itemName: line.item?.itmName ?? meta?.itmName ?? undefined,
+      quantity,
+      rate,
+      discount: 0,
+      vatPercentage: pct,
+      vat: r2((net * pct) / 100),
+      total: net,
+    };
+  };
+
+  /** Picking a PO both links the invoice to that order (CSMaster.PONo, which is
+   *  what flips the order to "Delivery Done") and bills its lines. */
+  const handlePoChange = async (serial: string) => {
+    setPoNo(serial);
+    const order = orders.find((o) => o.serialNo === serial);
+    if (!order) return; // cleared back to "no order"
+    if (items.length && !confirm(`Replace the ${items.length} item(s) on this invoice with the lines from order ${serial}?`)) return;
+    setLoadingOrderItems(true);
+    try {
+      // The catalog carries the VAT rate, so a PO picked before it has landed
+      // would otherwise bill at 0% VAT — wait for it rather than guess.
+      const [full, catalog] = await Promise.all([
+        fetchOrder(order.id),
+        availableItems.length ? availableItems : fetchItems().catch(() => [] as AvailableItem[]),
+      ]);
+      const lines = (full.details ?? [])
+        .filter((d) => !!d.itemId)
+        .map((d) => orderLineToSaleItem(d, catalog));
+      if (!lines.length) {
+        toast.error(`Order ${serial} has no item lines — add items manually`);
+        return;
+      }
+      setItems(lines);
+      toast.success(`Loaded ${lines.length} item(s) from ${serial}`);
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Failed to load the order's items"));
+    } finally {
+      setLoadingOrderItems(false);
+    }
+  };
 
   const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
   const netAmount = items.reduce((s, i) => s + i.total, 0);
@@ -83,20 +191,15 @@ export default function CreditSalePage() {
               />
               {/* PO No is the order this invoice fulfils — picking one stores the
                   order's number on the credit sale (CSMaster.PONo), which is what
-                  flips that order to "Delivery Done" on the order list. */}
+                  flips that order to "Delivery Done" on the order list. The list
+                  only ever holds the selected customer's un-invoiced orders. */}
               <Select
                 label="PO No (Order)"
                 value={poNo}
-                onChange={(e) => {
-                  const serial = e.target.value;
-                  setPoNo(serial);
-                  const order = orders.find((o) => o.serialNo === serial);
-                  if (order?.clientId && !customerId) setCustomerId(order.clientId);
-                }}
-                placeholder="No order (optional)"
-                options={orders
-                  .filter((o) => !!o.serialNo)
-                  .map((o) => ({ value: o.serialNo!, label: o.serialNo! }))}
+                onChange={(e) => handlePoChange(e.target.value)}
+                disabled={!customerId || ordersLoading || loadingOrderItems}
+                placeholder={poPlaceholder}
+                options={orderOptions}
               />
               {selectedCustomer && (
                 <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">

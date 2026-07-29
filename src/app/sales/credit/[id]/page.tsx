@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -11,14 +11,14 @@ import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import {
   fetchItems,
   fetchCustomers,
-  fetchOrders,
+  fetchOrdersForCustomer,
   fetchCreditSale,
   updateCreditSale,
   type AvailableItem,
   type CreditCustomer,
   type OrderOption,
 } from "./server";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
@@ -36,12 +36,17 @@ export default function CreditSaleEditPage() {
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
   const [orders, setOrders] = useState<OrderOption[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
   const [poNo, setPoNo] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  /** The customer the invoice was saved with. Reloading the PO list must not
+   *  wipe the saved PO when the form first hydrates — only a real switch to a
+   *  different customer does. */
+  const savedCustomerId = useRef("");
 
   useEffect(() => {
     if (!id) return;
@@ -52,11 +57,11 @@ export default function CreditSaleEditPage() {
     }
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchCustomers().then(setCustomers).catch(() => {});
-    fetchOrders().then(setOrders).catch(() => {});
     fetchCreditSale(id)
       .then((sale) => {
         setInvoiceNo(sale.invoiceNo ?? "");
         setInvoiceDate(sale.invoiceDate ? sale.invoiceDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+        savedCustomerId.current = sale.customerId ?? "";
         setCustomerId(sale.customerId ?? "");
         setPoNo(sale.poNo ?? "");
         setItems(sale.items ?? []);
@@ -65,11 +70,54 @@ export default function CreditSaleEditPage() {
       .finally(() => setLoading(false));
   }, [id, canEdit, router]);
 
+  // Same customer-driven PO list as the create form: the picker only ever
+  // offers the selected customer's un-invoiced orders.
+  useEffect(() => {
+    if (customerId !== savedCustomerId.current) setPoNo("");
+    if (!customerId) {
+      setOrders([]);
+      return;
+    }
+    let stale = false;
+    setOrdersLoading(true);
+    fetchOrdersForCustomer(customerId)
+      .then((rows) => { if (!stale) setOrders(rows); })
+      .catch(() => {
+        if (stale) return;
+        setOrders([]);
+        toast.error("Failed to load this customer's orders");
+      })
+      .finally(() => { if (!stale) setOrdersLoading(false); });
+    // A slow response for the previous customer must not land on the new one.
+    return () => { stale = true; };
+  }, [customerId]);
+
   const selectedCustomer = customers.find((c) => c.id === customerId);
 
-  const orderSerials = orders.map((o) => o.serialNo).filter((s): s is string => !!s);
-  const orderOptions = (orderSerials.includes(poNo) || !poNo ? orderSerials : [poNo, ...orderSerials])
-    .map((s) => ({ value: s, label: s }));
+  const orderOptions = orders
+    .filter((o) => !!o.serialNo)
+    .map((o) => ({
+      value: o.serialNo!,
+      label: [
+        o.serialNo!,
+        o.orderDate ? formatDate(o.orderDate) : null,
+        o.totalPrice != null ? `৳ ${formatCurrency(o.totalPrice)}` : null,
+      ].filter(Boolean).join(" — "),
+    }));
+  // The invoice's own PO is "Delivery Done" (because of this very invoice) and
+  // so never comes back in the pending list — keep it as an option, or editing
+  // anything else here would silently drop the order link.
+  if (poNo && !orderOptions.some((o) => o.value === poNo)) {
+    orderOptions.unshift({ value: poNo, label: `${poNo} (current)` });
+  }
+
+  const poPlaceholder = !customerId
+    ? "Select a customer first"
+    : ordersLoading
+      ? "Loading orders…"
+      : orderOptions.length
+        ? "No order (optional)"
+        : "No open orders for this customer";
 
   const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
   const netAmount = items.reduce((s, i) => s + i.total, 0);
@@ -117,15 +165,17 @@ export default function CreditSaleEditPage() {
                   placeholder="Select customer..."
                   options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
                 />
-                {/* Same order picker as the create form. A PO already on the
-                    invoice that isn't in the fetched orders (legacy free text,
-                    or an older order) is kept as an option so editing the rest
-                    of the invoice can't silently drop the link. */}
+                {/* Same customer-driven order picker as the create form. A PO
+                    already on the invoice that isn't in the fetched orders
+                    (this invoice's own order, legacy free text, or one raised
+                    for another customer) is kept as an option so editing the
+                    rest of the invoice can't silently drop the link. */}
                 <Select
                   label="PO No (Order)"
                   value={poNo}
                   onChange={(e) => setPoNo(e.target.value)}
-                  placeholder="No order (optional)"
+                  disabled={!customerId || ordersLoading}
+                  placeholder={poPlaceholder}
                   options={orderOptions}
                 />
                 {selectedCustomer && (

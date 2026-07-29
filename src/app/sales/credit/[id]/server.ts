@@ -19,11 +19,14 @@ export interface CreditCustomer {
 }
 
 /** Order options for the PO No picker — a credit sale is raised against an
- *  order by storing that order's serialNo in CSMaster.PONo. */
+ *  order by storing that order's serialNo in CSMaster.PONo. Decimal columns
+ *  arrive as strings, hence the `number | string` money field. */
 export interface OrderOption {
   id: string;
   serialNo?: string;
   clientId?: string;
+  orderDate?: string;
+  totalPrice?: number | string;
 }
 
 /** Shape returned by GET /sales/credit/:id (already mapped to the UI's SaleItem). */
@@ -56,8 +59,15 @@ export const fetchItems = () =>
 export const fetchCustomers = () =>
   api.get<{ data: CreditCustomer[] } | CreditCustomer[]>("/customers?limit=100").then(unwrapList<CreditCustomer>);
 
-export const fetchOrders = () =>
-  api.get<{ data: OrderOption[] } | OrderOption[]>("/orders?limit=100").then(unwrapList<OrderOption>);
+/** Orders offered in the PO picker, scoped to the invoice's customer and to
+ *  orders not yet billed. The invoice's own PO won't be in here (its credit
+ *  sale is exactly what makes that order "Delivery Done"), so the page keeps
+ *  the saved value as an extra option. */
+export const fetchOrdersForCustomer = (clientId: string) => {
+  if (!clientId) return Promise.resolve([] as OrderOption[]);
+  const qs = new URLSearchParams({ limit: "100", clientId, deliveryStatus: "pending" });
+  return api.get<{ data: OrderOption[] } | OrderOption[]>(`/orders?${qs}`).then(unwrapList<OrderOption>);
+};
 
 export const fetchCreditSale = (id: string) =>
   api.get<CreditSaleRecord>(`/sales/credit/${id}`).then((r) => r.data);

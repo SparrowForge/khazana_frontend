@@ -67,8 +67,35 @@ export default function StockIssuePage() {
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  /** Qty per item as the document being edited was saved. Editing is
+   *  purge-and-replace — the stock it already took out comes back to it — so
+   *  current on-hand plus this is what the form may commit. Empty when creating. */
+  const [heldStock, setHeldStock] = useState<Record<string, number>>({});
 
   const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
+
+  /** On-hand qty an issue may still draw on for an item. An issue can't drive
+   *  Inventory negative, so this is the ceiling — the server enforces it again. */
+  const availableFor = (itemId: string) =>
+    (availableItems.find((it) => it.id === itemId)?.stock ?? 0) + (heldStock[itemId] ?? 0);
+
+  const itemLabel = (it: AvailableItem) => {
+    const available = availableFor(it.id);
+    return `${it.itmCode} — ${it.itmName}${available > 0 ? ` (stock: ${available})` : " (out of stock)"}`;
+  };
+
+  /** Lines asking for more than is available, summed per item so the same item
+   *  entered on two lines is measured against one balance. */
+  const stockShortages = (rows: { itemId: string; qty: number }[]) => {
+    const wanted: Record<string, number> = {};
+    for (const r of rows) wanted[r.itemId] = (wanted[r.itemId] ?? 0) + r.qty;
+    return Object.entries(wanted)
+      .map(([itemId, qty]) => {
+        const meta = availableItems.find((it) => it.id === itemId);
+        return { name: meta?.itmName || meta?.itmCode || itemId, qty, available: availableFor(itemId) };
+      })
+      .filter((r) => r.qty > r.available);
+  };
 
   const loadList = () => {
     setListLoading(true);
@@ -99,6 +126,7 @@ export default function StockIssuePage() {
 
   const openCreate = () => {
     setEditingSerial(null);
+    setHeldStock({});
     setSerialNo("");
     setVoucherNo("");
     setIssueDate(new Date().toISOString().split("T")[0]);
@@ -118,6 +146,12 @@ export default function StockIssuePage() {
       setIssueBranchId(full.issueBranchId ?? "");
       setReceiveBranchId(full.receiveBranchId ?? "");
       setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? 0) })));
+      setHeldStock(
+        full.items.reduce<Record<string, number>>((acc, it) => {
+          acc[it.itemId] = (acc[it.itemId] ?? 0) + Number(it.qty ?? 0);
+          return acc;
+        }, {}),
+      );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load issue record")); }
   };
@@ -150,6 +184,11 @@ export default function StockIssuePage() {
     if (!issueBranchId || !receiveBranchId) { toast.error("Select both branches"); return; }
     const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
     if (!valid.length) { toast.error("Add at least one valid line"); return; }
+    const short = stockShortages(valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty) })));
+    if (short.length) {
+      toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
+      return;
+    }
     setSubmitting(true);
     try {
       if (editingSerial) {
@@ -271,7 +310,11 @@ export default function StockIssuePage() {
                 value={line.itemId}
                 onChange={(e) => updateLine(i, "itemId", e.target.value)}
                 placeholder="Select item..."
-                options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
+                options={availableItems.map((it) => ({
+                  value: it.id,
+                  label: itemLabel(it),
+                  disabled: availableFor(it.id) <= 0,
+                }))}
                 className="flex-1"
               />
               <div className="w-24">

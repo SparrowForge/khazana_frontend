@@ -5,6 +5,9 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  /** On-hand qty from Inventory. A transfer is net-zero against it (the table
+   *  has no branch dimension), but it still can't ship units that don't exist. */
+  stock?: number;
 }
 
 export interface BranchOption {

@@ -8,6 +8,9 @@ export interface AvailableItem {
   itmName?: string;
   price?: number;
   vatPercentage?: number;
+  /** On-hand qty from Inventory. Judged together with `heldStock` — the qty this
+   *  invoice already took out — since editing releases and re-takes it. */
+  stock?: number;
 }
 
 export interface CreditCustomer {

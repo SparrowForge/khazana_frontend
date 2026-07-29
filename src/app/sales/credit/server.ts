@@ -8,6 +8,9 @@ export interface AvailableItem {
   itmName?: string;
   price?: number;
   vatPercentage?: number;
+  /** On-hand qty from Inventory. A credit sale ships the goods now and collects
+   *  later, so it deducts stock exactly like a cash sale and can't over-commit. */
+  stock?: number;
 }
 
 /** Customer options for the invoice header. `mobile`/`address` back the contact

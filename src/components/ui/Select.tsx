@@ -4,7 +4,9 @@ import { SelectHTMLAttributes, forwardRef } from "react";
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
-  options: { value: string | number; label: string }[];
+  /** `disabled` greys an option out but keeps it listed, so a choice that is
+   *  currently unavailable (e.g. an out-of-stock item) still shows why. */
+  options: { value: string | number; label: string; disabled?: boolean }[];
   placeholder?: string;
 }
 
@@ -29,7 +31,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
           ))}
         </select>
         {error && <p className="text-xs text-red-500">{error}</p>}

@@ -69,6 +69,32 @@ export default function StockTransferPage() {
 
   const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
 
+  /** A transfer doesn't consume Inventory (the table is keyed by item alone, with
+   *  no branch dimension, so moving units between branches nets to zero) — but it
+   *  still can't ship units that don't exist anywhere, so lines are measured
+   *  against whole-company on-hand. Nothing is added back when editing, for the
+   *  same reason: the saved version never took anything out. */
+  const availableFor = (itemId: string) =>
+    availableItems.find((it) => it.id === itemId)?.stock ?? 0;
+
+  const itemLabel = (it: AvailableItem) => {
+    const available = availableFor(it.id);
+    return `${it.itmCode} — ${it.itmName}${available > 0 ? ` (stock: ${available})` : " (out of stock)"}`;
+  };
+
+  /** Lines asking for more than exists, summed per item so the same item entered
+   *  on two lines is measured against one balance. */
+  const stockShortages = (rows: { itemId: string; qty: number }[]) => {
+    const wanted: Record<string, number> = {};
+    for (const r of rows) wanted[r.itemId] = (wanted[r.itemId] ?? 0) + r.qty;
+    return Object.entries(wanted)
+      .map(([itemId, qty]) => {
+        const meta = availableItems.find((it) => it.id === itemId);
+        return { name: meta?.itmName || meta?.itmCode || itemId, qty, available: availableFor(itemId) };
+      })
+      .filter((r) => r.qty > r.available);
+  };
+
   const loadList = () => {
     setListLoading(true);
     fetchTransfers({ page, limit, fromDate, toDate, branchId: filterBranchId || undefined })
@@ -142,6 +168,11 @@ export default function StockTransferPage() {
     if (!issueBranchId || !receiveBranchId) { toast.error("Select both branches"); return; }
     const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
     if (!valid.length) { toast.error("Add at least one item"); return; }
+    const short = stockShortages(valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty) })));
+    if (short.length) {
+      toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
+      return;
+    }
     setSubmitting(true);
     try {
       if (editingSerial) {
@@ -262,7 +293,11 @@ export default function StockTransferPage() {
                 value={line.itemId}
                 onChange={(e) => updateLine(i, "itemId", e.target.value)}
                 placeholder="Select item..."
-                options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
+                options={availableItems.map((it) => ({
+                  value: it.id,
+                  label: itemLabel(it),
+                  disabled: availableFor(it.id) <= 0,
+                }))}
                 className="flex-1"
               />
               <div className="w-28">

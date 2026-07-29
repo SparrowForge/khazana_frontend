@@ -145,11 +145,35 @@ export default function CreditSalePage() {
       }
       setItems(lines);
       toast.success(`Loaded ${lines.length} item(s) from ${serial}`);
+      // Loaded regardless so the lines can be trimmed by hand — but flagged now
+      // rather than at save, when the reason would be far from the cause.
+      const short = stockShortages(lines);
+      if (short.length) {
+        toast.error(
+          `Order exceeds stock: ${short.map((s) => `${s.name} (${s.stock} left, ${s.qty} ordered)`).join(", ")}`,
+          { duration: 6000 },
+        );
+      }
     } catch (e: unknown) {
       toast.error(getErrorMessage(e, "Failed to load the order's items"));
     } finally {
       setLoadingOrderItems(false);
     }
+  };
+
+  /** Lines that ask for more than Inventory holds, summed per item so the same
+   *  item on two lines is judged against one balance. Prefilling from a PO
+   *  bypasses SaleItemsTable's own check (it sets the lines wholesale), so this
+   *  is what catches an order raised for stock that has since been sold. */
+  const stockShortages = (lines: SaleItem[]) => {
+    const wanted: Record<string, number> = {};
+    for (const l of lines) wanted[l.itemId] = r2((wanted[l.itemId] ?? 0) + l.quantity);
+    return Object.entries(wanted)
+      .map(([itemId, qty]) => {
+        const meta = availableItems.find((a) => a.id === itemId);
+        return { name: meta?.itmName || meta?.itmCode || itemId, qty, stock: meta?.stock ?? 0 };
+      })
+      .filter((r) => r.qty > r.stock);
   };
 
   const subtotal = r2(items.reduce((s, i) => s + i.rate * i.quantity, 0));
@@ -169,6 +193,11 @@ export default function CreditSalePage() {
   const handleSubmit = async () => {
     if (!items.length) { toast.error("Add at least one item"); return; }
     if (!customerId) { toast.error("Select a customer"); return; }
+    const short = stockShortages(items);
+    if (short.length) {
+      toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.stock} left)`).join(", ")}`);
+      return;
+    }
     setSubmitting(true);
     try {
       const saved = await createCreditSale({
@@ -238,7 +267,7 @@ export default function CreditSalePage() {
             </div>
           </Card>
           <Card title="Items">
-            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} />
+            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock />
           </Card>
         </div>
         <div>

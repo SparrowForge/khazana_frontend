@@ -203,7 +203,18 @@ export default function PosPage() {
     }
   }, [queue, queueHydrated]);
 
+  /** On-hand qty for an item, from the catalog the terminal is running on —
+   *  server-fresh when online, the IndexedDB cache when offline. The cart is
+   *  capped against it so a cashier can't ring up stock that isn't there; the
+   *  server enforces the same rule again on the online path. */
+  const stockOf = (itemId: string) => products.find((p) => p.id === itemId)?.stock ?? 0;
+
   const addToCart = (product: PosProduct) => {
+    const inCart = cart.find((c) => c.itemId === product.id)?.qty ?? 0;
+    if (r2(inCart + 1) > product.stock) {
+      toast.error(`${product.name} — only ${fmtQty(product.stock)} in stock`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === product.id);
       if (existing) {
@@ -227,15 +238,24 @@ export default function PosPage() {
 
   /** +/- stepper. Rounds to 2dp so 0.1 + 0.2 style drift can't creep in. */
   const changeQty = (itemId: string, delta: number) => {
+    const line = cart.find((c) => c.itemId === itemId);
+    if (!line) return;
+    const next = r2(line.qty + delta);
+    const onHand = stockOf(itemId);
+    if (delta > 0 && next > onHand) {
+      toast.error(`${line.name} — only ${fmtQty(onHand)} in stock`);
+      return;
+    }
     setCart((prev) =>
       prev
-        .map((c) => (c.itemId === itemId ? { ...c, qty: r2(c.qty + delta) } : c))
+        .map((c) => (c.itemId === itemId ? { ...c, qty: next } : c))
         .filter((c) => c.qty > 0)
     );
   };
 
-  /** Commit a typed qty. Blank/invalid/<=0 reverts to the previous value rather
-   *  than silently dropping the line — removal is an explicit action. */
+  /** Commit a typed qty. Blank/invalid/<=0 — or more than is on hand — reverts to
+   *  the previous value rather than silently dropping the line or clamping to a
+   *  number the cashier didn't type; removal is an explicit action. */
   const commitQty = (itemId: string, raw: string) => {
     setQtyDraft((d) => {
       const next = { ...d };
@@ -244,8 +264,14 @@ export default function PosPage() {
     });
     const parsed = parseFloat(raw);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
+    const wanted = Math.max(MIN_QTY, r2(parsed));
+    const onHand = stockOf(itemId);
+    if (wanted > onHand) {
+      toast.error(`Only ${fmtQty(onHand)} in stock`);
+      return;
+    }
     setCart((prev) =>
-      prev.map((c) => (c.itemId === itemId ? { ...c, qty: Math.max(MIN_QTY, r2(parsed)) } : c)),
+      prev.map((c) => (c.itemId === itemId ? { ...c, qty: wanted } : c)),
     );
   };
 
@@ -408,6 +434,16 @@ export default function PosPage() {
 
   const handleGenerateBill = async () => {
     if (!cart.length) { toast.error("Cart is empty"); return; }
+    // Re-checked at bill time as well as at add time: a resumed held order, or
+    // one built before another sale landed, can hold qty that is no longer
+    // available. This is the only stock gate on the offline path.
+    const short = cart.filter((c) => c.qty > stockOf(c.itemId));
+    if (short.length) {
+      toast.error(
+        `Not enough stock: ${short.map((c) => `${c.name} (${fmtQty(stockOf(c.itemId))} left)`).join(", ")}`,
+      );
+      return;
+    }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
     if (discountAmount > 0 && (!discountName.trim() || !discountContact.trim())) {
@@ -612,7 +648,13 @@ export default function PosPage() {
                   <button
                     key={p.id}
                     onClick={() => addToCart(p)}
-                    className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:border-primary-500 hover:shadow-md transition-all active:scale-95 group"
+                    disabled={p.stock <= 0}
+                    title={p.stock <= 0 ? "Out of stock" : undefined}
+                    className={`bg-white border border-gray-200 rounded-xl p-4 text-left transition-all group ${
+                      p.stock <= 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:border-primary-500 hover:shadow-md active:scale-95"
+                    }`}
                   >
                     <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
                       {p.imageUrl ? (
@@ -646,7 +688,7 @@ export default function PosPage() {
                           p.stock <= 0 ? "text-red-500" : "text-gray-400"
                         }`}
                       >
-                        Stock: {p.stock}
+                        {p.stock <= 0 ? "Out of stock" : `Stock: ${fmtQty(p.stock)}`}
                       </span>
                     </div>
                   </button>

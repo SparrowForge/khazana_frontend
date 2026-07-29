@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
+import toast from "react-hot-toast";
 import { formatCurrency } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { SaleItem } from "@/types";
@@ -11,20 +12,54 @@ interface AvailableItem {
   itmName?: string;
   price?: number;
   vatPercentage?: number;
+  /** On-hand qty from Inventory. Only consulted when `enforceStock` is set. */
+  stock?: number;
 }
 
 interface SaleItemsTableProps {
   items: SaleItem[];
   onItemsChange: (items: SaleItem[]) => void;
   availableItems: AvailableItem[];
+  /** Show on-hand qty per item and refuse to bill more than is available. Off by
+   *  default: this table is shared with forms that don't move stock (NC
+   *  adjustment, assortment), which must keep working unchanged. */
+  enforceStock?: boolean;
+  /** Qty this document already holds, per itemId — for edit forms. The catalog's
+   *  on-hand figure already has the saved version's deduction applied, so an
+   *  amendment is judged against (on hand + what it took out), the same basis
+   *  the server uses. Without it, reopening an invoice and saving it untouched
+   *  would fail against its own stock movement. */
+  heldStock?: Record<string, number>;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+/** Qty is decimal — show whole numbers without a trailing ".00". */
+const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : String(r2(n)));
+/** One reusable toast slot: retyping a qty fires this on every keystroke, and a
+ *  stable id replaces the previous message instead of stacking a column of them. */
+const stockToast = (msg: string) => toast.error(msg, { id: "sale-items-stock" });
 
-export default function SaleItemsTable({ items, onItemsChange, availableItems }: SaleItemsTableProps) {
+export default function SaleItemsTable({
+  items,
+  onItemsChange,
+  availableItems,
+  enforceStock = false,
+  heldStock,
+}: SaleItemsTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
   const [disc, setDisc] = useState("0");
+
+  /** What this form may still commit for an item: on-hand plus whatever the
+   *  saved version of this document is holding. */
+  const availableFor = (itemId: string) =>
+    r2((availableItems.find((a) => a.id === itemId)?.stock ?? 0) + (heldStock?.[itemId] ?? 0));
+
+  /** Qty already spoken for on this form for an item, so the same item split
+   *  across two lines is measured against one balance. `exceptIdx` drops the
+   *  line currently being edited from the tally. */
+  const committedFor = (itemId: string, exceptIdx = -1) =>
+    items.reduce((s, it, i) => (it.itemId === itemId && i !== exceptIdx ? s + it.quantity : s), 0);
 
   /** The line's VAT rate. Prefers the rate captured on the line, then the
    *  catalog; finally back-computes it from a saved line's vat/net so editing an
@@ -48,13 +83,23 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
   const addItem = () => {
     const itemMeta = availableItems.find((i) => i.id === selectedItemId);
     if (!itemMeta) return;
+    const quantity = parseFloat(qty) || 1;
+    if (enforceStock) {
+      const available = availableFor(itemMeta.id);
+      if (r2(committedFor(itemMeta.id) + quantity) > available) {
+        stockToast(
+          `${itemMeta.itmName || itemMeta.itmCode} — only ${fmtQty(available)} in stock`,
+        );
+        return;
+      }
+    }
     onItemsChange([
       ...items,
       recalc({
         itemId: itemMeta.id,
         itemCode: itemMeta.itmCode,
         itemName: itemMeta.itmName,
-        quantity: parseFloat(qty) || 1,
+        quantity,
         rate: itemMeta.price ?? 0,
         discount: parseFloat(disc) || 0,
         vatPercentage: itemMeta.vatPercentage ?? 0,
@@ -72,6 +117,14 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
   };
 
   const updateItem = (idx: number, field: keyof SaleItem, value: number) => {
+    if (enforceStock && field === "quantity") {
+      const { itemId } = items[idx];
+      const available = availableFor(itemId);
+      if (r2(committedFor(itemId, idx) + value) > available) {
+        stockToast(`${items[idx].itemName || items[idx].itemCode} — only ${fmtQty(available)} in stock`);
+        return;
+      }
+    }
     onItemsChange(items.map((item, i) => (i === idx ? recalc({ ...item, [field]: value }) : item)));
   };
 
@@ -92,9 +145,16 @@ export default function SaleItemsTable({ items, onItemsChange, availableItems }:
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
           >
             <option value="">Select item...</option>
-            {availableItems.map((i) => (
-              <option key={i.id} value={i.id}>{i.itmCode} — {i.itmName}</option>
-            ))}
+            {availableItems.map((i) => {
+              const available = enforceStock ? availableFor(i.id) : 0;
+              return (
+                <option key={i.id} value={i.id} disabled={enforceStock && available <= 0}>
+                  {i.itmCode} — {i.itmName}
+                  {enforceStock &&
+                    (available > 0 ? ` (stock: ${fmtQty(available)})` : " (out of stock)")}
+                </option>
+              );
+            })}
           </select>
         </div>
         <div className="w-24">

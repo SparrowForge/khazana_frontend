@@ -6,6 +6,8 @@ export interface AvailableItem {
   itmCode: string;
   itmName?: string;
   price?: number;
+  /** On-hand qty from Inventory — an issue may not drive it negative. */
+  stock?: number;
 }
 
 export interface BranchOption {

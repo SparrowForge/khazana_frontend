@@ -52,6 +52,10 @@ export default function CreditSaleEditPage() {
    *  wipe the saved PO when the form first hydrates — only a real switch to a
    *  different customer does. */
   const savedCustomerId = useRef("");
+  /** Qty per item as this invoice was saved. Current on-hand already has that
+   *  deduction applied, so it is added back when judging what the edit may
+   *  commit — the same basis the server checks on. */
+  const [heldStock, setHeldStock] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -70,7 +74,14 @@ export default function CreditSaleEditPage() {
         setCustomerId(sale.customerId ?? "");
         setPoNo(sale.poNo ?? "");
         setDiscountPercent(String(sale.discountPercent ?? 0));
-        setItems(sale.items ?? []);
+        const saved = sale.items ?? [];
+        setItems(saved);
+        setHeldStock(
+          saved.reduce<Record<string, number>>((acc, it) => {
+            acc[it.itemId] = r2((acc[it.itemId] ?? 0) + it.quantity);
+            return acc;
+          }, {}),
+        );
       })
       .catch(() => toast.error("Failed to load credit sale"))
       .finally(() => setLoading(false));
@@ -208,7 +219,13 @@ export default function CreditSaleEditPage() {
               </div>
             </Card>
             <Card title="Items">
-              <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} />
+              <SaleItemsTable
+                items={items}
+                onItemsChange={setItems}
+                availableItems={availableItems}
+                enforceStock
+                heldStock={heldStock}
+              />
             </Card>
           </div>
           <div>

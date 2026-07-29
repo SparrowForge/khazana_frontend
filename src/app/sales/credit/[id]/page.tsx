@@ -24,6 +24,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
 export default function CreditSaleEditPage() {
   const router = useRouter();
   const params = useParams();
@@ -41,6 +43,9 @@ export default function CreditSaleEditPage() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
   const [poNo, setPoNo] = useState("");
+  /** Invoice-level discount rate as saved — kept as the raw input string so the
+   *  field can be cleared while typing. */
+  const [discountPercent, setDiscountPercent] = useState("0");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   /** The customer the invoice was saved with. Reloading the PO list must not
@@ -64,6 +69,7 @@ export default function CreditSaleEditPage() {
         savedCustomerId.current = sale.customerId ?? "";
         setCustomerId(sale.customerId ?? "");
         setPoNo(sale.poNo ?? "");
+        setDiscountPercent(String(sale.discountPercent ?? 0));
         setItems(sale.items ?? []);
       })
       .catch(() => toast.error("Failed to load credit sale"))
@@ -119,11 +125,17 @@ export default function CreditSaleEditPage() {
         ? "No order (optional)"
         : "No open orders for this customer";
 
-  const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
-  const netAmount = items.reduce((s, i) => s + i.total, 0);
-  const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
-  const totalVat = items.reduce((s, i) => s + i.vat, 0);
-  const grandTotal = netAmount + totalVat;
+  const subtotal = r2(items.reduce((s, i) => s + i.rate * i.quantity, 0));
+  const netAmount = r2(items.reduce((s, i) => s + i.total, 0));
+  const lineDiscount = r2(items.reduce((s, i) => s + i.discount, 0));
+  const totalVat = r2(items.reduce((s, i) => s + i.vat, 0));
+  // Same two-tier discount as the create form: per-line amounts (already inside
+  // each line total) plus an invoice-level percent on the VAT-inclusive gross.
+  const grossAmount = r2(netAmount + totalVat);
+  const discPct = Math.min(Math.max(parseFloat(discountPercent || "0") || 0, 0), 100);
+  const invoiceDiscount = r2((grossAmount * discPct) / 100);
+  const totalDiscount = r2(lineDiscount + invoiceDiscount);
+  const grandTotal = r2(grossAmount - invoiceDiscount);
 
   const handleSubmit = async () => {
     if (!id) return;
@@ -135,7 +147,7 @@ export default function CreditSaleEditPage() {
       await updateCreditSale(id, {
         invoiceDate, customerId, poNo, items,
         totalAmount: subtotal,
-        totalDiscount, totalVat,
+        totalDiscount, discountPercent: discPct, totalVat,
       });
       toast.success("Credit sale updated");
       router.push("/sales");
@@ -206,10 +218,12 @@ export default function CreditSaleEditPage() {
                   <span className="text-gray-500">Subtotal</span>
                   <span>৳ {formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Discount</span>
-                  <span>৳ {formatCurrency(totalDiscount)}</span>
-                </div>
+                {lineDiscount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Item Discount</span>
+                    <span>- ৳ {formatCurrency(lineDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Net Amount</span>
                   <span>৳ {formatCurrency(netAmount)}</span>
@@ -217,6 +231,34 @@ export default function CreditSaleEditPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">VAT Amount</span>
                   <span>৳ {formatCurrency(totalVat)}</span>
+                </div>
+                {/* The invoice-level discount as it was saved. Unlike the create
+                    form, changing the PO here doesn't re-seed it — editing an
+                    invoice keeps the rate it was actually issued at unless the
+                    rate itself is changed. */}
+                <div className="border-t pt-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Gross Amount</span>
+                    <span>৳ {formatCurrency(grossAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="invoice-discount-pct" className="text-sm text-gray-500">
+                      Discount (%)
+                    </label>
+                    <input
+                      id="invoice-discount-pct"
+                      type="number" min="0" max="100" step="0.01" inputMode="decimal"
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(e.target.value)}
+                      className="w-24 text-right border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    />
+                  </div>
+                  {invoiceDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Discount ({discPct}%)</span>
+                      <span className="font-medium text-red-600">- ৳ {formatCurrency(invoiceDiscount)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between text-sm font-semibold border-t pt-2">
                   <span>Total Payable</span>

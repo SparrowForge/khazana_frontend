@@ -28,6 +28,9 @@ export interface OrderOption {
   serialNo?: string;
   orderDate?: string;
   advance?: number | string;
+  /** The order's agreed discount **percent** (not an amount) — it seeds the
+   *  invoice's own discount % when the order is picked. */
+  discount?: number | string;
   totalPrice?: number | string;
   clientId?: string;
   deliveryStatus?: string;
@@ -54,7 +57,10 @@ export interface CreditSalePayload {
   poNo?: string;
   items: SaleItem[];
   totalAmount: number;
+  /** Line discounts + the invoice-level discount, as money. */
   totalDiscount: number;
+  /** Invoice-level discount rate, charged on the VAT-inclusive total. */
+  discountPercent: number;
   totalVat: number;
   netAmount: number;
 }
@@ -102,6 +108,7 @@ export const createCreditSale = (data: CreditSalePayload) => {
     poNo: data.poNo || undefined,
     totalAmount: data.totalAmount,
     totalDiscount: data.totalDiscount,
+    discountPercent: data.discountPercent,
     totalVat: data.totalVat,
     items: data.items.map((it) => ({
       itemId: it.itemId,

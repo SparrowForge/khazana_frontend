@@ -12,6 +12,11 @@ const fmtQty = (n: number | string) => {
   const v = Number(n);
   return Number.isInteger(v) ? String(v) : v.toFixed(2);
 };
+/** A discount rate reads as "5%", not "5.00%" — only show decimals when given. */
+const fmtPct = (n: number | string) => {
+  const v = Number(n);
+  return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(2)));
+};
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -91,8 +96,16 @@ function ThermalInvoice({ inv }: { inv: CreditInvoice }) {
       <div className="text-[10px] space-y-0.5">
         <div className="flex justify-between"><span>Total Amount</span><span>৳ {fmt(inv.totalAmount)}</span></div>
         <div className="flex justify-between"><span>VAT Amount</span><span>৳ {fmt(inv.totalVat)}</span></div>
-        {Number(inv.totalDiscount) > 0 && (
-          <div className="flex justify-between"><span>Discount</span><span>- ৳ {fmt(inv.totalDiscount)}</span></div>
+        {Number(inv.lineDiscount) > 0 && (
+          <div className="flex justify-between"><span>Item Discount</span><span>- ৳ {fmt(inv.lineDiscount)}</span></div>
+        )}
+        {/* The invoice-level discount is a % of the VAT-inclusive gross, so it
+            is shown after VAT — the same order the POS receipt prints it in. */}
+        {Number(inv.invoiceDiscount) > 0 && (
+          <div className="flex justify-between">
+            <span>Discount ({fmtPct(inv.discountPercent)}%)</span>
+            <span>- ৳ {fmt(inv.invoiceDiscount)}</span>
+          </div>
         )}
         <div className="flex justify-between font-bold border-t border-dashed border-black pt-0.5 mt-0.5">
           <span>Total Payable</span>
@@ -211,7 +224,7 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
             <span className="text-gray-600">Sub-total</span><span>৳ {fmt(inv.totalAmount)}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-600">Discount</span><span>৳ {fmt(inv.totalDiscount)}</span>
+            <span className="text-gray-600">Item Discount</span><span>৳ {fmt(inv.lineDiscount)}</span>
           </div>
           <div className="flex justify-between py-0.5">
             <span className="text-gray-600">Net Amount</span><span>৳ {fmt(inv.netAmount)}</span>
@@ -219,6 +232,19 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
           <div className="flex justify-between py-0.5">
             <span className="text-gray-600">VAT Amount</span><span>৳ {fmt(inv.totalVat)}</span>
           </div>
+          {/* Charged on the VAT-inclusive gross, so it lands after VAT — the
+              same basis (and total) as the order this invoice bills. */}
+          {Number(inv.invoiceDiscount) > 0 && (
+            <>
+              <div className="flex justify-between py-0.5">
+                <span className="text-gray-600">Gross Amount</span><span>৳ {fmt(inv.grossAmount)}</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span className="text-gray-600">Discount ({fmtPct(inv.discountPercent)}%)</span>
+                <span>- ৳ {fmt(inv.invoiceDiscount)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between border-t-2 border-black mt-1 pt-1 font-bold text-sm">
             <span>Total Payable</span><span>৳ {fmt(inv.payableAmount)}</span>
           </div>

@@ -33,9 +33,18 @@ export interface CreditInvoice {
   } | null;
   items: CreditInvoiceItem[];
   totalAmount: number;
+  /** Line discounts + the invoice-level discount, as money. */
   totalDiscount: number;
+  /** The per-line discounts alone, already netted off each line's total. */
+  lineDiscount: number;
+  /** Invoice-level discount rate, charged on the VAT-inclusive gross. */
+  discountPercent: number;
+  /** What that rate comes to in money. */
+  invoiceDiscount: number;
   totalVat: number;
   netAmount: number;
+  /** Net + VAT, i.e. what the invoice-level discount is charged on. */
+  grossAmount: number;
   payableAmount: number;
   /** Money already collected — the advance on the order this invoice was raised
    *  against (matched via PO No), otherwise 0. */

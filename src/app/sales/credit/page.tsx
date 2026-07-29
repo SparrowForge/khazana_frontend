@@ -38,6 +38,9 @@ export default function CreditSalePage() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
   const [poNo, setPoNo] = useState("");
+  /** Invoice-level discount rate, kept as the raw input string so the field can
+   *  be cleared while typing. Defaults from the order picked in the PO list. */
+  const [discountPercent, setDiscountPercent] = useState("0");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -46,10 +49,13 @@ export default function CreditSalePage() {
   }, []);
 
   // The PO picker is customer-driven: choosing a customer loads that customer's
-  // open (not yet invoiced) orders, and switching customer drops the PO link so
-  // an invoice can never carry another customer's order number.
+  // open (not yet invoiced) orders, and switching customer drops the PO link
+  // (and the discount rate it seeded) so an invoice can never carry another
+  // customer's order number or terms.
   useEffect(() => {
     setPoNo("");
+    // The discount rate came off that dropped order, so it goes with it.
+    setDiscountPercent("0");
     if (!customerId) {
       setOrders([]);
       return;
@@ -117,6 +123,10 @@ export default function CreditSalePage() {
     setPoNo(serial);
     const order = orders.find((o) => o.serialNo === serial);
     if (!order) return; // cleared back to "no order"
+    // The order's agreed discount rate rides along with the PO link — it's the
+    // same basis (a % of the VAT-inclusive total) the order was quoted on, so
+    // the invoice comes to what the customer agreed. Editable afterwards.
+    setDiscountPercent(String(Number(order.discount ?? 0) || 0));
     if (items.length && !confirm(`Replace the ${items.length} item(s) on this invoice with the lines from order ${serial}?`)) return;
     setLoadingOrderItems(true);
     try {
@@ -142,11 +152,19 @@ export default function CreditSalePage() {
     }
   };
 
-  const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
-  const netAmount = items.reduce((s, i) => s + i.total, 0);
-  const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
-  const totalVat = items.reduce((s, i) => s + i.vat, 0);
-  const grandTotal = netAmount + totalVat;
+  const subtotal = r2(items.reduce((s, i) => s + i.rate * i.quantity, 0));
+  const netAmount = r2(items.reduce((s, i) => s + i.total, 0));
+  const lineDiscount = r2(items.reduce((s, i) => s + i.discount, 0));
+  const totalVat = r2(items.reduce((s, i) => s + i.vat, 0));
+  // Two discounts stack: the per-line ones (already netted off each line total)
+  // and this invoice-level percent, charged on the VAT-inclusive gross — the
+  // same basis the order form uses, so billing an order at its rate lands on
+  // exactly the order's total. `totalDiscount` stored on the invoice is both.
+  const grossAmount = r2(netAmount + totalVat);
+  const discPct = Math.min(Math.max(parseFloat(discountPercent || "0") || 0, 0), 100);
+  const invoiceDiscount = r2((grossAmount * discPct) / 100);
+  const totalDiscount = r2(lineDiscount + invoiceDiscount);
+  const grandTotal = r2(grossAmount - invoiceDiscount);
 
   const handleSubmit = async () => {
     if (!items.length) { toast.error("Add at least one item"); return; }
@@ -156,7 +174,7 @@ export default function CreditSalePage() {
       const saved = await createCreditSale({
         invoiceNo, invoiceDate, customerId, poNo, items,
         totalAmount: subtotal,
-        totalDiscount, totalVat, netAmount,
+        totalDiscount, discountPercent: discPct, totalVat, netAmount,
       });
       const savedId = saved?.id ?? saved?.data?.id;
       toast.success("Credit sale created");
@@ -164,6 +182,7 @@ export default function CreditSalePage() {
       setInvoiceNo("");
       setCustomerId("");
       setPoNo("");
+      setDiscountPercent("0");
       // Straight to the invoice so the user can pick a print format.
       if (savedId) router.push(`/sales/credit/invoice/${savedId}`);
     } catch (e: unknown) {
@@ -229,10 +248,12 @@ export default function CreditSalePage() {
                 <span className="text-gray-500">Subtotal</span>
                 <span>৳ {formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Discount</span>
-                <span>৳ {formatCurrency(totalDiscount)}</span>
-              </div>
+              {lineDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Item Discount</span>
+                  <span>- ৳ {formatCurrency(lineDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Net Amount</span>
                 <span>৳ {formatCurrency(netAmount)}</span>
@@ -240,6 +261,33 @@ export default function CreditSalePage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">VAT Amount</span>
                 <span>৳ {formatCurrency(totalVat)}</span>
+              </div>
+              {/* Whole-invoice discount, taken off the VAT-inclusive gross so an
+                  invoice raised against an order at that order's rate totals the
+                  same as the order. Picking a PO seeds this; it stays editable. */}
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Gross Amount</span>
+                  <span>৳ {formatCurrency(grossAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="invoice-discount-pct" className="text-sm text-gray-500">
+                    Discount (%)
+                  </label>
+                  <input
+                    id="invoice-discount-pct"
+                    type="number" min="0" max="100" step="0.01" inputMode="decimal"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    className="w-24 text-right border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+                  />
+                </div>
+                {invoiceDiscount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Discount ({discPct}%)</span>
+                    <span className="font-medium text-red-600">- ৳ {formatCurrency(invoiceDiscount)}</span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between text-sm font-semibold border-t pt-2">
                 <span>Total Payable</span>

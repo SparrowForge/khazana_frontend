@@ -38,7 +38,10 @@ export interface CreditSaleRecord {
   customerName: string | null;
   poNo: string | null;
   totalAmount: number;
+  /** Line discounts + the invoice-level discount, as money. */
   totalDiscount: number;
+  /** Invoice-level discount rate, charged on the VAT-inclusive total. */
+  discountPercent: number;
   totalVat: number;
   items: SaleItem[];
 }
@@ -50,6 +53,7 @@ export interface UpdateCreditSalePayload {
   items: SaleItem[];
   totalAmount: number;
   totalDiscount: number;
+  discountPercent: number;
   totalVat: number;
 }
 
@@ -82,6 +86,7 @@ export const updateCreditSale = (id: string, data: UpdateCreditSalePayload) => {
     poNo: data.poNo || undefined,
     totalAmount: data.totalAmount,
     totalDiscount: data.totalDiscount,
+    discountPercent: data.discountPercent,
     totalVat: data.totalVat,
     items: data.items.map((it) => ({
       itemId: it.itemId,

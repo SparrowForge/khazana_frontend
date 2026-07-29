@@ -14,6 +14,9 @@ export interface Order {
   isActive?: number;
   branchId?: string;
   createBy?: string;
+  /** Derived server-side: "Delivery Done" once a credit sale carries this
+   *  order's serialNo as its PO No, "Delivery Pending" otherwise. */
+  deliveryStatus?: string;
 }
 
 export interface BranchInfo {

@@ -13,8 +13,20 @@ export interface Sale {
 
 export type SalesTypeFilter = "all" | "cash" | "credit" | "vat-cash" | "vat-credit" | "nc";
 
-export const fetchSales = ({ page = 1, limit = 10, type = "all" as SalesTypeFilter } = {}): Promise<Paginated<Sale>> =>
-  api.get(`/sales?page=${page}&limit=${limit}&type=${type}`).then(unwrapPaginated<Sale>);
+export interface SalesQuery {
+  page?: number;
+  limit?: number;
+  type?: SalesTypeFilter;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export const fetchSales = ({ page = 1, limit = 10, type = "all" as SalesTypeFilter, fromDate, toDate }: SalesQuery = {}): Promise<Paginated<Sale>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), type });
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  return api.get(`/sales?${params.toString()}`).then(unwrapPaginated<Sale>);
+};
 
 export const deleteCashSale = (id: string | number) => api.delete(`/sales/cash/${id}`).then((r) => r.data);
 export const deleteCreditSale = (id: string | number) => api.delete(`/sales/credit/${id}`).then((r) => r.data);

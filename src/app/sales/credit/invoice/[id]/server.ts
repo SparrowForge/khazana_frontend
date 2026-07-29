@@ -37,6 +37,10 @@ export interface CreditInvoice {
   totalVat: number;
   netAmount: number;
   payableAmount: number;
+  /** Money already collected — the advance on the order this invoice was raised
+   *  against (matched via PO No), otherwise 0. */
+  paidAmount: number;
+  dueAmount: number;
 }
 
 export const fetchCreditInvoice = (id: string) =>

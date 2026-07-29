@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import { fetchItems, fetchCustomers, createCreditSale, type AvailableItem, type CreditCustomer } from "./server";
+import { fetchItems, fetchCustomers, fetchOrders, createCreditSale, type AvailableItem, type CreditCustomer, type OrderOption } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { getErrorMessage } from "@/lib/api";
@@ -19,6 +19,7 @@ export default function CreditSalePage() {
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
+  const [orders, setOrders] = useState<OrderOption[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
@@ -28,6 +29,7 @@ export default function CreditSalePage() {
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchCustomers().then(setCustomers).catch(() => {});
+    fetchOrders().then(setOrders).catch(() => {});
   }, []);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
@@ -79,7 +81,23 @@ export default function CreditSalePage() {
                 placeholder="Select customer..."
                 options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
               />
-              <Input label="PO No" value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Optional" />
+              {/* PO No is the order this invoice fulfils — picking one stores the
+                  order's number on the credit sale (CSMaster.PONo), which is what
+                  flips that order to "Delivery Done" on the order list. */}
+              <Select
+                label="PO No (Order)"
+                value={poNo}
+                onChange={(e) => {
+                  const serial = e.target.value;
+                  setPoNo(serial);
+                  const order = orders.find((o) => o.serialNo === serial);
+                  if (order?.clientId && !customerId) setCustomerId(order.clientId);
+                }}
+                placeholder="No order (optional)"
+                options={orders
+                  .filter((o) => !!o.serialNo)
+                  .map((o) => ({ value: o.serialNo!, label: o.serialNo! }))}
+              />
               {selectedCustomer && (
                 <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
                   <span className="text-gray-500">

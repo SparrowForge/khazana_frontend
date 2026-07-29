@@ -74,7 +74,9 @@ export default function OrdersPage() {
       return { ...l, [f]: v };
     }));
 
-  // Grand Total is the pre-discount line-item sum; Discount is a % of it.
+  // Grand Total is the pre-discount line-item sum. Discount is a % of the
+  // VAT-inclusive gross (MRP) — the same basis the POS terminal discounts on,
+  // so an order and a counter sale of the same basket net out identically.
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const totalPrice = r2(lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0));
   const vatAmount = r2(lines.reduce((s, l) => {
@@ -82,9 +84,10 @@ export default function OrdersPage() {
     const lineVat = lineSubtotal * ((l.vatPercentage ?? 0) / 100);
     return s + lineVat;
   }, 0));
+  const grossAmount = r2(totalPrice + vatAmount);
   const discountPercent = parseFloat(form.discount || "0") || 0;
-  const discountAmount = r2(totalPrice * (discountPercent / 100));
-  const netAmount = r2(totalPrice + vatAmount - discountAmount);
+  const discountAmount = Math.min(r2(grossAmount * (discountPercent / 100)), grossAmount);
+  const netAmount = r2(grossAmount - discountAmount);
 
   const itemName = (itemId?: string) => availableItems.find((it) => it.id === itemId)?.itmName ?? itemId ?? "-";
   const customerName = (clientId?: string) => customers.find((c) => c.id === clientId)?.name ?? clientId ?? "-";
@@ -184,8 +187,10 @@ export default function OrdersPage() {
       };
     });
     const vatAmount = r2(items.reduce((s, i) => s + i.vat, 0));
-    const discAmount = r2(grandTotal * (discPercent / 100));
-    const totalPayable = r2(grandTotal + vatAmount - discAmount);
+    // Discount applies to the VAT-inclusive gross — see the order form above.
+    const gross = r2(grandTotal + vatAmount);
+    const discAmount = Math.min(r2(gross * (discPercent / 100)), gross);
+    const totalPayable = r2(gross - discAmount);
     const advance = order.advance ?? 0;
     return {
       branchName: branch?.branchName,
@@ -245,6 +250,17 @@ export default function OrdersPage() {
           { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
           { key: "totalPrice", header: "Total", render: (r) => `৳ ${formatCurrency(r.totalPrice ?? 0)}`, className: "text-right" },
           {
+            key: "deliveryStatus", header: "Status",
+            render: (r) => {
+              const done = r.deliveryStatus === "Delivery Done";
+              return (
+                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${done ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                  {r.deliveryStatus ?? "Delivery Pending"}
+                </span>
+              );
+            },
+          },
+          {
             key: "actions", header: "",
             render: (r) => (
               <div className="flex items-center gap-3">
@@ -302,7 +318,10 @@ export default function OrdersPage() {
               <div>VAT Amount: <span className="font-semibold text-blue-600">+ ৳ {formatCurrency(vatAmount)}</span></div>
             )}
             {discountPercent > 0 && (
-              <div>Discount ({discountPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discountAmount)}</span></div>
+              <>
+                <div>Total (incl. VAT): <span className="font-semibold">৳ {formatCurrency(grossAmount)}</span></div>
+                <div>Discount ({discountPercent}%): <span className="font-semibold text-red-600">- ৳ {formatCurrency(discountAmount)}</span></div>
+              </>
             )}
             <div className="font-semibold text-base">Net Amount: ৳ {formatCurrency(netAmount)}</div>
           </div>

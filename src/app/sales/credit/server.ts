@@ -20,6 +20,16 @@ export interface CreditCustomer {
   address?: string;
 }
 
+/** Order options for the PO No picker — a credit sale is raised against an
+ *  order by storing that order's serialNo in CSMaster.PONo. */
+export interface OrderOption {
+  id: string;
+  serialNo?: string;
+  orderDate?: string;
+  advance?: number;
+  clientId?: string;
+}
+
 export interface CreditSalePayload {
   invoiceNo?: string;
   invoiceDate: string;
@@ -39,6 +49,9 @@ export const fetchItems = () =>
 export const fetchCustomers = () =>
   api.get<{ data: CreditCustomer[] } | CreditCustomer[]>("/customers?limit=100")
     .then(unwrapList<CreditCustomer>);
+
+export const fetchOrders = () =>
+  api.get<{ data: OrderOption[] } | OrderOption[]>("/orders?limit=100").then(unwrapList<OrderOption>);
 
 /** POST /sales/credit responds with the created row (some routes wrap it in
  *  `{ data }`) — we only need the id, to jump straight to its invoice. */

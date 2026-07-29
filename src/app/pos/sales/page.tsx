@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Input from "@/components/ui/Input";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
 import toast from "react-hot-toast";
 
 function formatDT(iso: string) {
@@ -23,22 +27,47 @@ function formatDT(iso: string) {
   return `${dd}-${mm}-${yyyy} ${h}:${min} ${ampm}`;
 }
 
+const exportColumns: ExportColumn<PosSale>[] = [
+  { header: "Invoice No", value: (r) => r.invoiceNo },
+  { header: "Date & Time", value: (r) => formatDT(r.dateTime) },
+  { header: "Type", value: (r) => r.salesType },
+  { header: "Total", value: (r) => Number(r.totalAmount), numeric: true },
+  { header: "VAT", value: (r) => Number(r.vatAmount), numeric: true },
+  { header: "Payable", value: (r) => Number(r.payableAmount), numeric: true },
+  { header: "Served By", value: (r) => r.servedBy },
+];
+
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
+
 export default function PosSalesListPage() {
   const router = useRouter();
   const [sales, setSales] = useState<PosSale[]>([]);
   const [loading, setLoading] = useState(true);
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
   const { can } = usePermissions();
   const canEdit = can("POSSales", "edit");
   const canDelete = can("POSSales", "delete");
 
   const load = () => {
     setLoading(true);
-    posSalesApi.getAll()
+    posSalesApi.getAll({ fromDate, toDate })
       .then(setSales)
       .catch(() => toast.error("Failed to load sales"))
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [fromDate, toDate]);
+
+  const payableTotal = sales.reduce((s, r) => s + Number(r.payableAmount ?? 0), 0);
 
   const handleDelete = async (s: PosSale) => {
     if (!confirm(`Delete POS sale "${s.invoiceNo}"? Stock will be restored.`)) return;
@@ -54,11 +83,26 @@ export default function PosSalesListPage() {
   return (
     <AppLayout>
       <PageHeader title="POS Sales" subtitle="All billing transactions" />
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <ReportExportButtons
+          rows={sales}
+          columns={exportColumns}
+          meta={{
+            title: "POS Sales",
+            subtitle: `${formatDate(fromDate)} → ${formatDate(toDate)}`,
+            footer: ["", "", "Total", "", "", payableTotal.toFixed(2), ""],
+          }}
+        />
+      </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading...</div>
         ) : sales.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm">No sales yet</div>
+          <div className="text-center py-12 text-gray-400 text-sm">No sales in this date range</div>
         ) : (
           <table className="w-full text-sm">
             <thead>

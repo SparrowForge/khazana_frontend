@@ -129,7 +129,14 @@ export const posBanksApi = {
 export const posSalesApi = {
   create: (data: CreatePosSalePayload) =>
     api.post<PosSale>("/pos/sales", data).then((r) => r.data),
-  getAll: () => api.get<PosSale[]>("/pos/sales").then((r) => r.data),
+  /** Optionally scoped to an inclusive date range (YYYY-MM-DD). */
+  getAll: (params: { fromDate?: string; toDate?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.fromDate) q.append("fromDate", params.fromDate);
+    if (params.toDate) q.append("toDate", params.toDate);
+    const qs = q.toString();
+    return api.get<PosSale[]>(`/pos/sales${qs ? `?${qs}` : ""}`).then((r) => r.data);
+  },
   getOne: (id: string) => api.get<PosSale>(`/pos/sales/${id}`).then((r) => r.data),
   update: (id: string, data: CreatePosSalePayload) =>
     api.patch<PosSale>(`/pos/sales/${id}`, data).then((r) => r.data),

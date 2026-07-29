@@ -5,24 +5,47 @@ import { Edit2, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
+import Input from "@/components/ui/Input";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchAssortments, deleteAssortment, type Assortment } from "./server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
+
+const exportColumns: ExportColumn<Assortment>[] = [
+  { header: "Code", value: (r) => r.code ?? "-" },
+  { header: "Date", value: (r) => formatDate(r.date) },
+  { header: "Type", value: (r) => r.type ?? "-" },
+  { header: "Amount", value: (r) => Number(r.netAmt ?? 0), numeric: true },
+];
+
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
 
 export default function AssortmentListPage() {
   const [list, setList] = useState<Assortment[]>([]);
   const [loading, setLoading] = useState(true);
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
   const { can } = usePermissions();
   const canEdit = can("Assortment", "edit");
   const canDelete = can("Assortment", "delete");
 
   const load = () => {
     setLoading(true);
-    fetchAssortments().then(setList).catch(() => {}).finally(() => setLoading(false));
+    fetchAssortments({ fromDate, toDate }).then(setList).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [fromDate, toDate]);
 
   const handleDelete = async (a: Assortment) => {
     if (!confirm(`Delete assortment "${a.code ?? a.id}"? Master + details are removed and its deducted stock is restored.`)) return;
@@ -35,9 +58,26 @@ export default function AssortmentListPage() {
     }
   };
 
+  const amountTotal = list.reduce((sum, a) => sum + Number(a.netAmt ?? 0), 0);
+
   return (
     <AppLayout>
       <PageHeader title="Assortment List" action={{ label: "New Assortment", onClick: () => window.location.href = "/assortment" }} />
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <ReportExportButtons
+          rows={list}
+          columns={exportColumns}
+          meta={{
+            title: "Assortment List",
+            subtitle: `${formatDate(fromDate)} → ${formatDate(toDate)}`,
+            footer: ["", "", "Total", amountTotal.toFixed(2)],
+          }}
+        />
+      </div>
       <Table loading={loading} data={list}
         columns={[
           { key: "code", header: "Code" },

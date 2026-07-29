@@ -86,14 +86,25 @@ function ThermalInvoice({ inv }: { inv: CreditInvoice }) {
 
       <div className="border-t border-dashed border-black my-1.5" />
 
+      {/* Summary mirrors the POS terminal receipt, with Paid/Due standing in for
+          the counter's Paid/Change. Paid is the linked order's advance, else 0. */}
       <div className="text-[10px] space-y-0.5">
-        <div className="flex justify-between"><span>Sub-total</span><span>৳ {fmt(inv.totalAmount)}</span></div>
-        <div className="flex justify-between"><span>Discount</span><span>৳ {fmt(inv.totalDiscount)}</span></div>
-        <div className="flex justify-between"><span>Net Amount</span><span>৳ {fmt(inv.netAmount)}</span></div>
+        <div className="flex justify-between"><span>Total Amount</span><span>৳ {fmt(inv.totalAmount)}</span></div>
         <div className="flex justify-between"><span>VAT Amount</span><span>৳ {fmt(inv.totalVat)}</span></div>
+        {Number(inv.totalDiscount) > 0 && (
+          <div className="flex justify-between"><span>Discount</span><span>- ৳ {fmt(inv.totalDiscount)}</span></div>
+        )}
         <div className="flex justify-between font-bold border-t border-dashed border-black pt-0.5 mt-0.5">
           <span>Total Payable</span>
           <span>৳ {fmt(inv.payableAmount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Paid Amount</span>
+          <span>৳ {fmt(inv.paidAmount ?? 0)}</span>
+        </div>
+        <div className="flex justify-between font-bold text-red-600">
+          <span>Due</span>
+          <span>৳ {fmt(inv.dueAmount ?? inv.payableAmount)}</span>
         </div>
       </div>
 
@@ -210,6 +221,12 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
           </div>
           <div className="flex justify-between border-t-2 border-black mt-1 pt-1 font-bold text-sm">
             <span>Total Payable</span><span>৳ {fmt(inv.payableAmount)}</span>
+          </div>
+          <div className="flex justify-between py-0.5">
+            <span className="text-gray-600">Paid Amount</span><span>৳ {fmt(inv.paidAmount ?? 0)}</span>
+          </div>
+          <div className="flex justify-between font-bold">
+            <span>Due</span><span>৳ {fmt(inv.dueAmount ?? inv.payableAmount)}</span>
           </div>
         </div>
       </div>

@@ -11,10 +11,12 @@ import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import {
   fetchItems,
   fetchCustomers,
+  fetchOrders,
   fetchCreditSale,
   updateCreditSale,
   type AvailableItem,
   type CreditCustomer,
+  type OrderOption,
 } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
@@ -33,6 +35,7 @@ export default function CreditSaleEditPage() {
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
+  const [orders, setOrders] = useState<OrderOption[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [customerId, setCustomerId] = useState("");
@@ -49,6 +52,7 @@ export default function CreditSaleEditPage() {
     }
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchCustomers().then(setCustomers).catch(() => {});
+    fetchOrders().then(setOrders).catch(() => {});
     fetchCreditSale(id)
       .then((sale) => {
         setInvoiceNo(sale.invoiceNo ?? "");
@@ -62,6 +66,10 @@ export default function CreditSaleEditPage() {
   }, [id, canEdit, router]);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
+
+  const orderSerials = orders.map((o) => o.serialNo).filter((s): s is string => !!s);
+  const orderOptions = (orderSerials.includes(poNo) || !poNo ? orderSerials : [poNo, ...orderSerials])
+    .map((s) => ({ value: s, label: s }));
 
   const subtotal = items.reduce((s, i) => s + i.rate * i.quantity, 0);
   const netAmount = items.reduce((s, i) => s + i.total, 0);
@@ -109,7 +117,17 @@ export default function CreditSaleEditPage() {
                   placeholder="Select customer..."
                   options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
                 />
-                <Input label="PO No" value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Optional" />
+                {/* Same order picker as the create form. A PO already on the
+                    invoice that isn't in the fetched orders (legacy free text,
+                    or an older order) is kept as an option so editing the rest
+                    of the invoice can't silently drop the link. */}
+                <Select
+                  label="PO No (Order)"
+                  value={poNo}
+                  onChange={(e) => setPoNo(e.target.value)}
+                  placeholder="No order (optional)"
+                  options={orderOptions}
+                />
                 {selectedCustomer && (
                   <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
                     <span className="text-gray-500">

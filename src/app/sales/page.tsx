@@ -5,46 +5,49 @@ import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import Pagination from "@/components/ui/Pagination";
-import { fetchSales, deleteCashSale, deleteCreditSale, type Sale, type SalesTypeFilter } from "./server";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import { fetchSales, deleteCreditSale, type Sale } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ExportColumn } from "@/lib/export/reportExport";
 import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-const TYPE_OPTIONS: { value: SalesTypeFilter; label: string }[] = [
-  { value: "all", label: "All Sales" },
-  { value: "cash", label: "Cash" },
-  { value: "credit", label: "Credit" },
-  { value: "vat-cash", label: "VAT Cash" },
-  { value: "vat-credit", label: "VAT Credit" },
-  { value: "nc", label: "NC Adjustment" },
+const exportColumns: ExportColumn<Sale>[] = [
+  { header: "Invoice No", value: (r) => r.invoiceNo || "-" },
+  { header: "Date", value: (r) => formatDate(r.date ?? undefined) },
+  { header: "Customer", value: (r) => r.customerName || "-" },
+  { header: "Amount", value: (r) => Number(r.netAmount ?? 0), numeric: true },
 ];
 
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromDate: firstOfMonth.toISOString().split("T")[0],
+    toDate: today.toISOString().split("T")[0],
+  };
+};
+
+/** Credit sales only — cash / POS billing is listed on the POS Sales screen. */
 export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<SalesTypeFilter>("all");
+  const defaultDates = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultDates.fromDate);
+  const [toDate, setToDate] = useState(defaultDates.toDate);
   const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
   const { can } = usePermissions();
-
-  // Map a unified row's type → its RBAC control + delete API. Only cash & credit
-  // are editable/deletable here (POS sales are managed on the POS Sales screen).
-  const deletableFor = (type?: string) => {
-    if (type === "Cash") return { control: "CashSales", del: deleteCashSale };
-    if (type === "Credit") return { control: "CreditSales", del: deleteCreditSale };
-    return null;
-  };
+  const canDelete = can("CreditSales", "delete");
 
   const handleDelete = async (s: Sale) => {
-    const target = deletableFor(s.type);
-    if (!target) return;
-    if (!confirm(`Delete ${s.type} sale "${s.invoiceNo}"? Stock will be restored.`)) return;
+    if (!confirm(`Delete credit sale "${s.invoiceNo}"? Stock will be restored.`)) return;
     try {
-      await target.del(s.id);
+      await deleteCreditSale(s.id);
       toast.success("Sale deleted");
       load();
     } catch (err) {
@@ -54,38 +57,52 @@ export default function SalesListPage() {
 
   const load = () => {
     setLoading(true);
-    fetchSales({ page, limit, type: typeFilter })
+    fetchSales({ page, limit, type: "credit", fromDate, toDate })
       .then(({ items, meta }) => { setSales(items); setMeta(meta); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, typeFilter, refreshKey, setMeta]);
+  useEffect(load, [page, limit, fromDate, toDate, refreshKey, setMeta]);
 
   const handleSearch = (val: string) => { setSearch(val); resetPage(); };
-  const handleTypeChange = (val: SalesTypeFilter) => { setTypeFilter(val); resetPage(); };
+  const handleFromDate = (val: string) => { setFromDate(val); resetPage(); };
+  const handleToDate = (val: string) => { setToDate(val); resetPage(); };
 
   const filtered = sales.filter((s) => {
     const haystack = `${s.invoiceNo ?? ""} ${s.customerName ?? ""}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
 
+  const amountTotal = filtered.reduce((sum, s) => sum + Number(s.netAmount ?? 0), 0);
+
   return (
     <AppLayout>
       <PageHeader
-        title="Sales List"
-        action={{ label: "New Cash Sale", onClick: () => window.location.href = "/sales/cash" }}
+        title="Credit Sales List"
+        subtitle="Credit sale invoices"
+        action={{ label: "New Credit Sale", onClick: () => window.location.href = "/sales/credit" }}
       />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Input placeholder="Search by invoice or customer..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
-        <select
-          value={typeFilter}
-          onChange={(e) => handleTypeChange(e.target.value as SalesTypeFilter)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          {TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <Input label="From Date" type="date" value={fromDate} onChange={(e) => handleFromDate(e.target.value)} />
+          <Input label="To Date" type="date" value={toDate} onChange={(e) => handleToDate(e.target.value)} />
+          <Input
+            label="Search"
+            placeholder="Invoice or customer..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-xs"
+          />
+        </div>
+        <ReportExportButtons
+          rows={filtered}
+          columns={exportColumns}
+          meta={{
+            title: "Credit Sales List",
+            subtitle: `${formatDate(fromDate)} → ${formatDate(toDate)}`,
+            footer: ["", "", "Total", amountTotal.toFixed(2)],
+          }}
+        />
       </div>
       <Table
         loading={loading}
@@ -93,25 +110,25 @@ export default function SalesListPage() {
         columns={[
           { key: "invoiceNo", header: "Invoice No", render: (r) => r.invoiceNo || "-" },
           { key: "date", header: "Date", render: (r) => formatDate(r.date ?? undefined) },
-          { key: "type", header: "Type", render: (r) => r.type ?? "-" },
           { key: "customerName", header: "Customer", render: (r) => r.customerName || "-" },
           { key: "netAmount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.netAmount ?? 0)}`, className: "text-right" },
           {
             key: "actions", header: "",
-            render: (r) => {
-              const target = deletableFor(r.type);
-              const showDelete = target && can(target.control, "delete");
-              return (
-                <div className="flex items-center gap-3">
-                  <Link href={r.type=="Cash"?`/pos/${r.id}`:r.type=="Credit"?`/sales/credit/${r.id}`:`/nc-adjustment/${r.id}`} className="text-primary-800 hover:underline text-xs"><Edit2 size={14} /></Link>
-                  {showDelete && (
-                    <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              );
-            },
+            render: (r) => (
+              <div className="flex items-center gap-3">
+                <Link href={`/sales/credit/invoice/${r.id}`} className="text-primary-800 hover:underline text-xs">
+                  Invoice
+                </Link>
+                <Link href={`/sales/credit/${r.id}`} className="text-primary-800 hover:underline text-xs" title="Edit">
+                  <Edit2 size={14} />
+                </Link>
+                {canDelete && (
+                  <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ),
           },
         ]}
       />

@@ -9,9 +9,9 @@ import Table from "@/components/ui/Table";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchSalesHistory, type SalesHistoryReport } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { formatCurrency } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
-import { exportExcel } from "@/lib/export/reportExport";
 
 const formatDate = (dateString: string | Date) => {
   if (!dateString) return "";
@@ -32,6 +32,43 @@ const fmtQtyUom = (n: number, uom?: string) => `${fmtQty(n)}${uom ? ` (${uom})` 
  *  printed sheet does. */
 const dedupe = <T,>(rows: T[], key: (row: T) => string) =>
   rows.map((row, i) => (i > 0 && key(rows[i - 1]) === key(row) ? "" : key(row)));
+
+/** One flattened line of the exported sheet. `type` says which of the four it
+ *  is — an item, a date subtotal, the blank spacer between dates, or the grand
+ *  total — so a column can blank out the cells that don't apply to it. */
+interface ExportRow {
+  si?: number | string;
+  dateHeader?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+/** The exported column spec, shared by Print, PDF and Excel. */
+const exportColumns: ExportColumn<ExportRow>[] = [
+  { header: "SI#", value: (r) => String(r.si ?? "") },
+  { header: "Date", value: (r) => String(r.dateHeader ?? "") },
+  { header: "Inv No", value: (r) => String(r.invoiceNo ?? "") },
+  { header: "Item Name", value: (r) => String(r.itemName ?? "") },
+  { header: "Qty", value: (r) => (r.type === "spacer" ? "" : Number(r.qty) || 0), numeric: true },
+  // Kept out of Qty so the column stays numeric (sortable/summable) in Excel.
+  { header: "UOM", value: (r) => (r.type === "item" ? String(r.uom ?? "") : "") },
+  { header: "Price", value: (r) => (r.type === "item" ? fmt(Number(r.price) || 0) : ""), numeric: true },
+  { header: "Amount", value: (r) => fmt(Number(r.amount) || 0), numeric: true },
+  { header: "Discount", value: (r) => fmt(Number(r.discount) || 0), numeric: true },
+  { header: "Vat", value: (r) => fmt(Number(r.vat) || 0), numeric: true },
+  { header: "Total Amt", value: (r) => fmt(Number(r.totalAmount) || 0), numeric: true },
+  { header: "Cash", value: (r) => fmt(Number(r.cash) || 0), numeric: true },
+  { header: "Bkash", value: (r) => fmt(Number(r.bkash) || 0), numeric: true },
+  { header: "Nagad", value: (r) => fmt(Number(r.nagad) || 0), numeric: true },
+  { header: "Brac", value: (r) => fmt(Number(r.brac) || 0), numeric: true },
+  { header: "UCB", value: (r) => fmt(Number(r.ucb) || 0), numeric: true },
+  { header: "CITY", value: (r) => fmt(Number(r.city) || 0), numeric: true },
+  { header: "EBL", value: (r) => fmt(Number(r.ebl) || 0), numeric: true },
+  { header: "F Panda", value: (r) => fmt(Number(r.fpanda) || 0), numeric: true },
+  { header: "Pathao", value: (r) => fmt(Number(r.pathao) || 0), numeric: true },
+  { header: "Foodi", value: (r) => fmt(Number(r.foodi) || 0), numeric: true },
+  { header: "Credit", value: (r) => fmt(Number(r.credit) || 0), numeric: true },
+];
 
 export default function SalesHistoryPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -65,15 +102,14 @@ export default function SalesHistoryPage() {
       .finally(() => setLoading(false));
   };
 
-  const handleExport = () => {
-    if (!report) return;
-
-    interface ExportRow {
-      si?: number | string;
-      dateHeader?: string;
-      type?: string;
-      [key: string]: unknown;
-    }
+  /**
+   * The rows and columns behind Print, PDF and Excel alike — one spec, so the
+   * printed sheet, the PDF and the spreadsheet can't drift apart. Flattens the
+   * grouped on-screen layout into a single table: item lines, a subtotal row per
+   * date, a blank spacer between dates, and the grand total last.
+   */
+  const buildExportData = () => {
+    if (!report) return { rows: [] as ExportRow[], columns: exportColumns };
 
     const rows: ExportRow[] = [];
     const groupedByDate = groupByDate();
@@ -119,36 +155,15 @@ export default function SalesHistoryPage() {
       });
     }
 
-    const columns: ExportColumn<ExportRow>[] = [
-      { header: "SI#", value: (r) => String(r.si ?? "") },
-      { header: "Date", value: (r) => String(r.dateHeader ?? "") },
-      { header: "Inv No", value: (r) => String(r.invoiceNo ?? "") },
-      { header: "Item Name", value: (r) => String(r.itemName ?? "") },
-      { header: "Qty", value: (r) => (r.type === "spacer" ? "" : Number(r.qty) || 0), numeric: true },
-      // Kept out of Qty so the column stays numeric (sortable/summable) in Excel.
-      { header: "UOM", value: (r) => (r.type === "item" ? String(r.uom ?? "") : "") },
-      { header: "Price", value: (r) => (r.type === "item" ? fmt(Number(r.price) || 0) : ""), numeric: true },
-      { header: "Amount", value: (r) => fmt(Number(r.amount) || 0), numeric: true },
-      { header: "Discount", value: (r) => fmt(Number(r.discount) || 0), numeric: true },
-      { header: "Vat", value: (r) => fmt(Number(r.vat) || 0), numeric: true },
-      { header: "Total Amt", value: (r) => fmt(Number(r.totalAmount) || 0), numeric: true },
-      { header: "Cash", value: (r) => fmt(Number(r.cash) || 0), numeric: true },
-      { header: "Bkash", value: (r) => fmt(Number(r.bkash) || 0), numeric: true },
-      { header: "Nagad", value: (r) => fmt(Number(r.nagad) || 0), numeric: true },
-      { header: "Brac", value: (r) => fmt(Number(r.brac) || 0), numeric: true },
-      { header: "UCB", value: (r) => fmt(Number(r.ucb) || 0), numeric: true },
-      { header: "CITY", value: (r) => fmt(Number(r.city) || 0), numeric: true },
-      { header: "EBL", value: (r) => fmt(Number(r.ebl) || 0), numeric: true },
-      { header: "F Panda", value: (r) => fmt(Number(r.fpanda) || 0), numeric: true },
-      { header: "Pathao", value: (r) => fmt(Number(r.pathao) || 0), numeric: true },
-      { header: "Foodi", value: (r) => fmt(Number(r.foodi) || 0), numeric: true },
-      { header: "Credit", value: (r) => fmt(Number(r.credit) || 0), numeric: true },
-    ];
+    return { rows, columns: exportColumns };
+  };
 
-    exportExcel(rows, columns, {
-      title: "Sales History Summary",
-      subtitle: `${report.branchName || "All Branches"} · ${formatDate(report.fromDate)} to ${formatDate(report.toDate)}`,
-    }).catch(() => {});
+  const { rows: exportRows, columns: exportCols } = buildExportData();
+  const exportMeta = {
+    title: "Sales History Summary",
+    subtitle: report
+      ? `${report.branchName || "All Branches"} · ${formatDate(report.fromDate)} to ${formatDate(report.toDate)}`
+      : "",
   };
 
   const groupByDate = (): Array<[string, SalesHistoryReport['items']]> => {
@@ -226,15 +241,17 @@ export default function SalesHistoryPage() {
         <Button onClick={runReport} loading={loading} className="mb-0.5">
           Run Report
         </Button>
+        {/* Print / PDF / Excel all render the report on its own — `window.print()`
+            used to hand the browser the whole app page (nav, filter bar and all)
+            because nothing here scopes the print to the report. */}
         {report && (
-          <>
-            <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">
-              🖨 Print
-            </Button>
-            <Button variant="secondary" onClick={handleExport} className="mb-0.5">
-              📊 Excel
-            </Button>
-          </>
+          <ReportExportButtons
+            rows={exportRows}
+            columns={exportCols}
+            meta={exportMeta}
+            className="mb-0.5"
+            showPreview
+          />
         )}
       </div>
 

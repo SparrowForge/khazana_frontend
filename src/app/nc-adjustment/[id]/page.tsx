@@ -144,6 +144,7 @@ export default function NCAdjustmentEditPage() {
                 availableItems={availableItems}
                 enforceStock
                 heldStock={heldStock}
+                vatInclusiveTotal
               />
             </Card>
           </div>

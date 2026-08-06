@@ -5,6 +5,7 @@ export interface SalesHistoryItem {
   date: string;
   invoiceNo: string;
   itemName: string;
+  uom: string;
   qty: number;
   price: number;
   amount: number;
@@ -24,10 +25,14 @@ export interface SalesHistoryItem {
   credit: number;
 }
 
+/** One sold item. An invoice contributes one row per line, so its number and
+ *  date repeat down the group — the sheet prints them only on the first row. */
 export interface SalesHistoryRow {
   date: string;
   invoiceNo: string;
   itemName: string;
+  /** Unit the qty is in (KG / Pcs), shown beside it the way the sheet reads. */
+  uom: string;
   qty: number;
   price: number;
   amount: number;

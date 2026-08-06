@@ -20,6 +20,9 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/pos/sales", "POSSales"],
   ["/pos", "POSTerminal"],
   ["/nc-adjustment/list", "NCList"],
+  // Viewing/printing an NC is a read of an existing record, so it rides on list
+  // access rather than the create page's permission.
+  ["/nc-adjustment/invoice", "NCList"],
   ["/nc-adjustment", "NCNew"],
   ["/assortment/list", "AssortmentList"],
   ["/assortment", "AssortmentNew"],

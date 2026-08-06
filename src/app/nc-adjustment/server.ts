@@ -8,6 +8,9 @@ export interface AvailableItem {
   itmName?: string;
   price?: number;
   vatPercentage?: number;
+  /** On-hand qty from Inventory. An NC hands the goods over without charging
+   *  for them, so it deducts stock like a sale and can't over-issue. */
+  stock?: number;
 }
 
 export interface NcPayload {

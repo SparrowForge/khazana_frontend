@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -13,6 +14,7 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function NCAdjustmentPage() {
+  const router = useRouter();
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [code, setCode] = useState("");
@@ -44,15 +46,18 @@ export default function NCAdjustmentPage() {
     try {
       const saved = await createNcAdjustment({ code, date, name, contactNo, reference, items, netAmount });
       const savedCode = saved?.ncmstrCode ?? saved?.data?.ncmstrCode;
+      const savedId = saved?.id ?? saved?.data?.id;
       toast.success(savedCode ? `NC Adjustment saved — ${savedCode}` : "NC Adjustment saved");
       setItems([]);
       setCode(""); setName(""); setContactNo(""); setReference("");
+      // Hand off to the printable invoice, the same way a sale does after checkout.
+      if (savedId) router.push(`/nc-adjustment/invoice/${savedId}`);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSubmitting(false); }
   };
 
   return (
     <AppLayout>
-      <PageHeader title="NC Adjustment" subtitle="Negative credit / return adjustment" />
+      <PageHeader title="NC Adjustment" subtitle="Non-charge issue — deducts stock, checked against on-hand qty" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <Card title="NC Information">
@@ -81,7 +86,7 @@ export default function NCAdjustmentPage() {
             </div>
           </Card>
           <Card title="Items">
-            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} />
+            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock />
           </Card>
         </div>
         <div>

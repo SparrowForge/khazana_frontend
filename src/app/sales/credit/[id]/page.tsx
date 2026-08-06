@@ -225,6 +225,7 @@ export default function CreditSaleEditPage() {
                 availableItems={availableItems}
                 enforceStock
                 heldStock={heldStock}
+                vatInclusiveTotal
               />
             </Card>
           </div>

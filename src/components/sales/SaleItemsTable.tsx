@@ -30,6 +30,13 @@ interface SaleItemsTableProps {
    *  the server uses. Without it, reopening an invoice and saving it untouched
    *  would fail against its own stock movement. */
   heldStock?: Record<string, number>;
+  /** Show the Total column VAT-inclusive. Display only — the line's stored
+   *  `total` stays net of VAT, which is the shape every sale endpoint expects.
+   *  On a credit sale the customer is billed the VAT-inclusive figure, so a
+   *  column reading "Total" that excluded it invited the invoice to be checked
+   *  against the wrong number. Off by default: the forms that price net of VAT
+   *  (cash, VAT cash/credit, NC, assortment) keep reading as they did. */
+  vatInclusiveTotal?: boolean;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -45,6 +52,7 @@ export default function SaleItemsTable({
   availableItems,
   enforceStock = false,
   heldStock,
+  vatInclusiveTotal = false,
 }: SaleItemsTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
@@ -133,6 +141,9 @@ export default function SaleItemsTable({
   const netAmount = items.reduce((s, i) => s + i.total, 0);
   const totalVat = items.reduce((s, i) => s + i.vat, 0);
   const grandTotal = netAmount + totalVat;
+  /** What the Total column shows for one line, and its column footer. */
+  const lineTotal = (item: SaleItem) => (vatInclusiveTotal ? r2(item.total + item.vat) : item.total);
+  const columnTotal = vatInclusiveTotal ? grandTotal : netAmount;
 
   return (
     <div className="space-y-3">
@@ -188,7 +199,9 @@ export default function SaleItemsTable({
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Qty</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Disc</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">VAT</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                {vatInclusiveTotal ? "Total (incl. VAT)" : "Total"}
+              </th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -223,7 +236,7 @@ export default function SaleItemsTable({
                     <span className="text-[10px] text-orange-500 ml-1">{item.vatPercentage}%</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.total)}</td>
+                <td className="px-3 py-2 text-right font-medium">{formatCurrency(lineTotal(item))}</td>
                 <td className="px-3 py-2">
                   <button onClick={() => removeItem(i)} className="text-red-400 hover:text-red-600 transition-colors">
                     <Trash2 size={14} />
@@ -238,7 +251,7 @@ export default function SaleItemsTable({
                 <td colSpan={4} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Subtotal</td>
                 <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalDiscount)}</td>
                 <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalVat)}</td>
-                <td className="px-3 py-2 text-right font-bold text-gray-800">{formatCurrency(netAmount)}</td>
+                <td className="px-3 py-2 text-right font-bold text-gray-800">{formatCurrency(columnTotal)}</td>
                 <td></td>
               </tr>
             </tfoot>

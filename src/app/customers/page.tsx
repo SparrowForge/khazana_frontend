@@ -60,7 +60,8 @@ export default function CustomersPage() {
   const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };
 
   const handleSave = async () => {
-    if (!form.code || !form.name || !form.mobile) { toast.error("Code, name, and mobile are required"); return; }
+    // Code is allocated by the backend on create, so it is not asked for here.
+    if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
     setSaving(true);
     try {
       if (editing) await updateCustomer(editing.code, form);
@@ -115,7 +116,9 @@ export default function CustomersPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Customer" : "New Customer"}>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />
+          {/* Read-only either way: on create the backend allocates the next
+              C-nnnn, and on edit the code is the record's identifier. */}
+          <Input label="Code" value={form.code} placeholder="Auto-generated" disabled readOnly />
           <Input label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input label="Mobile *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />

@@ -24,6 +24,14 @@ const formatDate = (dateString: string | Date) => {
 
 const fmt = (n: number) => formatCurrency(n ?? 0);
 const fmtQty = (n: number) => (n ?? 0).toFixed(2);
+/** Qty reads with its unit, e.g. "1.00 (KG)" — the way the printed sheet shows it. */
+const fmtQtyUom = (n: number, uom?: string) => `${fmtQty(n)}${uom ? ` (${uom})` : ""}`;
+
+/** An invoice contributes one row per item, so its number and date repeat down
+ *  the group. Blank the repeats so each invoice reads as one block, the way the
+ *  printed sheet does. */
+const dedupe = <T,>(rows: T[], key: (row: T) => string) =>
+  rows.map((row, i) => (i > 0 && key(rows[i - 1]) === key(row) ? "" : key(row)));
 
 export default function SalesHistoryPage() {
   const today = new Date().toISOString().split("T")[0];
@@ -72,12 +80,15 @@ export default function SalesHistoryPage() {
     let siCounter = 1;
 
     groupedByDate.forEach(([dateStr, dateItems]) => {
-      dateItems.forEach((item) => {
+      // Date and Inv No print once per invoice, not on every one of its lines.
+      const invoiceLabels = dedupe(dateItems, (r) => r.invoiceNo ?? "");
+      dateItems.forEach((item, idx) => {
         rows.push({
           ...item,
           type: "item",
           si: siCounter++,
-          dateHeader: formatDate(dateStr),
+          invoiceNo: invoiceLabels[idx],
+          dateHeader: invoiceLabels[idx] ? formatDate(dateStr) : "",
         });
       });
 
@@ -113,7 +124,9 @@ export default function SalesHistoryPage() {
       { header: "Date", value: (r) => String(r.dateHeader ?? "") },
       { header: "Inv No", value: (r) => String(r.invoiceNo ?? "") },
       { header: "Item Name", value: (r) => String(r.itemName ?? "") },
-      { header: "Qty", value: (r) => (r.type === "item" ? fmtQty(Number(r.qty) || 0) : ""), numeric: true },
+      { header: "Qty", value: (r) => (r.type === "spacer" ? "" : Number(r.qty) || 0), numeric: true },
+      // Kept out of Qty so the column stays numeric (sortable/summable) in Excel.
+      { header: "UOM", value: (r) => (r.type === "item" ? String(r.uom ?? "") : "") },
       { header: "Price", value: (r) => (r.type === "item" ? fmt(Number(r.price) || 0) : ""), numeric: true },
       { header: "Amount", value: (r) => fmt(Number(r.amount) || 0), numeric: true },
       { header: "Discount", value: (r) => fmt(Number(r.discount) || 0), numeric: true },
@@ -249,12 +262,21 @@ export default function SalesHistoryPage() {
                 <div className="overflow-x-auto">
                   <Table
                     loading={false}
-                    data={dateItems.map((item, idx) => ({ id: `${dateStr}-${idx}`, ...item, si: idx + 1 }))}
+                    data={(() => {
+                      // Inv No prints once per invoice — its item lines follow blank.
+                      const labels = dedupe(dateItems, (r) => r.invoiceNo ?? "");
+                      return dateItems.map((item, idx) => ({
+                        id: `${dateStr}-${idx}`,
+                        ...item,
+                        invoiceNo: labels[idx],
+                        si: idx + 1,
+                      }));
+                    })()}
                     columns={[
                       { key: "si", header: "SI#", className: "w-12" },
                       { key: "invoiceNo", header: "Inv No" },
                       { key: "itemName", header: "Item Name" },
-                      { key: "qty", header: "Qty", className: "text-right", render: (r) => fmtQty(r.qty) },
+                      { key: "qty", header: "Qty", className: "text-right whitespace-nowrap", render: (r) => fmtQtyUom(r.qty, r.uom) },
                       { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price) },
                       { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
                       { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },

@@ -36,6 +36,10 @@ export default function NCAdjustmentEditPage() {
   const [reference, setReference] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  /** Qty per item as this NC was saved. Current on-hand already has that
+   *  deduction applied, so it is added back when judging what the edit may
+   *  commit — the same basis the server checks on. */
+  const [heldStock, setHeldStock] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -52,17 +56,22 @@ export default function NCAdjustmentEditPage() {
         setName(nc.ncmstrName ?? "");
         setContactNo(nc.ncmstrContactNo ?? "");
         setReference(nc.ncmstrReference ?? "");
-        setItems(
-          (nc.details ?? []).map((d) => ({
-            itemId: d.ncdetItemOID,
-            itemCode: d.item?.itmCode ?? "",
-            itemName: d.item?.itmName ?? "",
-            quantity: Number(d.ncdetQTY ?? 0),
-            rate: Number(d.ncdetPrice ?? 0),
-            discount: Number(d.ncdetDiscount ?? 0),
-            vat: Number(d.ncdetVATAmount ?? 0),
-            total: Number(d.ncdetNetAmount ?? 0),
-          })),
+        const saved = (nc.details ?? []).map((d) => ({
+          itemId: d.ncdetItemOID,
+          itemCode: d.item?.itmCode ?? "",
+          itemName: d.item?.itmName ?? "",
+          quantity: Number(d.ncdetQTY ?? 0),
+          rate: Number(d.ncdetPrice ?? 0),
+          discount: Number(d.ncdetDiscount ?? 0),
+          vat: Number(d.ncdetVATAmount ?? 0),
+          total: Number(d.ncdetNetAmount ?? 0),
+        }));
+        setItems(saved);
+        setHeldStock(
+          saved.reduce<Record<string, number>>((acc, it) => {
+            acc[it.itemId] = Math.round(((acc[it.itemId] ?? 0) + it.quantity) * 100) / 100;
+            return acc;
+          }, {}),
         );
       })
       .catch(() => toast.error("Failed to load NC adjustment"))
@@ -97,7 +106,7 @@ export default function NCAdjustmentEditPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Edit NC Adjustment" subtitle="Update header and items — stock is re-reconciled on save" />
+      <PageHeader title="Edit NC Adjustment" subtitle="Update header and items — stock is re-checked and re-reconciled on save" />
       {loading ? (
         <div className="text-sm text-gray-400">Loading…</div>
       ) : (
@@ -129,7 +138,13 @@ export default function NCAdjustmentEditPage() {
               </div>
             </Card>
             <Card title="Items">
-              <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} />
+              <SaleItemsTable
+                items={items}
+                onItemsChange={setItems}
+                availableItems={availableItems}
+                enforceStock
+                heldStock={heldStock}
+              />
             </Card>
           </div>
           <div>
@@ -160,6 +175,9 @@ export default function NCAdjustmentEditPage() {
                     Name, Contact No and Reference are required.
                   </p>
                 )}
+                <Button variant="secondary" className="w-full" onClick={() => router.push(`/nc-adjustment/invoice/${id}`)}>
+                  View Invoice
+                </Button>
                 <Button variant="secondary" className="w-full" onClick={() => router.push("/nc-adjustment/list")}>Cancel</Button>
               </div>
             </Card>

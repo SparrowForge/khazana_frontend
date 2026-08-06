@@ -11,7 +11,8 @@ export interface Customer {
 }
 
 export interface CustomerPayload {
-  code: string;
+  /** Omitted on create — the backend allocates the next C-nnnn. */
+  code?: string;
   name: string;
   mobile?: string;
   address?: string;
@@ -24,8 +25,13 @@ export const fetchCustomers = ({ page = 1, limit = 10 } = {}): Promise<Paginated
 export const fetchAllCustomers = (limit = 500): Promise<Customer[]> =>
   api.get(`/customers?limit=${limit}`).then(unwrapList<Customer>);
 
-export const createCustomer = (data: CustomerPayload) =>
-  api.post<Customer>("/customers", data).then((r) => r.data);
+export const createCustomer = (data: CustomerPayload) => {
+  // The code is allocated server-side; the form's field is display-only and
+  // blank until then, so it is left out rather than posted empty.
+  const body = { ...data };
+  if (!body.code) delete body.code;
+  return api.post<Customer>("/customers", body).then((r) => r.data);
+};
 
 export const updateCustomer = (code: string, data: Partial<CustomerPayload>) => {
   // `code` is the path identifier and the primary key — it must not be in the body.

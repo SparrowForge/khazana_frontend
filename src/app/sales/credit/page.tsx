@@ -267,7 +267,7 @@ export default function CreditSalePage() {
             </div>
           </Card>
           <Card title="Items">
-            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock />
+            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock vatInclusiveTotal />
           </Card>
         </div>
         <div>

@@ -102,6 +102,42 @@ export default function SalesHistoryPage() {
       .finally(() => setLoading(false));
   };
 
+  const groupByDate = (): Array<[string, SalesHistoryReport['items']]> => {
+    if (!report) return [];
+    const grouped = new Map<string, SalesHistoryReport['items']>();
+    report.items.forEach((item) => {
+      const dateStr = String(item.date).split('T')[0];
+      if (!grouped.has(dateStr)) grouped.set(dateStr, []);
+      grouped.get(dateStr)!.push(item);
+    });
+    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  };
+
+  const calculateGrandTotal = () => {
+    if (!report) return null;
+    return report.dailySubTotals.reduce(
+      (acc, daily) => ({
+        qty: acc.qty + (daily.qty || 0),
+        amount: acc.amount + (daily.amount || 0),
+        discount: acc.discount + (daily.discount || 0),
+        vat: acc.vat + (daily.vat || 0),
+        totalAmount: acc.totalAmount + (daily.totalAmount || 0),
+        cash: acc.cash + (daily.cash || 0),
+        bkash: acc.bkash + (daily.bkash || 0),
+        nagad: acc.nagad + (daily.nagad || 0),
+        brac: acc.brac + (daily.brac || 0),
+        ucb: acc.ucb + (daily.ucb || 0),
+        city: acc.city + (daily.city || 0),
+        ebl: acc.ebl + (daily.ebl || 0),
+        fpanda: acc.fpanda + (daily.fpanda || 0),
+        pathao: acc.pathao + (daily.pathao || 0),
+        foodi: acc.foodi + (daily.foodi || 0),
+        credit: acc.credit + (daily.credit || 0),
+      }),
+      { qty: 0, amount: 0, discount: 0, vat: 0, totalAmount: 0, cash: 0, bkash: 0, nagad: 0, brac: 0, ucb: 0, city: 0, ebl: 0, fpanda: 0, pathao: 0, foodi: 0, credit: 0 }
+    );
+  };
+
   /**
    * The rows and columns behind Print, PDF and Excel alike — one spec, so the
    * printed sheet, the PDF and the spreadsheet can't drift apart. Flattens the
@@ -164,42 +200,6 @@ export default function SalesHistoryPage() {
     subtitle: report
       ? `${report.branchName || "All Branches"} · ${formatDate(report.fromDate)} to ${formatDate(report.toDate)}`
       : "",
-  };
-
-  const groupByDate = (): Array<[string, SalesHistoryReport['items']]> => {
-    if (!report) return [];
-    const grouped = new Map<string, SalesHistoryReport['items']>();
-    report.items.forEach((item) => {
-      const dateStr = String(item.date).split('T')[0];
-      if (!grouped.has(dateStr)) grouped.set(dateStr, []);
-      grouped.get(dateStr)!.push(item);
-    });
-    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  };
-
-  const calculateGrandTotal = () => {
-    if (!report) return null;
-    return report.dailySubTotals.reduce(
-      (acc, daily) => ({
-        qty: acc.qty + (daily.qty || 0),
-        amount: acc.amount + (daily.amount || 0),
-        discount: acc.discount + (daily.discount || 0),
-        vat: acc.vat + (daily.vat || 0),
-        totalAmount: acc.totalAmount + (daily.totalAmount || 0),
-        cash: acc.cash + (daily.cash || 0),
-        bkash: acc.bkash + (daily.bkash || 0),
-        nagad: acc.nagad + (daily.nagad || 0),
-        brac: acc.brac + (daily.brac || 0),
-        ucb: acc.ucb + (daily.ucb || 0),
-        city: acc.city + (daily.city || 0),
-        ebl: acc.ebl + (daily.ebl || 0),
-        fpanda: acc.fpanda + (daily.fpanda || 0),
-        pathao: acc.pathao + (daily.pathao || 0),
-        foodi: acc.foodi + (daily.foodi || 0),
-        credit: acc.credit + (daily.credit || 0),
-      }),
-      { qty: 0, amount: 0, discount: 0, vat: 0, totalAmount: 0, cash: 0, bkash: 0, nagad: 0, brac: 0, ucb: 0, city: 0, ebl: 0, fpanda: 0, pathao: 0, foodi: 0, credit: 0 }
-    );
   };
 
   return (

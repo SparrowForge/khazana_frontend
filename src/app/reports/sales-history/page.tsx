@@ -26,6 +26,9 @@ const fmt = (n: number) => formatCurrency(n ?? 0);
 const fmtQty = (n: number) => (n ?? 0).toFixed(2);
 /** Qty reads with its unit, e.g. "1.00 (KG)" — the way the printed sheet shows it. */
 const fmtQtyUom = (n: number, uom?: string) => `${fmtQty(n)}${uom ? ` (${uom})` : ""}`;
+/** Unit price folded with its per-unit share of VAT — shared by the on-screen
+ *  table and the Print/PDF/Excel exports so the two can't disagree. */
+const priceWithVat = (price: number, vat: number, qty: number) => (price ?? 0) + (qty ? (vat ?? 0) / qty : 0);
 
 /** An invoice contributes one row per item, so its number and date repeat down
  *  the group. Blank the repeats so each invoice reads as one block, the way the
@@ -52,7 +55,7 @@ const exportColumns: ExportColumn<ExportRow>[] = [
   { header: "Qty", value: (r) => (r.type === "spacer" ? "" : Number(r.qty) || 0), numeric: true },
   // Kept out of Qty so the column stays numeric (sortable/summable) in Excel.
   { header: "UOM", value: (r) => (r.type === "item" ? String(r.uom ?? "") : "") },
-  { header: "Price", value: (r) => (r.type === "item" ? fmt(Number(r.price) || 0) : ""), numeric: true },
+  { header: "Price", value: (r) => (r.type === "item" ? fmt(priceWithVat(Number(r.price) || 0, Number(r.vat) || 0, Number(r.qty) || 0)) : ""), numeric: true },
   { header: "Amount", value: (r) => fmt(Number(r.amount) || 0), numeric: true },
   { header: "Discount", value: (r) => fmt(Number(r.discount) || 0), numeric: true },
   { header: "Vat", value: (r) => fmt(Number(r.vat) || 0), numeric: true },
@@ -294,7 +297,7 @@ export default function SalesHistoryPage() {
                       { key: "invoiceNo", header: "Inv No" },
                       { key: "itemName", header: "Item Name" },
                       { key: "qty", header: "Qty", className: "text-right whitespace-nowrap", render: (r) => fmtQtyUom(r.qty, r.uom) },
-                      { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price+(r.vat/r.qty)) },
+                      { key: "price", header: "Price", className: "text-right", render: (r) => fmt(priceWithVat(r.price, r.vat, r.qty)) },
                       { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
                       { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },
                       { key: "vat", header: "Vat", className: "text-right", render: (r) => fmt(r.vat) },

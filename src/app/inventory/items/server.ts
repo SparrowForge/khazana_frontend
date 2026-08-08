@@ -33,6 +33,11 @@ export const fetchItems = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Ite
 export const fetchAllItems = (limit = 100): Promise<Item[]> =>
   api.get(`/inventory/items?limit=${limit}`).then(unwrapList<Item>);
 
+/** Suggests the next Item Code for a category: its first letter plus a
+ *  4-digit running count, e.g. "Sweets" -> S0001. */
+export const fetchNextItemCode = (category: string): Promise<string> =>
+  api.get(`/inventory/items/next-code?category=${encodeURIComponent(category)}`).then((r) => r.data.itmCode);
+
 export const createItem = (data: ItemPayload) =>
   api.post<Item>("/inventory/items", data).then((r) => r.data);
 

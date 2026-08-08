@@ -294,7 +294,7 @@ export default function SalesHistoryPage() {
                       { key: "invoiceNo", header: "Inv No" },
                       { key: "itemName", header: "Item Name" },
                       { key: "qty", header: "Qty", className: "text-right whitespace-nowrap", render: (r) => fmtQtyUom(r.qty, r.uom) },
-                      { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price) },
+                      { key: "price", header: "Price", className: "text-right", render: (r) => fmt(r.price+(r.vat/r.qty)) },
                       { key: "amount", header: "Amount", className: "text-right", render: (r) => fmt(r.amount) },
                       { key: "discount", header: "Discount", className: "text-right", render: (r) => fmt(r.discount) },
                       { key: "vat", header: "Vat", className: "text-right", render: (r) => fmt(r.vat) },

@@ -17,6 +17,7 @@ import {
   updateItem,
   deleteItem,
   uploadFile,
+  fetchNextItemCode,
   type Item,
   type ItemPayload,
 } from "./server";
@@ -139,6 +140,17 @@ export default function ItemsPage() {
     setPreviewUrl("");
   };
 
+  /** Item Code is derived from the category's first letter, so picking a new
+   *  category re-suggests a code — new items only, since itmCode is locked
+   *  once an item exists. Staff can still type over the suggestion. */
+  const handleCategoryChange = (value: string) => {
+    setForm((f) => ({ ...f, itmCategory: value }));
+    if (editing || !value) return;
+    fetchNextItemCode(value)
+      .then((itmCode) => setForm((f) => ({ ...f, itmCode })))
+      .catch(() => {});
+  };
+
   const handleSave = async () => {
     if (!form.itmCode.trim()) { toast.error("Item code is required"); return; }
     if (!form.itmType)        { toast.error("Item type is required");  return; }
@@ -259,7 +271,7 @@ export default function ItemsPage() {
             value={form.itmCode}
             onChange={(e) => setForm({ ...form, itmCode: e.target.value })}
             disabled={!!editing}
-            placeholder="e.g. ITM-001"
+            placeholder={editing ? undefined : "Select a category to auto-generate"}
           />
           <Input
             label="Item Name"
@@ -271,7 +283,7 @@ export default function ItemsPage() {
           <Select
             label="Category"
             value={form.itmCategory ?? ""}
-            onChange={(e) => setForm({ ...form, itmCategory: e.target.value })}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             options={[
               { value: "", label: "— Select Category —" },
               ...categories.map((c) => ({

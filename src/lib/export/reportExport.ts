@@ -175,7 +175,10 @@ export async function exportExcel<T>(
     cell: (row: T) => {
       const v = cell(c, row);
       if (c.numeric) {
-        const n = Number(v);
+        // Numeric columns are often formatted (e.g. "1,234.56") for on-screen/
+        // print display — strip thousands separators before parsing back, or
+        // any value >= 1000 turns to NaN and silently vanishes from the sheet.
+        const n = typeof v === "number" ? v : Number(String(v).replace(/,/g, ""));
         // A blank cell (null) beats a 0 or NaN that would skew a column sum.
         if (!Number.isFinite(n)) return null;
         return { value: n, type: Number, align: "right" as const };

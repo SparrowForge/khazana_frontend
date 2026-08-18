@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import type { UserPermission } from "@/types";
 import { fetchNavMenus, type NavMenu } from "@/lib/services/menu.service";
 import { NAV_REGISTRY } from "@/lib/navRegistry";
+import { isFactoryBranch } from "@/lib/branch";
 import UserMenu from "./UserMenu";
 
 interface RenderLink {
@@ -30,9 +31,11 @@ function isEnabled(controlName: string, permissions: UserPermission[]): boolean 
 /**
  * Build the navigation from DB menus (which top-level groups appear + order +
  * label + permission controlName) joined with the frontend registry (icons +
- * leaf links). Each item is permission-filtered using the user's permissions.
+ * leaf links). Each item is permission-filtered using the user's permissions,
+ * and `factoryOnly` links additionally require the session branch to be the
+ * factory.
  */
-function buildNav(menus: NavMenu[], permissions: UserPermission[]): RenderItem[] {
+function buildNav(menus: NavMenu[], permissions: UserPermission[], atFactory: boolean): RenderItem[] {
   const topLevel = menus
     .filter((m) => !m.parentMenu)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -54,6 +57,7 @@ function buildNav(menus: NavMenu[], permissions: UserPermission[]): RenderItem[]
       // controlName (falling back to the group's), so granting just a leaf
       // permission (e.g. POSSales) surfaces the group even without the parent.
       const children = meta.links
+        .filter((l) => !l.factoryOnly || atFactory)
         .filter((l) => isEnabled(l.controlName ?? menu.controlName, permissions))
         .map((l) => ({ label: l.label, href: l.route, icon: l.icon }));
       if (children.length > 0) {
@@ -269,7 +273,7 @@ export default function Sidebar() {
     router.push("/login");
   };
 
-  const items = buildNav(menus, user?.permissions ?? []);
+  const items = buildNav(menus, user?.permissions ?? [], isFactoryBranch(user));
 
   return (
     <aside

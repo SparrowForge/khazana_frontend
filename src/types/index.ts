@@ -16,6 +16,9 @@ export interface User {
   /** The branch selected at login time for the current session */
   branchId: string;
   branchName?: string | null;
+  /** Branch code of the session branch; absent on sessions created before it
+   *  was added to the login payload. See lib/branch.ts#isFactoryBranch. */
+  branchCode?: string | null;
   isActive?: string;
   permissions?: UserPermission[];
 }

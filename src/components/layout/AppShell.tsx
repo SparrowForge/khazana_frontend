@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
+import { isFactoryBranch } from "@/lib/branch";
 import Sidebar from "./Sidebar";
 
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/verify", "/verify-code"];
@@ -32,6 +33,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/inventory/issue", "StockIssue"],
   ["/inventory/transfer", "StockTransfer"],
   ["/inventory/adjustment", "StockAdjustment"],
+  ["/inventory/production", "ProductionEntry"],
   ["/inventory", "StockView"],
   ["/packets/receive", "PacketReceive"],
   ["/packets/issue", "PacketIssue"],
@@ -70,6 +72,11 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/admin", "Admin"],
 ];
 
+// Routes that exist only for the factory branch. Permission is necessary but
+// not sufficient — the matching backend endpoints reject a non-factory session
+// branch outright, so bounce rather than render a page that can only 403.
+const FACTORY_ONLY_ROUTES = ["/inventory/production"];
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const pathname = usePathname();
@@ -86,6 +93,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!hydrated || isPublic) return;
     if (!isAuthenticated) {
       router.push("/login");
+      return;
+    }
+    const factoryOnly = FACTORY_ONLY_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(route + "/")
+    );
+    if (factoryOnly && !isFactoryBranch(user)) {
+      router.push("/");
       return;
     }
     const match = ROUTE_CONTROL_MAP.find(

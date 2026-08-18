@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
   Layers, Settings, BarChart2, DollarSign, Warehouse, FileText,
-  UserCog, RefreshCw, Receipt, Landmark,
+  UserCog, RefreshCw, Receipt, Landmark, Factory,
 } from "lucide-react";
 
 /**
@@ -20,6 +20,9 @@ export interface NavLink {
   icon: React.ReactNode;
   /** Permission controlName gating this link; defaults to the group's controlName. */
   controlName?: string;
+  /** Hide unless the session branch is the factory. Permission alone isn't
+   *  enough for these — the backend refuses them from any other branch. */
+  factoryOnly?: boolean;
 }
 
 export interface NavMeta {
@@ -72,6 +75,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Stock Issue", route: "/inventory/issue", icon: <FileText size={16} />, controlName: "StockIssue" },
       { label: "Stock Transfer", route: "/inventory/transfer", icon: <FileText size={16} />, controlName: "StockTransfer" },
       { label: "Stock Adjustment", route: "/inventory/adjustment", icon: <RefreshCw size={16} />, controlName: "StockAdjustment" },
+      { label: "Production Entry", route: "/inventory/production", icon: <Factory size={16} />, controlName: "ProductionEntry", factoryOnly: true },
     ],
   },
 

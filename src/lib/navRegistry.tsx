@@ -139,6 +139,15 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     ],
   },
 
+  // Every leaf here is factoryOnly, so the whole group disappears from the
+  // sidebar for any non-factory session (buildNav drops empty groups).
+  FactoryReport: {
+    icon: <Factory size={18} />,
+    links: [
+      { label: "Production & Delivery Report", route: "/factory/production-delivery", icon: <BarChart2 size={16} />, controlName: "ProductionDeliveryReport", factoryOnly: true },
+    ],
+  },
+
   Admin: {
     icon: <UserCog size={18} />,
     links: [

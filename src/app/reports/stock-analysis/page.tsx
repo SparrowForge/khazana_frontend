@@ -137,6 +137,7 @@ export default function StockAnalysisPage() {
 const COLS: { key: keyof StockAnalysisRow; label: string; amount?: boolean }[] = [
   { key: "rate", label: "Rate", amount: true },
   { key: "openStock", label: "Open Stock" },
+  { key: "production", label: "Production" },
   { key: "gReceive", label: "G. Receive" },
   { key: "totalStock", label: "Total Stock" },
   { key: "salesQty", label: "Sales/Qty" },
@@ -215,6 +216,7 @@ function Report({ data }: { data: StockAnalysisReport }) {
             <td className="border border-gray-300 px-1" colSpan={2}></td>
             <td className="border border-gray-300 px-1"></td>
             <td className="border border-gray-300 px-1">{q(totals.openStock)}</td>
+            <td className="border border-gray-300 px-1">{q(totals.production)}</td>
             <td className="border border-gray-300 px-1">{q(totals.gReceive)}</td>
             <td className="border border-gray-300 px-1">{q(totals.totalStock)}</td>
             <td className="border border-gray-300 px-1">{q(totals.salesQty)}</td>

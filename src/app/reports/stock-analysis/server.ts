@@ -7,6 +7,8 @@ export interface StockAnalysisRow {
   uom: string;
   rate: number;
   openStock: number;
+  /** Factory-only manufactured output (Production table); 0 at every other branch. */
+  production: number;
   gReceive: number;
   totalStock: number;
   salesQty: number;

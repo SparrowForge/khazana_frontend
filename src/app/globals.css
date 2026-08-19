@@ -2,22 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The app is a light-only design (no `dark:` variants anywhere), so pin the
+ * scheme. Without this, Chrome on a machine whose OS is in dark mode renders
+ * native widgets — the <select> popup above all — with light text, which
+ * disappeared against our white option list. */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Native select popups are painted by the OS and only inherit what is set on
+ * the elements themselves, so state the colours instead of relying on body. */
+select,
+option {
+  color: #171717;
+  background-color: #ffffff;
 }
 
 @layer utilities {

@@ -131,6 +131,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Item Receive Report", route: "/reports/item-receive", icon: <FileText size={16} />, controlName: "ItemReceiveReport" },
       { label: "Item Reject Report", route: "/reports/item-reject", icon: <FileText size={16} />, controlName: "ItemRejectReport" },
       { label: "NC Report", route: "/reports/nc", icon: <FileText size={16} />, controlName: "NCReport" },
+      { label: "Discount Summary", route: "/reports/discount-summary", icon: <FileText size={16} />, controlName: "DiscountSummary" },
       { label: "Customer Statement", route: "/reports/customer-statement", icon: <FileText size={16} />, controlName: "CustomerStatement" },
       { label: "Daily Summary", route: "/reports/daily", icon: <FileText size={16} />, controlName: "DailySummary" },
       { label: "Daily Final Report", route: "/reports/daily-final", icon: <FileText size={16} />, controlName: "DailyFinalReport" },

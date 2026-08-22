@@ -11,6 +11,10 @@ export interface AvailableItem {
   /** On-hand qty from Inventory. Judged together with `heldStock` — the qty this
    *  invoice already took out — since editing releases and re-takes it. */
   stock?: number;
+  /** Unit of measure — shown under the price on the item grid's cards. */
+  itmUOM?: string | null;
+  /** Joined MediaFile row (the item's picture), for the grid's thumbnails. */
+  image?: { fileUrl?: string | null } | null;
 }
 
 export interface CreditCustomer {
@@ -60,8 +64,25 @@ export interface UpdateCreditSalePayload {
   totalVat: number;
 }
 
-export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+/** The whole active catalogue, not just the first page. `limit` is capped at
+ *  100 server-side, and the item grid is a picker — an item missing from it
+ *  simply can't be billed — so the pages are walked until the list runs out
+ *  (bounded, so a bad `meta` can't spin forever). */
+export const fetchItems = async (): Promise<AvailableItem[]> => {
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 25;
+  const all: AvailableItem[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const batch = await api
+      .get<{ data: AvailableItem[] } | AvailableItem[]>(
+        `/inventory/items?page=${page}&limit=${PAGE_SIZE}&isActive=Y`,
+      )
+      .then(unwrapList<AvailableItem>);
+    all.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return all;
+};
 
 export const fetchCustomers = () =>
   api.get<{ data: CreditCustomer[] } | CreditCustomer[]>("/customers?limit=100").then(unwrapList<CreditCustomer>);

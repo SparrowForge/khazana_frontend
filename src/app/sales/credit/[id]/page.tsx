@@ -22,6 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
+import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -152,6 +153,19 @@ export default function CreditSaleEditPage() {
     if (!id) return;
     if (!items.length) { toast.error("Add at least one item"); return; }
     if (!customerId) { toast.error("Select a customer"); return; }
+    // The same gate the create form uses. Lines saved before these rules
+    // existed (or edited straight after loading) are checked here too, and
+    // stock is judged against on-hand plus what this invoice already holds.
+    const problems = lineProblems(items, availableItems);
+    if (problems.length) {
+      toast.error(problems.join(" • "), { duration: 6000 });
+      return;
+    }
+    const short = stockShortages(items, availableItems, heldStock);
+    if (short.length) {
+      toast.error(`Not enough stock: ${shortageMessage(short)}`, { duration: 6000 });
+      return;
+    }
     setSubmitting(true);
     try {
       // Full edit: master fields update; detail lines are purged then recreated.
@@ -226,6 +240,7 @@ export default function CreditSaleEditPage() {
                 enforceStock
                 heldStock={heldStock}
                 vatInclusiveTotal
+                itemPicker="grid"
               />
             </Card>
           </div>

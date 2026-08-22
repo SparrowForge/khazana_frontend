@@ -124,7 +124,6 @@ function ThermalInvoice({ inv }: { inv: CreditInvoice }) {
       <div className="border-t border-dashed border-black my-1.5" />
 
       <div className="text-center text-[10px]">
-        <div className="font-bold tracking-wider mb-0.5">TREASURE OF GOURMET SWEETS</div>
         {inv.invoiceBy && <div>Invoiced By: <span className="font-semibold">{inv.invoiceBy}</span></div>}
         <div className="mt-1">Thank you for your business!</div>
         <div className="mt-1 text-gray-400">Software by: www.sprwforge.com</div>
@@ -135,7 +134,7 @@ function ThermalInvoice({ inv }: { inv: CreditInvoice }) {
   );
 }
 
-// ── Format 2: corporate A4 tax invoice (Mushak 6.3) ──────────
+// ── Format 2: corporate A4 invoice (Mushak 6.3) ──────────
 function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
   return (
     <div
@@ -146,7 +145,6 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
       {/* Letterhead */}
       <div className="text-center border-b-2 border-black pb-3">
         <div className="text-2xl font-bold tracking-wide">KHAZANA MITHAI</div>
-        <div className="text-[11px] text-gray-700">Treasure of Gourmet Sweets</div>
         <div className="text-[11px] mt-1">
           {inv.branch?.name ? `${inv.branch.name} Branch — ` : ""}
           {inv.branch?.address || ""}
@@ -160,7 +158,7 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
 
       <div className="text-center my-4">
         <span className="inline-block border border-black px-6 py-1 text-sm font-bold tracking-widest">
-          TAX INVOICE
+          INVOICE
         </span>
       </div>
 
@@ -278,7 +276,7 @@ function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
       </div>
 
       <div className="text-center text-[10px] text-gray-400 mt-10">
-        This is a computer-generated tax invoice. · Software by www.sprwforge.com
+        This is a computer-generated invoice. · Software by www.sprwforge.com
       </div>
     </div>
   );

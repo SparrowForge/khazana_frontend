@@ -58,7 +58,7 @@ function threeDigits(n: number): string {
 
 /**
  * Amount in words on the South-Asian scale (Crore / Lakh / Thousand), as printed
- * on a Mushak 6.3 tax invoice. Poisha (the 2dp remainder) is spelled out too.
+ * on a Mushak 6.3 invoice. Poisha (the 2dp remainder) is spelled out too.
  * e.g. 1234.50 → "One Thousand Two Hundred Thirty Four Taka and Fifty Poisha Only"
  */
 export function amountInWords(value: number | string | null | undefined): string {

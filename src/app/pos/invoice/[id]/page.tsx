@@ -138,7 +138,6 @@ function Receipt({ sale }: { sale: PosSale }) {
 
       {/* ── Footer ── */}
       <div className="text-center text-[10px]">
-        <div className="font-bold tracking-wider mb-0.5">TREASURE OF GOURMET SWEETS</div>
         <div>Served By: <span className="font-semibold">{sale.servedBy}</span></div>
         <div className="mt-1">Thank you for visiting Khazana Mithai!</div>
         <div>We hope to see you again soon.</div>

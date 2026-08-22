@@ -127,7 +127,6 @@ function buildOrderInvoiceDocument(data: OrderInvoiceData, autoPrint: boolean): 
     <div class="row bold small due"><span>Total Due</span><span>৳ ${fmt(data.totalDue)}</span></div>
     <div class="dashed"></div>
     <div class="center small">
-      <div class="bold" style="letter-spacing:1px;">TREASURE OF GOURMET SWEETS</div>
       ${data.servedBy ? `<div>Served By: <span class="bold">${esc(data.servedBy)}</span></div>` : ""}
       <div style="margin-top:4px;">Thank you for visiting Khazana Mithai!</div>
       <div>We hope to see you again soon.</div>

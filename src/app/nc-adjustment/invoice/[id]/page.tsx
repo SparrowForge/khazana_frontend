@@ -108,8 +108,7 @@ function ThermalInvoice({ inv }: { inv: NcInvoice }) {
 
       <div className="border-t border-dashed border-black my-1.5" />
 
-      <div className="text-center text-[10px]">
-        <div className="font-bold tracking-wider mb-0.5">TREASURE OF GOURMET SWEETS</div>
+      <div className="text-center text-[10px]">       
         {inv.issuedBy && <div>Issued By: <span className="font-semibold">{inv.issuedBy}</span></div>}
         <div className="mt-1">Thank you for visiting Khazana Mithai!</div>
         <div className="mt-1 text-gray-400">Software by: www.sprwforge.com</div>
@@ -131,7 +130,6 @@ function CorporateInvoice({ inv }: { inv: NcInvoice }) {
       {/* Letterhead */}
       <div className="text-center border-b-2 border-black pb-3">
         <div className="text-2xl font-bold tracking-wide">KHAZANA MITHAI</div>
-        <div className="text-[11px] text-gray-700">Treasure of Gourmet Sweets</div>
         <div className="text-[11px] mt-1">
           {inv.branch?.name ? `${inv.branch.name} Branch — ` : ""}
           {inv.branch?.address || ""}

@@ -30,6 +30,19 @@ interface ItemEntry { qty: string; remarks: string; }
 
 const BLANK_ENTRY: ItemEntry = { qty: "", remarks: "" };
 
+/** Date `days` from today as `YYYY-MM-DD`. Stepped in UTC to match how the rest
+ *  of the app keys dates (`toISOString().split("T")[0]`), so it can't land on
+ *  the wrong day for a server in another timezone. */
+const dateFromToday = (days: number) => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split("T")[0];
+};
+
+/** A demand raised today is for tomorrow — the factory produces overnight
+ *  against what the outlets asked for during the day. */
+const DEFAULT_REQUIRED_OFFSET = 1;
+
 export default function DemandOrderPage() {
   const { user } = useAuthStore();
   const [orders, setOrders] = useState<DemandOrder[]>([]);
@@ -41,7 +54,12 @@ export default function DemandOrderPage() {
   /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
   const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
   const [itemSearch, setItemSearch] = useState("");
-  const [form, setForm] = useState({ toBranchId: "", demandDate: new Date().toISOString().split("T")[0], requiredDate: "", remarks: "" });
+  const [form, setForm] = useState({
+    toBranchId: "",
+    demandDate: dateFromToday(0),
+    requiredDate: dateFromToday(DEFAULT_REQUIRED_OFFSET),
+    remarks: "",
+  });
   const [saving, setSaving] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -109,7 +127,12 @@ export default function DemandOrderPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ toBranchId: factoryBranch?.id ?? "", demandDate: new Date().toISOString().split("T")[0], requiredDate: "", remarks: "" });
+    setForm({
+      toBranchId: factoryBranch?.id ?? "",
+      demandDate: dateFromToday(0),
+      requiredDate: dateFromToday(DEFAULT_REQUIRED_OFFSET),
+      remarks: "",
+    });
     setEntries({});
     setItemSearch("");
     setModal(true);

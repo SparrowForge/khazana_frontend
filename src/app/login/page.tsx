@@ -14,6 +14,7 @@ import {
   type UserBranch,
 } from "./server";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import Image from "next/image";
 import Logo from "@/components/ui/Logo";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
@@ -257,14 +258,39 @@ export default function LoginPage() {
       {/* ── Brand panel. Hidden below lg: on a phone it would push the form
              off-screen, and the form is the point of the page. ── */}
       <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-950 px-12 py-12 text-white xl:px-16">
-        {/* Depth in two quiet layers: a navy wash, and a hairline grid faded
-            out towards the edges so the corners never read as flat black. */}
+        {/* Depth in four quiet layers: the mithai photograph, a scrim that
+            deepens towards the copy, the navy brand glow, and a hairline grid
+            faded out at the edges so the corners never read as flat black. */}
+        <Image
+          src="/sweets-login.jpg"
+          alt=""
+          aria-hidden
+          fill
+          /* The panel never renders below lg, so mobile is told to pick the
+             smallest candidate rather than download a background it cannot see. */
+          sizes="(min-width: 1024px) 55vw, 1px"
+          className="pointer-events-none select-none object-cover object-center"
+        />
+        {/* Legibility scrim: two navy washes multiplied by stacking — near
+            solid down the left edge and along the bottom, where the heading,
+            the list and the footer sit, and thin at the top right so the
+            mithai still reads as a photograph and not as a smudge. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(120% 90% at 15% 0%, #1e3a8a 0%, #101a33 45%, #060a14 100%)",
+              "linear-gradient(to top, rgba(6,10,20,0.95) 0%, rgba(8,13,26,0.84) 40%, rgba(10,17,34,0.58) 72%, rgba(12,20,40,0.34) 100%), linear-gradient(to right, rgba(6,10,20,0.92) 0%, rgba(6,10,20,0.6) 45%, rgba(6,10,20,0.12) 100%)",
+          }}
+        />
+        {/* The brand glow the panel had before the photo went in, kept so the
+            top left still warms to navy rather than to whatever the crop is. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(110% 80% at 12% 0%, rgba(30,58,138,0.55) 0%, rgba(16,26,51,0.35) 45%, transparent 75%)",
           }}
         />
         <div

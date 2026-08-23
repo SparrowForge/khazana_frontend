@@ -147,6 +147,9 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     links: [
       { label: "Production & Delivery Report", route: "/factory/production-delivery", icon: <BarChart2 size={16} />, controlName: "ProductionDeliveryReport", factoryOnly: true },
       { label: "Branchwise Delivery Report", route: "/factory/branchwise-delivery", icon: <BarChart2 size={16} />, controlName: "BranchwiseDeliveryReport", factoryOnly: true },
+      // Same report as Reports > Discount Summary, under the factory's own
+      // menu and permission. The page is a re-export, not a copy.
+      { label: "Discount Log Report", route: "/factory/discount-log", icon: <FileText size={16} />, controlName: "DiscountLogReport", factoryOnly: true },
     ],
   },
 

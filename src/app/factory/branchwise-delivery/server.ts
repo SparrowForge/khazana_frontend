@@ -6,8 +6,10 @@ export interface BranchwiseDeliveryRow {
   itemCode: string;
   itemName: string;
   uom: string;
-  /** Effective unit price — Amount ÷ TotalQty, so it stays consistent with the
-   *  money even when lines went out at different prices during the range. */
+  /** Effective unit price INCLUSIVE of VAT — Amount ÷ TotalQty, so it stays
+   *  consistent with the money even when lines went out at different prices
+   *  during the range. (Item_Issue.unitPrice is ex-VAT; the server grosses it
+   *  up by the VAT percent on the price row in force that day.) */
   rate: number;
   /** Qty keyed by `YYYY-MM-DD`; days with no delivery are absent, not zero. */
   qtyByDate: Record<string, number>;

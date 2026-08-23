@@ -15,12 +15,22 @@ export interface BranchOption {
   branchName: string;
 }
 
+/** One item line of an issue. `isProduction` also records the line in
+ *  Production (same item and qty) — factory sessions only; the API refuses it
+ *  from any other branch. */
+export interface IssueLinePayload {
+  itemId: string;
+  qty: number;
+  unitPrice?: number;
+  isProduction?: boolean;
+}
+
 export interface IssuePayload {
   voucherNo?: string;
   issueDate: string;
   issueBranchId: string;
   receiveBranchId: string;
-  items: { itemId: string; qty: number; unitPrice: number }[];
+  items: IssueLinePayload[];
 }
 
 /** One row in the Stock Issue list — one per serial number, qty is the sum
@@ -42,7 +52,7 @@ export interface IssueGroup {
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
-  items: { itemId: string; itemName?: string; qty: number; unitPrice?: number }[];
+  items: { itemId: string; itemName?: string; qty: number; unitPrice?: number; isProduction?: boolean }[];
 }
 
 export interface UpdateIssuePayload {
@@ -50,11 +60,26 @@ export interface UpdateIssuePayload {
   issueDate: string;
   issueBranchId: string;
   receiveBranchId: string;
-  items: { itemId: string; qty: number; unitPrice?: number }[];
+  items: IssueLinePayload[];
 }
 
-export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+/** The entry grid lists the whole catalogue, but the shared pagination DTO caps
+ *  `limit` at 100 — so walk the pages until one comes back short rather than
+ *  silently showing only the first hundred items. */
+export const fetchItems = async (): Promise<AvailableItem[]> => {
+  const PAGE_SIZE = 100;
+  const all: AvailableItem[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await api
+      .get<{ data: AvailableItem[] } | AvailableItem[]>(`/inventory/items?page=${page}&limit=${PAGE_SIZE}&isActive=Y`)
+      .then(unwrapList<AvailableItem>);
+    all.push(...batch);
+    // A short page is the last one; the guard stops a malformed response (an
+    // endpoint that ignores `page`) from looping forever.
+    if (batch.length < PAGE_SIZE || page >= 50) break;
+  }
+  return all;
+};
 
 export const fetchBranches = () =>
   api.get<{ data: BranchOption[] } | BranchOption[]>("/admin/branches?limit=100").then(unwrapList<BranchOption>);

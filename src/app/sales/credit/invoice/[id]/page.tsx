@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { fetchCreditInvoice, type CreditInvoice } from "./server";
+import { isFactoryBranch } from "@/lib/branch";
 import { amountInWords } from "@/lib/utils";
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -293,7 +294,15 @@ export default function CreditInvoicePage() {
 
   useEffect(() => {
     fetchCreditInvoice(id)
-      .then(setInv)
+      .then((data) => {
+        setInv(data);
+        // Factory credit sales are corporate documents, so they open on the A4
+        // sheet; every other branch keeps the 80mm POS receipt. The invoice's
+        // own branch decides, not the session's.
+        if (isFactoryBranch({ branchCode: data.branch?.code, branchName: data.branch?.name })) {
+          setFormat("corporate");
+        }
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);

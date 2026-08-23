@@ -26,6 +26,8 @@ export interface CreditInvoice {
     address?: string | null;
   } | null;
   branch: {
+    /** Branch code — drives the default print format (factory = A4). */
+    code?: string | null;
     name?: string | null;
     address?: string | null;
     vatNo?: string | null;

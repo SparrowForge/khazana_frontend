@@ -146,6 +146,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     icon: <Factory size={18} />,
     links: [
       { label: "Production & Delivery Report", route: "/factory/production-delivery", icon: <BarChart2 size={16} />, controlName: "ProductionDeliveryReport", factoryOnly: true },
+      { label: "Branchwise Delivery Report", route: "/factory/branchwise-delivery", icon: <BarChart2 size={16} />, controlName: "BranchwiseDeliveryReport", factoryOnly: true },
     ],
   },
 

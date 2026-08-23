@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -15,18 +15,26 @@ import {
 } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
+import { isFactoryBranch } from "@/lib/branch";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
 
-interface IssueLine { itemId: string; qty: string; unitPrice: string; }
+/** What the user typed against one item in the entry grid. The grid lists the
+ *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
+ *  only rows with qty > 0 are ever sent. */
+interface ItemEntry { qty: string; isProduction: boolean; }
 
-const reportColumns: ExportColumn<{ itemName?: string; qty: number; unitPrice?: number }>[] = [
+const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false };
+
+const reportColumns: ExportColumn<{ itemName?: string; qty: number; unitPrice?: number; isProduction?: boolean }>[] = [
   { header: "Item Name", value: (r) => r.itemName ?? "-" },
   { header: "Qty", value: (r) => r.qty, numeric: true },
   { header: "Unit Price", value: (r) => r.unitPrice ?? 0, numeric: true },
+  { header: "Production", value: (r) => (r.isProduction ? "Yes" : "") },
 ];
 
 const getDefaultDateRange = () => {
@@ -61,9 +69,15 @@ export default function StockIssuePage() {
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
-  const [issueBranchId, setIssueBranchId] = useState("");
+  // Issuing branch is always the session branch and is not editable — an issue
+  // can only send stock out of the branch the user is logged in at.
+  const sessionUser = useAuthStore((st) => st.user);
+  const issueBranchId = sessionUser?.branchId ?? "";
+  const isFactorySession = isFactoryBranch(sessionUser);
   const [receiveBranchId, setReceiveBranchId] = useState("");
-  const [lines, setLines] = useState<IssueLine[]>([{ itemId: "", qty: "1", unitPrice: "0" }]);
+  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
+  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
+  const [itemSearch, setItemSearch] = useState("");
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -78,11 +92,6 @@ export default function StockIssuePage() {
    *  Inventory negative, so this is the ceiling — the server enforces it again. */
   const availableFor = (itemId: string) =>
     (availableItems.find((it) => it.id === itemId)?.stock ?? 0) + (heldStock[itemId] ?? 0);
-
-  const itemLabel = (it: AvailableItem) => {
-    const available = availableFor(it.id);
-    return `${it.itmCode} — ${it.itmName}${available > 0 ? ` (stock: ${available})` : " (out of stock)"}`;
-  };
 
   /** Lines asking for more than is available, summed per item so the same item
    *  entered on two lines is measured against one balance. */
@@ -112,17 +121,42 @@ export default function StockIssuePage() {
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
 
-  const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, field: keyof IssueLine, val: string) =>
-    setLines(lines.map((l, idx) => {
-      if (idx !== i) return l;
-      if (field === "itemId") {
-        const salesPrice = availableItems.find((it) => it.id === val)?.price;
-        return { ...l, itemId: val, unitPrice: String(salesPrice ?? 0) };
-      }
-      return { ...l, [field]: val };
-    }));
+  const entryFor = (itemId: string) => entries[itemId] ?? BLANK_ENTRY;
+
+  const setEntry = (itemId: string, patch: Partial<ItemEntry>) =>
+    setEntries((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] ?? BLANK_ENTRY), ...patch } }));
+
+  /** The lines that will actually be saved: qty > 0, in catalogue order. A
+   *  production tick on a zero-qty row is ignored rather than rejected — the
+   *  user simply hasn't filled that row in. */
+  const validLines = useMemo(
+    () =>
+      availableItems
+        .map((it) => ({ item: it, entry: entries[it.id] }))
+        .filter(({ entry }) => parseFloat(entry?.qty ?? "") > 0)
+        .map(({ item, entry }) => ({
+          itemId: item.id,
+          qty: parseFloat(entry!.qty),
+          unitPrice: Number(item.price ?? 0),
+          // Only the factory may produce, so the flag can never leave a shop
+          // session even if a stale checkbox state survived a branch switch.
+          isProduction: isFactorySession && entry!.isProduction,
+        })),
+    [availableItems, entries, isFactorySession],
+  );
+
+  /** The grid shows every item; a catalogue of any size needs a filter. Rows
+   *  already carrying a qty stay visible so a search can't hide pending input. */
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return availableItems;
+    return availableItems.filter(
+      (it) =>
+        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
+        it.itmCode?.toLowerCase().includes(q) ||
+        it.itmName?.toLowerCase().includes(q),
+    );
+  }, [availableItems, entries, itemSearch]);
 
   const openCreate = () => {
     setEditingSerial(null);
@@ -130,9 +164,9 @@ export default function StockIssuePage() {
     setSerialNo("");
     setVoucherNo("");
     setIssueDate(new Date().toISOString().split("T")[0]);
-    setIssueBranchId("");
     setReceiveBranchId("");
-    setLines([{ itemId: "", qty: "1", unitPrice: "0" }]);
+    setEntries({});
+    setItemSearch("");
     setModal(true);
   };
 
@@ -143,9 +177,20 @@ export default function StockIssuePage() {
       setSerialNo(full.serialNo);
       setVoucherNo(full.voucherNo ?? "");
       setIssueDate(full.issueDate ? full.issueDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-      setIssueBranchId(full.issueBranchId ?? "");
       setReceiveBranchId(full.receiveBranchId ?? "");
-      setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1), unitPrice: String(it.unitPrice ?? 0) })));
+      setItemSearch("");
+      // Repeated lines of one item collapse into the grid's single row for it,
+      // the same way the server sums them against one balance.
+      setEntries(
+        full.items.reduce<Record<string, ItemEntry>>((acc, it) => {
+          const previous = parseFloat(acc[it.itemId]?.qty ?? "0") || 0;
+          acc[it.itemId] = {
+            qty: String(previous + Number(it.qty ?? 0)),
+            isProduction: acc[it.itemId]?.isProduction || !!it.isProduction,
+          };
+          return acc;
+        }, {}),
+      );
       setHeldStock(
         full.items.reduce<Record<string, number>>((acc, it) => {
           acc[it.itemId] = (acc[it.itemId] ?? 0) + Number(it.qty ?? 0);
@@ -181,27 +226,24 @@ export default function StockIssuePage() {
   };
 
   const handleSubmit = async () => {
-    if (!issueBranchId || !receiveBranchId) { toast.error("Select both branches"); return; }
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line"); return; }
-    const short = stockShortages(valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty) })));
+    if (!issueBranchId) { toast.error("No branch on this session — sign in again"); return; }
+    if (!receiveBranchId) { toast.error("Select the receiving branch"); return; }
+    // Every quantity zero or blank is the same as an empty submission: nothing
+    // to issue, so there is no document to write.
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
+    const short = stockShortages(validLines);
     if (short.length) {
       toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
       return;
     }
     setSubmitting(true);
     try {
+      const payload = { voucherNo, issueDate, issueBranchId, receiveBranchId, items: validLines };
       if (editingSerial) {
-        await updateIssue(editingSerial, {
-          voucherNo, issueDate, issueBranchId, receiveBranchId,
-          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
-        });
+        await updateIssue(editingSerial, payload);
         toast.success("Stock issue updated");
       } else {
-        await issueStock({
-          voucherNo, issueDate, issueBranchId, receiveBranchId,
-          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice || "0") })),
-        });
+        await issueStock(payload);
         toast.success("Stock issue saved");
       }
       setModal(false);
@@ -210,12 +252,12 @@ export default function StockIssuePage() {
   };
 
   const handlePreview = () => {
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line to preview"); return; }
-    const rows = valid.map((l) => ({
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
+    const rows = validLines.map((l) => ({
       itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
-      qty: parseFloat(l.qty),
-      unitPrice: parseFloat(l.unitPrice || "0"),
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      isProduction: l.isProduction,
     }));
     previewReport(rows, reportColumns, {
       title: "Stock Issue Preview",
@@ -297,45 +339,116 @@ export default function StockIssuePage() {
           {editingSerial && <Input label="Serial No" value={serialNo} disabled readOnly />}
           <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
           <Input label="Date" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
-          <Select label="Issuing Branch" value={issueBranchId} onChange={(e) => setIssueBranchId(e.target.value)}
-            placeholder="Select branch..." options={branches.map((b) => ({ value: b.id, label: b.branchName }))} />
+          {/* Fixed to the session branch: an issue can only send stock out of
+              the branch the user is logged in at, so there is nothing to pick. */}
+          <Input label="Issuing Branch" value={branchName(issueBranchId)} disabled readOnly />
           <Select label="Issued To Branch" value={receiveBranchId} onChange={(e) => setReceiveBranchId(e.target.value)}
             placeholder="Select branch..." options={branches.map((b) => ({ value: b.id, label: b.branchName }))} />
         </div>
-        <div className="space-y-2">
-          {lines.map((line, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <Select
-                label={i === 0 ? "Item" : undefined}
-                value={line.itemId}
-                onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                placeholder="Select item..."
-                options={availableItems.map((it) => ({
-                  value: it.id,
-                  label: itemLabel(it),
-                  disabled: availableFor(it.id) <= 0,
-                }))}
-                className="flex-1"
-              />
-              <div className="w-24">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
-                <input type="number" min="1" step="1" value={line.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              </div>
-              <div className="w-28">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Unit Price</label>}
-                <input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              </div>
-              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-            </div>
-          ))}
-          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <Input
+            placeholder="Search items by code or name..."
+            value={itemSearch}
+            onChange={(e) => setItemSearch(e.target.value)}
+            className="w-72"
+          />
+          <div className="text-sm text-gray-500">
+            {validLines.length} item{validLines.length === 1 ? "" : "s"} to issue
+            {isFactorySession && validLines.some((l) => l.isProduction)
+              ? ` · ${validLines.filter((l) => l.isProduction).length} to production`
+              : ""}
+          </div>
         </div>
+
+        {/* The whole catalogue, with the quantity typed inline. Scrolls rather
+            than paginates so a part-filled sheet is never split across pages. */}
+        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr className="text-left text-gray-600">
+                <th className="px-3 py-2 font-medium">Item ID</th>
+                <th className="px-3 py-2 font-medium">Item Name</th>
+                <th className="px-3 py-2 font-medium text-right">Available</th>
+                <th className="px-3 py-2 font-medium text-right w-32">Issue Qty</th>
+                {isFactorySession && <th className="px-3 py-2 font-medium text-center w-28">Is Production</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((it) => {
+                const entry = entryFor(it.id);
+                const qty = parseFloat(entry.qty) || 0;
+                const available = availableFor(it.id);
+                const over = qty > available;
+                return (
+                  <tr
+                    key={it.id}
+                    className={`border-t border-gray-100 ${
+                      // Production-selected rows are called out; an over-issue
+                      // outranks that, since it blocks the save.
+                      over ? "bg-red-50" : entry.isProduction && qty > 0 ? "bg-amber-50" : qty > 0 ? "bg-primary-50/40" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
+                    <td className="px-3 py-1.5">{it.itmName}</td>
+                    <td className={`px-3 py-1.5 text-right ${available <= 0 ? "text-gray-400" : ""}`}>{available}</td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={entry.qty}
+                        placeholder="0"
+                        onChange={(e) => setEntry(it.id, { qty: e.target.value })}
+                        className={`w-full border rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 ${
+                          over ? "border-red-400 focus:ring-red-400" : "border-gray-300 focus:ring-primary-800"
+                        }`}
+                      />
+                    </td>
+                    {isFactorySession && (
+                      <td className="px-3 py-1.5 text-center">
+                        {/* Disabled without a quantity: the line would not be
+                            sent at all, so do not invite the tick. */}
+                        <input
+                          type="checkbox"
+                          checked={entry.isProduction}
+                          disabled={qty <= 0}
+                          onChange={(e) => setEntry(it.id, { isProduction: e.target.checked })}
+                          className="h-4 w-4 accent-amber-600 disabled:opacity-30"
+                        />
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {visibleItems.length === 0 && (
+                <tr>
+                  <td colSpan={isFactorySession ? 5 : 4} className="px-3 py-6 text-center text-gray-400">
+                    No items match that search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {isFactorySession && (
+          <p className="mt-2 text-xs text-gray-500">
+            Ticking <span className="font-medium text-amber-700">Is Production</span> also records the line in Production
+            Entry, which adds that quantity back to stock - use it for goods this document both manufactured and shipped.
+          </p>
+        )}
+
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button variant="secondary" onClick={handlePreview}>Preview</Button>
-          <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Stock Issue" : "Save Stock Issue"}</Button>
+          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>Preview</Button>
+          <Button
+            onClick={handleSubmit}
+            loading={submitting}
+            disabled={!validLines.length || !receiveBranchId}
+          >
+            {editingSerial ? "Update Stock Issue" : "Save Stock Issue"}
+          </Button>
         </div>
       </Modal>
 
@@ -374,6 +487,10 @@ export default function StockIssuePage() {
                 { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
                 { key: "qty", header: "Qty", className: "text-right" },
                 { key: "unitPrice", header: "Unit Price", className: "text-right", render: (r) => (r.unitPrice ?? 0).toFixed(2) },
+                {
+                  key: "isProduction", header: "Production", className: "text-center",
+                  render: (r) => (r.isProduction ? <span className="text-amber-700 font-medium">Yes</span> : <span className="text-gray-300">-</span>),
+                },
               ]}
             />
           </>

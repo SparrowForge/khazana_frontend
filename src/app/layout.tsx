@@ -9,6 +9,14 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Khazana Mithai POS",
   description: "Point of Sale System for Khazana Mithai",
+  // Next's app-router conventions pick these up from src/app automatically:
+  //   icon.png        -> browser tab favicon
+  //   apple-icon.png  -> iOS home-screen icon
+  // Declaring them here as well keeps the tags stable if a file is renamed.
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png" }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogOut, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import Logo from "@/components/ui/Logo";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
@@ -290,7 +291,9 @@ export default function Sidebar() {
       >
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="text-white font-bold text-lg truncate">Khazana POS</h1>
+            {/* Lettering in white so it reads on the dark sidebar; the mark's
+                own red carries fine against it. */}
+            <Logo size={30} tone="light" />
             <p className="text-slate-400 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
           </div>
         )}

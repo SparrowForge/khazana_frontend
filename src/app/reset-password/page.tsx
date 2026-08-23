@@ -8,6 +8,7 @@ import { resetPassword } from "./server";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
+import Logo from "@/components/ui/Logo";
 
 const schema = z
   .object({
@@ -59,7 +60,7 @@ function ResetPasswordContent() {
     <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Khazana Mithai</h1>
+          <div className="flex justify-center"><Logo size={38} /></div>
           <p className="text-gray-500 text-sm mt-1">Reset Password</p>
         </div>
 

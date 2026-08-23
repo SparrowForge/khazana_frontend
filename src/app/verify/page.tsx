@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import Logo from "@/components/ui/Logo";
 
 const resendSchema = z.object({ email: z.string().email("Enter a valid email") });
 type ResendForm = z.infer<typeof resendSchema>;
@@ -50,7 +51,7 @@ function VerifyEmailContent() {
     <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Khazana Mithai</h1>
+          <div className="flex justify-center"><Logo size={38} /></div>
           <p className="text-gray-500 text-sm mt-1">Email Verification</p>
         </div>
 

@@ -248,7 +248,7 @@ export default function LoginPage() {
           <div className="absolute inset-[6%] rounded-full border border-sky-300/20" />
           <div className="absolute inset-[27%] rounded-full bg-white/95 shadow-2xl shadow-sky-500/20" />
           <div className="absolute inset-[27%] flex flex-col items-center justify-center text-primary-900">
-            <span className="mt-1 text-[18px] font-semibold uppercase tracking-[0.2em] text-primary-700">
+            <span className="mt-2 text-[18px] font-semibold uppercase tracking-[0.5em] text-primary-900">
               KHAZANA MITHAI
             </span>
             

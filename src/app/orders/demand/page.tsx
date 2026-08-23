@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -14,7 +14,7 @@ import {
   fetchDemandOrders, fetchDemandOrder, createDemandOrder, updateDemandOrder, deleteDemandOrder,
   type DemandOrder, type DemandOrderRecord, type DemandOrderDetail,
 } from "./server";
-import { fetchItems, fetchBranches, type AvailableItem, type BranchInfo } from "../server";
+import { fetchAllItems, fetchBranches, type AvailableItem, type BranchInfo } from "../server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
@@ -23,7 +23,12 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
-interface DemandLine { itemId: string; qty: string; remarks: string; }
+/** What the user typed against one item in the entry grid. The grid lists the
+ *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
+ *  only rows with qty > 0 are ever sent. */
+interface ItemEntry { qty: string; remarks: string; }
+
+const BLANK_ENTRY: ItemEntry = { qty: "", remarks: "" };
 
 export default function DemandOrderPage() {
   const { user } = useAuthStore();
@@ -33,7 +38,9 @@ export default function DemandOrderPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [lines, setLines] = useState<DemandLine[]>([{ itemId: "", qty: "1", remarks: "" }]);
+  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
+  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
+  const [itemSearch, setItemSearch] = useState("");
   const [form, setForm] = useState({ toBranchId: "", demandDate: new Date().toISOString().split("T")[0], requiredDate: "", remarks: "" });
   const [saving, setSaving] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -56,7 +63,7 @@ export default function DemandOrderPage() {
   useEffect(() => {
     load();
     fetchBranches().then(setBranches).catch(() => {});
-    fetchItems().then(setAvailableItems).catch(() => {});
+    fetchAllItems().then(setAvailableItems).catch(() => {});
   }, []);
   useEffect(load, [page, limit, refreshKey, setMeta]);
 
@@ -68,15 +75,43 @@ export default function DemandOrderPage() {
   // rather than a dedicated flag, since this system has exactly one today.
   const factoryBranch = branches.find((b) => /factory/i.test(b.branchName ?? ""));
 
-  const addLine = () => setLines([...lines, { itemId: "", qty: "1", remarks: "" }]);
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, f: keyof DemandLine, v: string) =>
-    setLines(lines.map((l, idx) => (idx === i ? { ...l, [f]: v } : l)));
+  const entryFor = (itemId: string) => entries[itemId] ?? BLANK_ENTRY;
+
+  const setEntry = (itemId: string, patch: Partial<ItemEntry>) =>
+    setEntries((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] ?? BLANK_ENTRY), ...patch } }));
+
+  /** The lines that will actually be saved: qty > 0, in catalogue order. A
+   *  remark typed against a zero-qty row is ignored — that row isn't demanded. */
+  const validLines = useMemo(
+    () =>
+      availableItems
+        .filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0)
+        .map((it) => ({
+          itemId: it.id,
+          qty: parseFloat(entries[it.id].qty),
+          remarks: entries[it.id].remarks || undefined,
+        })),
+    [availableItems, entries],
+  );
+
+  /** The grid shows every item; a catalogue of any size needs a filter. Rows
+   *  already carrying a qty stay visible so a search can't hide pending input. */
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return availableItems;
+    return availableItems.filter(
+      (it) =>
+        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
+        it.itmCode?.toLowerCase().includes(q) ||
+        it.itmName?.toLowerCase().includes(q),
+    );
+  }, [availableItems, entries, itemSearch]);
 
   const openCreate = () => {
     setEditingId(null);
     setForm({ toBranchId: factoryBranch?.id ?? "", demandDate: new Date().toISOString().split("T")[0], requiredDate: "", remarks: "" });
-    setLines([{ itemId: "", qty: "1", remarks: "" }]);
+    setEntries({});
+    setItemSearch("");
     setModal(true);
   };
 
@@ -90,10 +125,17 @@ export default function DemandOrderPage() {
         requiredDate: full.requiredDate ? full.requiredDate.split("T")[0] : "",
         remarks: full.remarks ?? "",
       });
-      setLines(
-        full.details?.length
-          ? full.details.map((d) => ({ itemId: d.itemId, qty: String(d.qty), remarks: d.remarks ?? "" }))
-          : [{ itemId: "", qty: "1", remarks: "" }],
+      setItemSearch("");
+      // Repeated lines of one item collapse into the grid's single row for it.
+      setEntries(
+        (full.details ?? []).reduce<Record<string, ItemEntry>>((acc, d) => {
+          const previous = parseFloat(acc[d.itemId]?.qty ?? "0") || 0;
+          acc[d.itemId] = {
+            qty: String(previous + Number(d.qty ?? 0)),
+            remarks: acc[d.itemId]?.remarks || d.remarks || "",
+          };
+          return acc;
+        }, {}),
       );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load demand order")); }
@@ -101,8 +143,8 @@ export default function DemandOrderPage() {
 
   const handleSave = async () => {
     if (!form.toBranchId) { toast.error("Select the factory / receiving branch"); return; }
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty || "0") > 0);
-    if (!valid.length) { toast.error("Add at least one item"); return; }
+    // Every quantity zero or blank is the same as an empty submission.
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     setSaving(true);
     try {
       const payload = {
@@ -110,7 +152,7 @@ export default function DemandOrderPage() {
         demandDate: form.demandDate,
         requiredDate: form.requiredDate || undefined,
         remarks: form.remarks || undefined,
-        items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), remarks: l.remarks || undefined })),
+        items: validLines,
       };
       if (editingId) {
         await updateDemandOrder(editingId, payload);
@@ -200,27 +242,84 @@ export default function DemandOrderPage() {
           <Input label="Required Date" type="date" value={form.requiredDate} onChange={(e) => setForm({ ...form, requiredDate: e.target.value })} />
           <Input label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="col-span-2" />
         </div>
-        <div className="space-y-2 mb-4">
-          <p className="text-sm font-medium text-gray-700">Demand Items</p>
-          {lines.map((l, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <select value={l.itemId} onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                className="flex-1 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
-                <option value="">Select item...</option>
-                {availableItems.map((it) => <option key={it.id} value={it.id}>{it.itmCode} — {it.itmName}</option>)}
-              </select>
-              <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                className="w-24 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              <input type="text" placeholder="Remarks (optional)" value={l.remarks} onChange={(e) => updateLine(i, "remarks", e.target.value)}
-                className="w-40 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-            </div>
-          ))}
-          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Item</Button>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <Input
+            placeholder="Search items by code or name..."
+            value={itemSearch}
+            onChange={(e) => setItemSearch(e.target.value)}
+            className="w-72"
+          />
+          <div className="text-sm text-gray-500">
+            {validLines.length} item{validLines.length === 1 ? "" : "s"} demanded
+          </div>
         </div>
+
+        {/* The whole catalogue, with the quantity typed inline. Only rows
+            carrying a quantity are saved. */}
+        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh] mb-4">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr className="text-left text-gray-600">
+                <th className="px-3 py-2 font-medium">Item ID</th>
+                <th className="px-3 py-2 font-medium">Item Name</th>
+                <th className="px-3 py-2 font-medium text-right w-28">Demand Qty</th>
+                <th className="px-3 py-2 font-medium w-48">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((it) => {
+                const entry = entryFor(it.id);
+                const qty = parseFloat(entry.qty) || 0;
+                return (
+                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
+                    <td className="px-3 py-1.5">{it.itmName}</td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={entry.qty}
+                        placeholder="0"
+                        onChange={(e) => setEntry(it.id, { qty: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="text"
+                        value={entry.remarks}
+                        placeholder="Optional"
+                        // Only sent with a quantity — a remark alone is not a demand.
+                        disabled={qty <= 0}
+                        onChange={(e) => setEntry(it.id, { remarks: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800 disabled:bg-gray-50"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {visibleItems.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-gray-400">
+                    No items match that search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button onClick={handleSave} loading={saving}>{editingId ? "Update Demand Order" : "Submit to Factory"}</Button>
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            // Nothing to submit until at least one line carries a quantity.
+            disabled={!validLines.length || !form.toBranchId}
+          >
+            {editingId ? "Update Demand Order" : "Submit to Factory"}
+          </Button>
         </div>
       </Modal>
 

@@ -85,5 +85,28 @@ export const fetchCustomers = (): Promise<Customer[]> =>
 export const fetchItems = (): Promise<AvailableItem[]> =>
   api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
+/** Every item, for the entry screens that list the whole catalogue in a grid
+ *  (Demand Order) rather than a per-line picker.
+ *
+ *  Separate from `fetchItems` on purpose: that one is shared by the other order
+ *  screens, whose pickers should keep showing only active items. Pages at 100
+ *  because `PaginationQueryDto` caps `limit`, and skips the `isActive` filter
+ *  because the backend matches that column as an exact string — anything stored
+ *  as null, lowercase or 'N' would silently vanish from the sheet. */
+export const fetchAllItems = async (): Promise<AvailableItem[]> => {
+  const PAGE_SIZE = 100;
+  const all: AvailableItem[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await api
+      .get(`/inventory/items?page=${page}&limit=${PAGE_SIZE}`)
+      .then(unwrapList<AvailableItem>);
+    all.push(...batch);
+    // A short page is the last one; the guard stops a malformed response from
+    // looping forever.
+    if (batch.length < PAGE_SIZE || page >= 50) break;
+  }
+  return all;
+};
+
 export const fetchBranches = (): Promise<BranchInfo[]> =>
   api.get("/admin/branches?limit=100").then(unwrapList<BranchInfo>);

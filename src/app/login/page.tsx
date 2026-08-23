@@ -237,7 +237,7 @@ export default function LoginPage() {
         <div className="relative">
           <Logo size={40} tone="light" />
           <div className="mt-2 text-[11px] uppercase tracking-[0.25em] text-sky-200/80">
-            Point of Sale &amp; ERP
+            Point of Sale 
           </div>
         </div>
 
@@ -248,7 +248,6 @@ export default function LoginPage() {
           <div className="absolute inset-[6%] rounded-full border border-sky-300/20" />
           <div className="absolute inset-[27%] rounded-full bg-white/95 shadow-2xl shadow-sky-500/20" />
           <div className="absolute inset-[27%] flex flex-col items-center justify-center text-primary-900">
-            <span className="text-3xl font-extrabold tracking-wider">ERP</span>
             <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-primary-700">
               Khazana
             </span>
@@ -290,14 +289,11 @@ export default function LoginPage() {
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
           <div className="lg:hidden mb-8 flex flex-col items-center gap-1.5">
             <Logo size={38} />
-            <div className="text-xs text-gray-500">Point of Sale &amp; ERP</div>
+            <div className="text-xs text-gray-500">Point of Sale</div>
           </div>
 
           <div className="mb-8 hidden lg:flex items-center gap-4">
-            <Logo size={38} />
-            <span className="border-l border-gray-200 pl-4 text-[10px] uppercase tracking-[0.18em] text-gray-400">
-              Fast Accurate Information
-            </span>
+            <Logo size={38} />            
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900">Welcome back!</h1>

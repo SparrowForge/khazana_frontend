@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -144,6 +144,38 @@ export default function StockIssuePage() {
         })),
     [availableItems, entries, isFactorySession],
   );
+
+  /** Items the production flag can apply to at all: a tick on a zero-qty row is
+   *  never sent, so those rows are neither counted nor toggled by Check All. */
+  const productionEligible = useMemo(
+    () => availableItems.filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0),
+    [availableItems, entries],
+  );
+  const checkedCount = productionEligible.filter((it) => entries[it.id]?.isProduction).length;
+  const allChecked = productionEligible.length > 0 && checkedCount === productionEligible.length;
+
+  /** Tick every item that has a quantity, or clear them all when they already
+   *  are. Rows with no quantity are left alone — checking them would set a flag
+   *  the save then silently drops. */
+  const toggleAllProduction = () => {
+    const next = !allChecked;
+    setEntries((prev) => {
+      const draft = { ...prev };
+      for (const it of productionEligible) {
+        draft[it.id] = { ...(draft[it.id] ?? BLANK_ENTRY), isProduction: next };
+      }
+      return draft;
+    });
+  };
+
+  /** Part-ticked reads as a dash rather than a misleading empty box; the DOM
+   *  property has no JSX attribute, so it has to be set on the node. */
+  const checkAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkAllRef.current) {
+      checkAllRef.current.indeterminate = checkedCount > 0 && !allChecked;
+    }
+  }, [checkedCount, allChecked]);
 
   /** The grid shows every item; a catalogue of any size needs a filter. Rows
    *  already carrying a qty stay visible so a search can't hide pending input. */
@@ -371,7 +403,23 @@ export default function StockIssuePage() {
                 <th className="px-3 py-2 font-medium">Item Name</th>
                 <th className="px-3 py-2 font-medium text-right">Available</th>
                 <th className="px-3 py-2 font-medium text-right w-32">Issue Qty</th>
-                {isFactorySession && <th className="px-3 py-2 font-medium text-center w-28">Is Production</th>}
+                {isFactorySession && (
+                  <th className="px-3 py-2 font-medium text-center w-32">
+                    <label className="flex items-center justify-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        ref={checkAllRef}
+                        type="checkbox"
+                        checked={allChecked}
+                        // Nothing to check until at least one quantity is typed.
+                        disabled={productionEligible.length === 0}
+                        onChange={toggleAllProduction}
+                        className="h-4 w-4 accent-amber-600 disabled:opacity-30"
+                        title="Check every item that has an issue quantity"
+                      />
+                      <span>Is Production</span>
+                    </label>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>

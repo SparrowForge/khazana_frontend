@@ -15,17 +15,20 @@ import {
 } from "./server";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import Logo from "@/components/ui/Logo";
-import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/api";
 import {
   ArrowRight,
+  BarChart3,
+  Building2,
+  ChevronDown,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
-  LogIn,
   ShieldCheck,
+  Store,
   User as UserIcon,
 } from "lucide-react";
 
@@ -38,12 +41,24 @@ type LoginForm = z.infer<typeof schema>;
 
 const DEBOUNCE_MS = 600;
 
-/** The modules ringed around the mark on the brand panel. Purely decorative —
- *  they describe the product, not the user's permissions. */
-const MODULES = [
-  "Point of Sale", "Production", "Inventory", "Stock Transfer",
-  "Demand Orders", "Credit Sales", "Customers", "Pricing",
-  "Assortment", "Packets", "Reports", "Accounts",
+/** What the brand panel says the product does. Three claims, not twelve — a
+ *  wall of module names reads as a brochure, not as a sign-in screen. */
+const HIGHLIGHTS = [
+  {
+    icon: Store,
+    title: "Counter to factory, one system",
+    body: "Point of sale, production, stock movement and demand orders share a single ledger.",
+  },
+  {
+    icon: BarChart3,
+    title: "Numbers you can close the day on",
+    body: "Sales, VAT and stock positions reconcile per branch, per shift, as they happen.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Access scoped to the branch",
+    body: "Everyone sees only the branches they are assigned, and every entry is attributed.",
+  },
 ];
 
 export default function LoginPage() {
@@ -210,117 +225,157 @@ export default function LoginPage() {
 
   const branchPlaceholder =
     branchLoadState === "loading"
-      ? "Loading branches…"
+      ? "Checking your branches…"
       : branches.length === 0
-        ? "No branches assigned"
-        : "— Select Branch —";
+        ? "No branch assigned to this user"
+        : "Select a branch";
 
-  const fieldClass =
-    "w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm shadow-sm " +
-    "transition-colors focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800";
+  const branchOptions = (googleCredential ? googleBranchList : branches).map((b) => ({
+    value: b.id,
+    label: b.branchName ?? b.branchCode ?? b.id,
+  }));
+
+  // One field style for every control on the page. The branch picker used to
+  // borrow the generic <Select>, which sits at a different height and radius
+  // from the inputs — three controls that don't line up is the quickest way to
+  // look unfinished.
+  const field = (invalid?: boolean) =>
+    [
+      "h-12 w-full rounded-xl border bg-slate-50/70 pl-11 pr-11 text-sm text-slate-900",
+      "placeholder:text-slate-400 shadow-sm transition duration-150",
+      "focus:bg-white focus:outline-none focus:ring-4",
+      invalid
+        ? "border-red-300 focus:border-red-500 focus:ring-red-500/10"
+        : "border-slate-200 hover:border-slate-300 focus:border-primary-600 focus:ring-primary-600/10",
+    ].join(" ");
+
+  const iconClass = "pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400";
+  const labelClass = "block text-[13px] font-medium text-slate-700";
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen bg-white lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.15fr_1fr]">
       {/* ── Brand panel. Hidden below lg: on a phone it would push the form
              off-screen, and the form is the point of the page. ── */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-primary-900 via-slate-900 to-primary-800 p-10 text-white">
-        {/* Soft radial glow behind the mark */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-950 px-12 py-12 text-white xl:px-16">
+        {/* Depth in two quiet layers: a navy wash, and a hairline grid faded
+            out towards the edges so the corners never read as flat black. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(60% 50% at 50% 45%, rgba(56,189,248,0.35) 0%, rgba(2,6,23,0) 70%)",
+              "radial-gradient(120% 90% at 15% 0%, #1e3a8a 0%, #101a33 45%, #060a14 100%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage: "radial-gradient(80% 70% at 30% 25%, #000 0%, transparent 100%)",
+            WebkitMaskImage: "radial-gradient(80% 70% at 30% 25%, #000 0%, transparent 100%)",
           }}
         />
 
-        <div className="relative">
-          <Logo size={40} tone="light" />
-          <div className="mt-2 text-[11px] uppercase tracking-[0.25em] text-sky-200/80">
-            Point of Sale 
-          </div>
+        <div className="relative flex items-center gap-3">
+          <Logo size={38} tone="light" />
+          <span className="h-6 w-px bg-white/20" />
+          <span className="text-[11px] font-medium uppercase tracking-[0.28em] text-slate-300">
+            Point of Sale
+          </span>
         </div>
 
-        {/* The module ring: a circle of labels around a central mark. Laid out
-            with trigonometry so it stays even at any count. */}
-        <div className="relative mx-auto my-8 aspect-square w-full max-w-[430px]">
-          <div className="absolute inset-[18%] rounded-full border border-sky-300/30" />
-          <div className="absolute inset-[6%] rounded-full border border-sky-300/20" />
-          <div className="absolute inset-[27%] rounded-full bg-white/95 shadow-2xl shadow-sky-500/20" />
-          <div className="absolute inset-[27%] flex flex-col items-center justify-center text-primary-900">
-            <span className="text-3xl font-extrabold tracking-wider">KHAZANA</span>
-            <span className="mt-2 text-[18px] font-semibold uppercase tracking-[0.2em] text-primary-700">
-              MITHAI
-            </span>
-          </div>
-          {MODULES.map((label, i) => {
-            const angle = (i / MODULES.length) * 2 * Math.PI - Math.PI / 2;
-            const radius = 44; // % from centre
-            return (
-              <div
-                key={label}
-                className="absolute -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  left: `${50 + radius * Math.cos(angle)}%`,
-                  top: `${50 + radius * Math.sin(angle)}%`,
-                }}
-              >
-                <span className="whitespace-nowrap rounded-md bg-white/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-sky-50 ring-1 ring-white/15 backdrop-blur-sm">
-                  {label}
+        <div className="relative max-w-md">
+          <h2 className="text-[2.05rem] font-semibold leading-[1.2] tracking-tight">
+            Every branch, every batch,
+            <br />
+            <span className="text-sky-300">accounted for.</span>
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-300/90">
+            The operations platform behind Khazana Mithai — from the counter and the production
+            floor through to the closing report.
+          </p>
+
+          <ul className="mt-10 space-y-6">
+            {HIGHLIGHTS.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex gap-4">
+                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] ring-1 ring-inset ring-white/10">
+                  <Icon size={18} className="text-sky-300" />
                 </span>
-              </div>
-            );
-          })}
+                <div>
+                  <div className="text-sm font-semibold text-white">{title}</div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-400">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="relative flex items-start gap-3 rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-          <ShieldCheck className="mt-0.5 shrink-0 text-sky-200" size={22} />
-          <div>
-            <div className="text-sm font-semibold">Secure. Reliable. Intelligent.</div>
-            <p className="mt-1 text-xs leading-relaxed text-sky-100/80">
-              Branch-aware access control, audited every step — built for speed, accuracy and
-              complete control.
-            </p>
-          </div>
+        <div className="relative flex items-center justify-between text-[11px] text-slate-500">
+          <span>© {new Date().getFullYear()} Khazana Mithai. All rights reserved.</span>
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck size={13} className="text-emerald-400/80" />
+            Encrypted connection
+          </span>
         </div>
-      </div>
+      </aside>
 
       {/* ── Sign-in panel ── */}
-      <div className="flex flex-col justify-between bg-white px-6 py-10 sm:px-12 lg:px-16">
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
-          <div className="lg:hidden mb-8 flex flex-col items-center gap-1.5">
-            <Logo size={38} />
-            <div className="text-xs text-gray-500">Point of Sale</div>
+      <main className="flex min-h-screen flex-col justify-between px-6 py-10 sm:px-12 lg:px-14 xl:px-20">
+        <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center">
+          <div className="mb-9 flex flex-col items-center gap-2 lg:hidden">
+            <Logo size={40} />
+            <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">
+              Point of Sale
+            </div>
           </div>
 
-          <div className="mb-8 hidden lg:flex items-center gap-4">
-            <Logo size={38} />            
+          <div>
+            <h1 className="text-[1.75rem] font-semibold tracking-tight text-slate-900">Sign in</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Use your Khazana account to continue to the workspace.
+            </p>
           </div>
-
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back!</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Sign in to continue to your Khazana workspace.
-          </p>
 
           {/* Google-only step: the credential is in hand but the account spans
               several branches, so the password form is replaced by the picker. */}
           {googleCredential ? (
-            <div className="mt-8 space-y-4">
-              <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                Signed in with Google. Choose the branch to continue.
+            <div className="mt-8 space-y-5">
+              <div className="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50 px-3.5 py-3 text-[13px] leading-relaxed text-sky-900">
+                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-sky-600" />
+                <span>Verified with Google. Choose the branch you are signing in to.</span>
               </div>
-              <Select
-                label="Branch"
-                value={googleBranchId}
-                onChange={(e) => setGoogleBranchId(e.target.value)}
-                placeholder="— Select Branch —"
-                options={googleBranchList.map((b) => ({
-                  value: b.id,
-                  label: b.branchName ?? b.branchCode ?? b.id,
-                }))}
-              />
+
+              <div>
+                <label htmlFor="googleBranch" className={`mb-2 ${labelClass}`}>
+                  Branch
+                </label>
+                <div className="relative">
+                  <Building2 className={iconClass} size={17} />
+                  <select
+                    id="googleBranch"
+                    value={googleBranchId}
+                    onChange={(e) => setGoogleBranchId(e.target.value)}
+                    className={`${field()} appearance-none`}
+                  >
+                    <option value="">Select a branch</option>
+                    {branchOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={17}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                </div>
+              </div>
+
               <Button
-                className="w-full"
+                className="h-12 w-full rounded-xl text-sm shadow-sm shadow-primary-900/10"
                 loading={googleBusy}
                 disabled={!googleBranchId}
                 onClick={completeGoogleLogin}
@@ -330,7 +385,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setGoogleCredential(null)}
-                className="w-full text-center text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                className="w-full text-center text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-800"
               >
                 Use a different account
               </button>
@@ -339,87 +394,110 @@ export default function LoginPage() {
             <>
               <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
                 <div>
-                  <label htmlFor="userName" className="mb-1.5 block text-sm font-medium text-gray-700">
-                    User Name
+                  <label htmlFor="userName" className={`mb-2 ${labelClass}`}>
+                    Username
                   </label>
                   <div className="relative">
-                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <UserIcon className={iconClass} size={17} />
                     <input
                       id="userName"
                       autoComplete="username"
-                      placeholder="Enter Your User Name"
-                      className={fieldClass}
+                      placeholder="Enter your username"
+                      className={field(!!errors.userName)}
                       {...register("userName")}
                       onChange={handleUserNameChange}
                       onBlur={handleUserNameBlur}
                     />
+                    {/* The branch lookup is driven by this field, so its progress
+                        belongs here and not only on the dropdown below. */}
+                    {branchLoadState === "loading" && (
+                      <Loader2
+                        size={16}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                      />
+                    )}
                   </div>
                   {errors.userName && (
-                    <p className="mt-1 text-xs text-red-500">{errors.userName.message}</p>
+                    <p className="mt-1.5 text-xs text-red-600">{errors.userName.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Password
-                  </label>
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <label htmlFor="password" className={labelClass}>
+                      Password
+                    </label>
+                    <a
+                      href="/forgot-password"
+                      className="text-[12px] font-medium text-primary-700 transition-colors hover:text-primary-800 hover:underline"
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
                   <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <Lock className={iconClass} size={17} />
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
-                      placeholder="Enter Your Password"
-                      className={fieldClass}
+                      placeholder="Enter your password"
+                      className={field(!!errors.password)}
                       {...register("password")}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+                    <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
                   )}
                 </div>
 
                 {/* Revealed only once the username lookup has been triggered */}
                 {branchLoadState !== "idle" && (
-                  <Select
-                    id="branchId"
-                    label="Branch"
-                    placeholder={branchPlaceholder}
-                    error={errors.branchId?.message}
-                    disabled={branchLoadState === "loading" || branches.length === 0}
-                    options={branches.map((b) => ({
-                      value: b.id,
-                      label: b.branchName ?? b.branchCode ?? b.id,
-                    }))}
-                    {...register("branchId")}
-                  />
+                  <div>
+                    <label htmlFor="branchId" className={`mb-2 ${labelClass}`}>
+                      Branch
+                    </label>
+                    <div className="relative">
+                      <Building2 className={iconClass} size={17} />
+                      <select
+                        id="branchId"
+                        disabled={branchLoadState === "loading" || branches.length === 0}
+                        className={`${field(!!errors.branchId)} appearance-none disabled:cursor-not-allowed disabled:text-slate-400`}
+                        {...register("branchId")}
+                      >
+                        <option value="">{branchPlaceholder}</option>
+                        {branchOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={17}
+                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                    </div>
+                    {errors.branchId && (
+                      <p className="mt-1.5 text-xs text-red-600">{errors.branchId.message}</p>
+                    )}
+                  </div>
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full py-2.5"
+                  className="h-12 w-full rounded-xl text-sm shadow-sm shadow-primary-900/10"
                   loading={isSubmitting}
                   disabled={!canSubmit}
                 >
-                  <LogIn size={16} /> Sign In <ArrowRight size={16} />
+                  Sign in <ArrowRight size={16} />
                 </Button>
-
-                <div className="text-center">
-                  <a
-                    href="/forgot-password"
-                    className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
               </form>
 
               {/* Only drawn when Google is actually configured — otherwise the
@@ -427,9 +505,9 @@ export default function LoginPage() {
               {GOOGLE_CLIENT_ID && (
                 <div className="mt-7">
                   <div className="relative mb-5 text-center">
-                    <span className="absolute inset-x-0 top-1/2 border-t border-gray-200" />
-                    <span className="relative bg-white px-3 text-xs uppercase tracking-wider text-gray-400">
-                      Or continue with
+                    <span className="absolute inset-x-0 top-1/2 border-t border-slate-200" />
+                    <span className="relative bg-white px-3 text-[11px] font-medium uppercase tracking-[0.15em] text-slate-400">
+                      or
                     </span>
                   </div>
                   <GoogleSignInButton onCredential={handleGoogleCredential} disabled={googleBusy} />
@@ -439,14 +517,11 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="mx-auto mt-10 flex w-full max-w-sm flex-col gap-2 text-[11px] text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-emerald-500" />
-            Your data is protected with enterprise-grade security
-          </span>
-          <span>© {new Date().getFullYear()} Khazana Mithai</span>
+        <div className="mx-auto mt-10 w-full max-w-[380px] text-center text-[11px] leading-relaxed text-slate-400">
+          <span className="lg:hidden">© {new Date().getFullYear()} Khazana Mithai · </span>
+          Trouble signing in? Contact your branch administrator.
         </div>
-      </div>
+      </main>
     </div>
   );
 }

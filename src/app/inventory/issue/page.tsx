@@ -30,10 +30,23 @@ interface ItemEntry { qty: string; isProduction: boolean; }
 
 const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false };
 
-const reportColumns: ExportColumn<{ itemName?: string; qty: number; unitPrice?: number; isProduction?: boolean }>[] = [
+/** Unit Price prints INCLUSIVE of VAT. `Item_Issue.unitPrice` is stored ex-VAT,
+ *  so the document carries `unitPriceWithVat` alongside it; the fallback keeps
+ *  an older payload (or a line with no price row) readable rather than blank. */
+const unitPriceWithVat = (r: { unitPrice?: number; unitPriceWithVat?: number }) =>
+  r.unitPriceWithVat ?? r.unitPrice ?? 0;
+
+// One spec behind Print, PDF, Excel and Preview, so the four can't disagree.
+const reportColumns: ExportColumn<{
+  itemName?: string;
+  qty: number;
+  unitPrice?: number;
+  unitPriceWithVat?: number;
+  isProduction?: boolean;
+}>[] = [
   { header: "Item Name", value: (r) => r.itemName ?? "-" },
   { header: "Qty", value: (r) => r.qty, numeric: true },
-  { header: "Unit Price", value: (r) => r.unitPrice ?? 0, numeric: true },
+  { header: "Unit Price (Inc. VAT)", value: (r) => unitPriceWithVat(r), numeric: true },
   { header: "Production", value: (r) => (r.isProduction ? "Yes" : "") },
 ];
 
@@ -300,12 +313,19 @@ export default function StockIssuePage() {
 
   const handlePreview = () => {
     if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
-    const rows = validLines.map((l) => ({
-      itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
-      qty: l.qty,
-      unitPrice: l.unitPrice,
-      isProduction: l.isProduction,
-    }));
+    const rows = validLines.map((l) => {
+      const item = availableItems.find((it) => it.id === l.itemId);
+      const vat = Number(item?.vatPercentage ?? 0);
+      return {
+        itemName: item?.itmName,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+        // Nothing is saved yet, so the gross figure is derived here from the
+        // item's own VAT rate — the same sum the server does on a saved issue.
+        unitPriceWithVat: Math.round(l.unitPrice * (1 + vat / 100) * 100) / 100,
+        isProduction: l.isProduction,
+      };
+    });
     previewReport(rows, reportColumns, {
       title: "Stock Issue Preview",
       subtitle: [
@@ -553,7 +573,10 @@ export default function StockIssuePage() {
               columns={[
                 { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
                 { key: "qty", header: "Qty", className: "text-right" },
-                { key: "unitPrice", header: "Unit Price", className: "text-right", render: (r) => (r.unitPrice ?? 0).toFixed(2) },
+                {
+                  key: "unitPrice", header: "Unit Price (Inc. VAT)", className: "text-right",
+                  render: (r) => unitPriceWithVat(r).toFixed(2),
+                },
                 {
                   key: "isProduction", header: "Production", className: "text-center",
                   render: (r) => (r.isProduction ? <span className="text-amber-700 font-medium">Yes</span> : <span className="text-gray-300">-</span>),

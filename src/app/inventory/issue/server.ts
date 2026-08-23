@@ -5,7 +5,10 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  /** VAT-EXCLUSIVE list price — what gets stored on the issue line. */
   price?: number;
+  /** VAT rate on that price, so the preview can show the gross figure. */
+  vatPercentage?: number;
   /** On-hand qty from Inventory — an issue may not drive it negative. */
   stock?: number;
 }
@@ -52,7 +55,17 @@ export interface IssueGroup {
   issueDate?: string;
   issueBranchId?: string;
   receiveBranchId?: string;
-  items: { itemId: string; itemName?: string; qty: number; unitPrice?: number; isProduction?: boolean }[];
+  items: {
+    itemId: string;
+    itemName?: string;
+    qty: number;
+    /** As stored — VAT-EXCLUSIVE (t_Price.priceListPrice). */
+    unitPrice?: number;
+    vatPercent?: number;
+    /** What the printed document shows: `unitPrice` grossed up by `vatPercent`. */
+    unitPriceWithVat?: number;
+    isProduction?: boolean;
+  }[];
 }
 
 export interface UpdateIssuePayload {

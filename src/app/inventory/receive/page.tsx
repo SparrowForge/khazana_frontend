@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -11,7 +11,9 @@ import Select from "@/components/ui/Select";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchItems, fetchBranches, fetchReceives, fetchReceive, receiveStock, updateReceive, deleteReceive,
+  fetchPendingReceives, fetchPendingReceive, confirmReceive,
   type AvailableItem, type BranchOption, type ReceiveRecord, type ReceiveGroup,
+  type PendingReceive, type PendingReceiveDetail,
 } from "./server";
 import { useAuthStore } from "@/store/auth.store";
 import { usePagination } from "@/hooks/usePagination";
@@ -22,7 +24,12 @@ import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
 
-interface ReceiveLine { itemId: string; qty: string; }
+/** What the user typed against one item in the entry grid. The grid lists the
+ *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
+ *  only rows with qty > 0 are ever sent. */
+interface ItemEntry { qty: string; }
+
+const BLANK_ENTRY: ItemEntry = { qty: "" };
 
 const reportColumns: ExportColumn<{ itemName?: string; qty: number }>[] = [
   { header: "Item Name", value: (r) => r.itemName ?? "-" },
@@ -45,8 +52,19 @@ export default function StockReceivePage() {
   const canEdit = can("StockReceive", "edit");
   const canDelete = can("StockReceive", "delete");
 
+  /** Two jobs on one screen: confirming what the factory sent (the normal path)
+   *  and entering a receive by hand (opening stock, outside purchases). */
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+
   const [receives, setReceives] = useState<ReceiveRecord[]>([]);
   const [listLoading, setListLoading] = useState(true);
+
+  const [pending, setPending] = useState<PendingReceive[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [confirmDoc, setConfirmDoc] = useState<PendingReceiveDetail | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
 
   const defaultDates = getDefaultDateRange();
@@ -64,7 +82,9 @@ export default function StockReceivePage() {
   const [purDate, setPurDate] = useState(new Date().toISOString().split("T")[0]);
   const [fromBranchId, setFromBranchId] = useState("");
   const [branches, setBranches] = useState<BranchOption[]>([]);
-  const [lines, setLines] = useState<ReceiveLine[]>([{ itemId: "", qty: "1" }]);
+  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
+  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
+  const [itemSearch, setItemSearch] = useState("");
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,17 +98,84 @@ export default function StockReceivePage() {
       .finally(() => setListLoading(false));
   };
 
+  const loadPending = () => {
+    setPendingLoading(true);
+    fetchPendingReceives({ page: 1, limit: 100, fromDate, toDate })
+      .then(({ items }) => setPending(items))
+      .catch(() => setPending([]))
+      .finally(() => setPendingLoading(false));
+  };
+
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchBranches().then(setBranches).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(loadPending, [fromDate, toDate, refreshKey]);
 
-  const addLine = () => setLines([...lines, { itemId: "", qty: "1" }]);
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, field: keyof ReceiveLine, val: string) =>
-    setLines(lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
+  const openConfirm = async (record: PendingReceive) => {
+    setConfirmDoc(null);
+    setConfirmOpen(true);
+    setConfirmLoading(true);
+    try {
+      setConfirmDoc(await fetchPendingReceive(record.serialNo));
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load the issued items"));
+      setConfirmOpen(false);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmDoc) return;
+    setConfirming(true);
+    try {
+      await confirmReceive(confirmDoc.serialNo);
+      toast.success(`Received ${confirmDoc.serialNo}`);
+      setConfirmOpen(false);
+      loadPending();
+      loadList();
+    } catch (err) {
+      // A 409 here means somebody else confirmed it first — refresh so the row
+      // disappears rather than leaving a document that can no longer be actioned.
+      toast.error(getErrorMessage(err, "Failed to confirm receipt"));
+      loadPending();
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const entryFor = (itemId: string) => entries[itemId] ?? BLANK_ENTRY;
+
+  const setEntry = (itemId: string, qty: string) =>
+    setEntries((prev) => ({ ...prev, [itemId]: { qty } }));
+
+  /** The lines that will actually be saved: qty > 0, in catalogue order. Every
+   *  other row in the grid is ignored, so an untouched catalogue submits
+   *  nothing. */
+  const validLines = useMemo(
+    () =>
+      availableItems
+        .filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0)
+        .map((it) => ({ itemId: it.id, qty: parseFloat(entries[it.id].qty) })),
+    [availableItems, entries],
+  );
+
+  /** The grid shows every item; a catalogue of any size needs a filter. Rows
+   *  already carrying a qty stay visible so a search can't hide pending input. */
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return availableItems;
+    return availableItems.filter(
+      (it) =>
+        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
+        it.itmCode?.toLowerCase().includes(q) ||
+        it.itmName?.toLowerCase().includes(q),
+    );
+  }, [availableItems, entries, itemSearch]);
 
   const openCreate = () => {
     setEditingSerial(null);
@@ -96,7 +183,8 @@ export default function StockReceivePage() {
     setVoucherNo("");
     setPurDate(new Date().toISOString().split("T")[0]);
     setFromBranchId("");
-    setLines([{ itemId: "", qty: "1" }]);
+    setEntries({});
+    setItemSearch("");
     setModal(true);
   };
 
@@ -108,7 +196,15 @@ export default function StockReceivePage() {
       setVoucherNo(full.voucherNo ?? "");
       setPurDate(full.purDate ? full.purDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setFromBranchId(full.fromBranchId ?? "");
-      setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1) })));
+      setItemSearch("");
+      // Repeated lines of one item collapse into the grid's single row for it.
+      setEntries(
+        full.items.reduce<Record<string, ItemEntry>>((acc, it) => {
+          const previous = parseFloat(acc[it.itemId]?.qty ?? "0") || 0;
+          acc[it.itemId] = { qty: String(previous + Number(it.qty ?? 0)) };
+          return acc;
+        }, {}),
+      );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load receive record")); }
   };
@@ -138,22 +234,18 @@ export default function StockReceivePage() {
   };
 
   const handleSubmit = async () => {
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line"); return; }
+    // Every quantity zero or blank is the same as an empty submission: nothing
+    // to receive, so there is no document to write.
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     if (!fromBranchId) { toast.error("Select the branch to receive from"); return; }
     setSubmitting(true);
     try {
+      const payload = { voucherNo, purDate, fromBranchId, items: validLines };
       if (editingSerial) {
-        await updateReceive(editingSerial, {
-          voucherNo, purDate, fromBranchId,
-          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty) })),
-        });
+        await updateReceive(editingSerial, payload);
         toast.success("Stock receive updated");
       } else {
-        await receiveStock({
-          voucherNo, purDate, fromBranchId,
-          items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty) })),
-        });
+        await receiveStock(payload);
         toast.success("Stock receive saved");
       }
       setModal(false);
@@ -162,11 +254,10 @@ export default function StockReceivePage() {
   };
 
   const handlePreview = () => {
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line to preview"); return; }
-    const rows = valid.map((l) => ({
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
+    const rows = validLines.map((l) => ({
       itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
-      qty: parseFloat(l.qty),
+      qty: l.qty,
     }));
     previewReport(rows, reportColumns, {
       title: "Stock Receive Preview",
@@ -187,6 +278,26 @@ export default function StockReceivePage() {
         subtitle="Record incoming stock"
         action={canAdd ? { label: "New Receive", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
+      {/* Confirming what was sent is the everyday job, so it leads. */}
+      <div className="no-print mb-4 flex border-b border-gray-200 text-sm">
+        {([
+          ["pending", `Pending Receive${pending.length ? ` (${pending.length})` : ""}`],
+          ["history", "Received History"],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${
+              tab === key
+                ? "border-primary-800 text-primary-800"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="mb-4 flex gap-4 items-end">
         <Input
           label="From Date"
@@ -208,6 +319,42 @@ export default function StockReceivePage() {
           options={[{ value: "", label: "All branches" }, ...branches.map((b) => ({ value: b.id, label: b.branchName }))]}
         />
       </div>
+      {tab === "pending" && (
+        <Table
+          loading={pendingLoading}
+          data={pending.map((p) => ({ id: p.serialNo, ...p }))}
+          columns={[
+            { key: "serialNo", header: "Issue ID", render: (r) => <span className="font-medium">{r.serialNo}</span> },
+            { key: "issueDate", header: "Issue Date", render: (r) => formatDate(r.issueDate ?? "") },
+            { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
+            { key: "totalItems", header: "Total Items", className: "text-right" },
+            { key: "totalQty", header: "Total Qty", className: "text-right" },
+            {
+              key: "status", header: "Status",
+              render: () => (
+                <span className="inline-block rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-medium">
+                  Pending
+                </span>
+              ),
+            },
+            {
+              key: "actions", header: "",
+              render: (r) => (
+                <Button size="sm" onClick={() => openConfirm(r)} disabled={!canAdd}>
+                  View &amp; Receive
+                </Button>
+              ),
+            },
+          ]}
+        />
+      )}
+      {tab === "pending" && !pendingLoading && pending.length === 0 && (
+        <p className="text-sm text-gray-400 text-center py-6">
+          Nothing waiting to be received for this branch in the selected dates.
+        </p>
+      )}
+
+      {tab === "history" && (
       <Table loading={listLoading} data={receives}
         columns={[
           {
@@ -240,7 +387,8 @@ export default function StockReceivePage() {
           },
         ]}
       />
-      {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
+      )}
+      {tab === "history" && meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
       <Modal open={modal} onClose={() => setModal(false)} title={editingSerial ? "Edit Stock Receive" : "New Receive"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-5">
@@ -256,34 +404,76 @@ export default function StockReceivePage() {
           />
           <Input label="Received Branch" value={user?.branchName ?? "Your branch"} disabled readOnly />
         </div>
-        <div className="space-y-2">
-          {lines.map((line, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <Select
-                label={i === 0 ? "Item" : undefined}
-                value={line.itemId}
-                onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                placeholder="Select item..."
-                options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
-                className="flex-1"
-              />
-              <div className="w-28">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
-                <input
-                  type="number" min="1" step="1" value={line.qty}
-                  onChange={(e) => updateLine(i, "qty", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
-                />
-              </div>
-              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-            </div>
-          ))}
-          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <Input
+            placeholder="Search items by code or name..."
+            value={itemSearch}
+            onChange={(e) => setItemSearch(e.target.value)}
+            className="w-72"
+          />
+          <div className="text-sm text-gray-500">
+            {validLines.length} item{validLines.length === 1 ? "" : "s"} to receive
+          </div>
         </div>
+
+        {/* The whole catalogue, with the quantity typed inline. Only rows
+            carrying a quantity are saved. */}
+        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr className="text-left text-gray-600">
+                <th className="px-3 py-2 font-medium">Item ID</th>
+                <th className="px-3 py-2 font-medium">Item Name</th>
+                <th className="px-3 py-2 font-medium text-right">Current Stock</th>
+                <th className="px-3 py-2 font-medium text-right w-32">Receive Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((it) => {
+                const entry = entryFor(it.id);
+                const qty = parseFloat(entry.qty) || 0;
+                return (
+                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
+                    <td className="px-3 py-1.5">{it.itmName}</td>
+                    {/* Context only — receiving adds stock, so nothing to cap. */}
+                    <td className="px-3 py-1.5 text-right text-gray-500">{it.stock ?? 0}</td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={entry.qty}
+                        placeholder="0"
+                        onChange={(e) => setEntry(it.id, e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {visibleItems.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-gray-400">
+                    No items match that search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button variant="secondary" onClick={handlePreview}>Preview</Button>
-          <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Stock Receive" : "Save Stock Receive"}</Button>
+          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>Preview</Button>
+          <Button
+            onClick={handleSubmit}
+            loading={submitting}
+            // Nothing to save until at least one line carries a quantity.
+            disabled={!validLines.length || !fromBranchId}
+          >
+            {editingSerial ? "Update Stock Receive" : "Save Stock Receive"}
+          </Button>
         </div>
       </Modal>
 
@@ -323,6 +513,68 @@ export default function StockReceivePage() {
                 { key: "qty", header: "Qty", className: "text-right" },
               ]}
             />
+          </>
+        )}
+      </Modal>
+      {/* Read-only by construction: there is no input in this table, and the
+          confirm endpoint takes no body — quantities come off the issue. */}
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm Stock Receive" size="lg">
+        {confirmLoading || !confirmDoc ? (
+          <div className="text-sm text-gray-400 py-6 text-center">Loading issued items...</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4 text-sm">
+              <div><span className="text-gray-500">Issue ID:</span> <span className="font-medium">{confirmDoc.serialNo}</span></div>
+              <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{confirmDoc.voucherNo || "-"}</span></div>
+              <div><span className="text-gray-500">Issue Date:</span> <span className="font-medium">{formatDate(confirmDoc.issueDate ?? "")}</span></div>
+              <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(confirmDoc.issueBranchId)}</span></div>
+              <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(confirmDoc.receiveBranchId)}</span></div>
+              <div>
+                <span className="text-gray-500">Status:</span>{" "}
+                <span className="font-medium text-amber-700">{confirmDoc.status}</span>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr className="text-left text-gray-600">
+                    <th className="px-3 py-2 font-medium">Item ID</th>
+                    <th className="px-3 py-2 font-medium">Item Name</th>
+                    <th className="px-3 py-2 font-medium text-right">Issued Qty</th>
+                    <th className="px-3 py-2 font-medium text-center">Production</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {confirmDoc.items.map((it, i) => (
+                    <tr key={`${it.itemId}-${i}`} className="border-t border-gray-100">
+                      <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itemId.slice(0, 8)}</td>
+                      <td className="px-3 py-1.5">{it.itemName ?? "-"}</td>
+                      <td className="px-3 py-1.5 text-right font-medium">{it.qty}</td>
+                      <td className="px-3 py-1.5 text-center">
+                        {it.isProduction ? <span className="text-amber-700 font-medium">Yes</span> : <span className="text-gray-300">-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              Quantities cannot be changed here. Confirming records these exact quantities as received
+              and adds them to stock — it cannot be undone from this screen.
+            </div>
+
+            <div className="flex justify-end gap-3 mt-5">
+              <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+              <Button
+                onClick={handleConfirm}
+                loading={confirming}
+                disabled={confirmDoc.status !== "Pending" || confirmDoc.items.length === 0}
+              >
+                Confirm Receive
+              </Button>
+            </div>
           </>
         )}
       </Modal>

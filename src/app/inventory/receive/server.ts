@@ -1,10 +1,13 @@
 import api from "@/lib/api";
-import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { unwrap, unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  /** On-hand qty, shown for context only — receiving adds stock, so unlike an
+   *  issue there is no ceiling to check against. */
+  stock?: number;
 }
 
 export interface BranchOption {
@@ -49,8 +52,27 @@ export interface UpdateReceivePayload {
   items: { itemId: string; itemName?: string; qty: number }[];
 }
 
-export const fetchItems = () =>
-  api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+/** The entry grid lists the whole catalogue, but the shared pagination DTO caps
+ *  `limit` at 100 — so walk the pages until one comes back short rather than
+ *  silently showing only the first hundred items.
+ *
+ *  No `isActive` filter: the backend matches that column as an exact string, so
+ *  anything stored as null, lowercase or 'N' would vanish from the grid. Mirrors
+ *  the Stock Issue sheet. */
+export const fetchItems = async (): Promise<AvailableItem[]> => {
+  const PAGE_SIZE = 100;
+  const all: AvailableItem[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await api
+      .get<{ data: AvailableItem[] } | AvailableItem[]>(`/inventory/items?page=${page}&limit=${PAGE_SIZE}`)
+      .then(unwrapList<AvailableItem>);
+    all.push(...batch);
+    // A short page is the last one; the guard stops a malformed response (an
+    // endpoint that ignores `page`) from looping forever.
+    if (batch.length < PAGE_SIZE || page >= 50) break;
+  }
+  return all;
+};
 
 export const fetchBranches = () =>
   api.get<{ data: BranchOption[] } | BranchOption[]>("/admin/branches?limit=100").then(unwrapList<BranchOption>);
@@ -76,3 +98,45 @@ export const updateReceive = (serialNo: string, data: UpdateReceivePayload) =>
 
 export const deleteReceive = (serialNo: string) =>
   api.delete(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);
+
+// ── Receive confirmation (issue -> receive handshake) ──────────────────
+
+/** One pending issue addressed to this branch, as the list view shows it. */
+export interface PendingReceive {
+  serialNo: string;
+  voucherNo?: string | null;
+  issueDate?: string | null;
+  issueBranchId: string;
+  receiveBranchId: string;
+  totalItems: number;
+  totalQty: number;
+  status: "Pending";
+}
+
+/** Read-only detail of one pending issue. Quantities are shown, never edited —
+ *  the confirm endpoint takes no body and reads them off the issue itself. */
+export interface PendingReceiveDetail {
+  serialNo: string;
+  voucherNo?: string | null;
+  issueDate?: string | null;
+  issueBranchId: string;
+  receiveBranchId: string;
+  status: "Pending" | "Received";
+  receivedDate?: string | null;
+  receivedBy?: string | null;
+  items: { itemId: string; itemName?: string; qty: number; isProduction?: boolean }[];
+}
+
+export const fetchPendingReceives = ({ page = 1, limit = 10, fromDate, toDate }: { page?: number; limit?: number; fromDate?: string; toDate?: string } = {}): Promise<Paginated<PendingReceive>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (fromDate) params.append("fromDate", fromDate);
+  if (toDate) params.append("toDate", toDate);
+  return api.get(`/inventory/receive/pending?${params.toString()}`).then(unwrapPaginated<PendingReceive>);
+};
+
+export const fetchPendingReceive = (serialNo: string) =>
+  api.get<{ data: PendingReceiveDetail } | PendingReceiveDetail>(`/inventory/receive/pending/${serialNo}`).then(unwrap<PendingReceiveDetail>);
+
+/** No payload by design — the server takes the quantities from the issue. */
+export const confirmReceive = (serialNo: string) =>
+  api.post(`/inventory/receive/confirm/${serialNo}`).then((r) => r.data);

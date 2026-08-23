@@ -171,6 +171,17 @@ function Report({ data }: { data: DemandReport }) {
         </div>
       </div>
 
+      {/* An all-blank sheet reads as a broken report rather than an empty one —
+          the item rows and branch columns render either way, so the fact that
+          nothing matched has to be said out loud. */}
+      {totals.totalQty === 0 && (
+        <div className="no-print mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          No demand orders were found for this date range
+          {branches.length ? ` (${branches.map((b) => b.code || b.name).join(", ")})` : ""}. The item list and
+          branch columns below are the blank sheet — check the From/To dates against the demand order dates.
+        </div>
+      )}
+
       <table className="w-full border-collapse border border-black">
         <thead>
           <tr className="font-semibold text-center">

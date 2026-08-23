@@ -145,6 +145,18 @@ export default function StockIssuePage() {
     [availableItems, entries, isFactorySession],
   );
 
+  /** Every branch except the one issuing — a document that sends stock to the
+   *  branch it came from is meaningless. A legacy record whose receiving branch
+   *  IS the issuing branch keeps its value listed, so opening it for edit shows
+   *  what was saved instead of silently blanking the field. */
+  const receiveBranchOptions = useMemo(
+    () =>
+      branches
+        .filter((b) => b.id !== issueBranchId || b.id === receiveBranchId)
+        .map((b) => ({ value: b.id, label: b.branchName })),
+    [branches, issueBranchId, receiveBranchId],
+  );
+
   /** Items the production flag can apply to at all: a tick on a zero-qty row is
    *  never sent, so those rows are neither counted nor toggled by Check All. */
   const productionEligible = useMemo(
@@ -263,7 +275,10 @@ export default function StockIssuePage() {
     // Every quantity zero or blank is the same as an empty submission: nothing
     // to issue, so there is no document to write.
     if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
-    const short = stockShortages(validLines);
+    // Production lines are exempt: the same quantity is added to stock before
+    // the issue takes it out, so they can never come up short. The server
+    // applies the identical rule in InventoryService#stockCheckedLines.
+    const short = stockShortages(validLines.filter((l) => !l.isProduction));
     if (short.length) {
       toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
       return;
@@ -374,8 +389,10 @@ export default function StockIssuePage() {
           {/* Fixed to the session branch: an issue can only send stock out of
               the branch the user is logged in at, so there is nothing to pick. */}
           <Input label="Issuing Branch" value={branchName(issueBranchId)} disabled readOnly />
+          {/* The issuing branch is dropped from the list — stock cannot be
+              issued to the branch it is leaving. */}
           <Select label="Issued To Branch" value={receiveBranchId} onChange={(e) => setReceiveBranchId(e.target.value)}
-            placeholder="Select branch..." options={branches.map((b) => ({ value: b.id, label: b.branchName }))} />
+            placeholder="Select branch..." options={receiveBranchOptions} />
         </div>
 
         <div className="flex items-center justify-between gap-3 mb-2">
@@ -427,7 +444,9 @@ export default function StockIssuePage() {
                 const entry = entryFor(it.id);
                 const qty = parseFloat(entry.qty) || 0;
                 const available = availableFor(it.id);
-                const over = qty > available;
+                // Only a plain line can over-issue; a production line supplies
+                // its own quantity, so it is never flagged red.
+                const over = qty > available && !entry.isProduction;
                 return (
                   <tr
                     key={it.id}

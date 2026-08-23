@@ -249,8 +249,9 @@ export default function LoginPage() {
           <div className="absolute inset-[27%] rounded-full bg-white/95 shadow-2xl shadow-sky-500/20" />
           <div className="absolute inset-[27%] flex flex-col items-center justify-center text-primary-900">
             <span className="mt-1 text-[18px] font-semibold uppercase tracking-[0.2em] text-primary-700">
-              Khazana
+              KHAZANA MITHAI
             </span>
+            
           </div>
           {MODULES.map((label, i) => {
             const angle = (i / MODULES.length) * 2 * Math.PI - Math.PI / 2;

@@ -103,6 +103,9 @@ export default function CustomerStatementPage() {
           meta={{
             title: "Customer Statement",
             subtitle: [customerName, `${formatDate(from)} — ${formatDate(to)}`].join(" · "),
+            // Six columns would otherwise trip the auto-landscape threshold,
+            // but a statement's columns are narrow — it belongs on portrait A4.
+            forcePortrait: true,
           }}
         />
       </div>

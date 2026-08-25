@@ -254,7 +254,10 @@ export default function LoginPage() {
   const labelClass = "block text-[13px] font-medium text-slate-700";
 
   return (
-    <div className="min-h-screen bg-white lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.15fr_1fr]">
+    // Sage ground + white card is the same pairing every signed-in screen
+    // uses (AppShell paints `bg-sage-200` behind white panels), so the login
+    // page reads as the front door of this app rather than a stock white form.
+    <div className="min-h-screen bg-sage-200 lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.15fr_1fr]">
       {/* ── Brand panel. Hidden below lg: on a phone it would push the form
              off-screen, and the form is the point of the page. ── */}
       <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-primary-900 px-12 py-12 text-white xl:px-16">
@@ -350,14 +353,17 @@ export default function LoginPage() {
 
       {/* ── Sign-in panel ── */}
       <main className="flex min-h-screen flex-col justify-between px-6 py-10 sm:px-12 lg:px-14 xl:px-20">
-        <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center">
-          <div className="mb-9 flex flex-col items-center gap-2 lg:hidden">
+        <div className="mx-auto flex w-full max-w-[436px] flex-1 flex-col justify-center">
+          <div className="mb-7 flex flex-col items-center gap-2 lg:hidden">
             <Logo size={40} />
-            <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">
+            <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-sage-700">
               Point of Sale
             </div>
           </div>
 
+          {/* The form sits on white so the fields keep their contrast — the
+              green belongs to the page around it, not under the inputs. */}
+          <div className="rounded-2xl border border-sage-300 bg-white p-7 shadow-lg shadow-primary-900/10 sm:p-8">
           <div>
             <h1 className="text-[1.75rem] font-semibold tracking-tight text-slate-900">Sign in</h1>
             <p className="mt-2 text-sm text-slate-500">
@@ -541,9 +547,10 @@ export default function LoginPage() {
               )}
             </>
           )}
+          </div>
         </div>
 
-        <div className="mx-auto mt-10 w-full max-w-[380px] text-center text-[11px] leading-relaxed text-slate-400">
+        <div className="mx-auto mt-10 w-full max-w-[436px] text-center text-[11px] leading-relaxed text-sage-800">
           <span className="lg:hidden">© {new Date().getFullYear()} Khazana Mithai · </span>
           Trouble signing in? Contact your branch administrator.
         </div>

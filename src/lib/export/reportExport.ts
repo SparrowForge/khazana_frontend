@@ -98,7 +98,11 @@ function buildReportDocument<T>(
     h1 { font-size:18px; margin:0 0 2px; }
     .sub { font-size:12px; color:#555; margin-bottom:12px; }
     table { width:100%; border-collapse:collapse; font-size:11px; }
-    th, td { border:1px solid #999; padding:5px 7px; text-align:left; word-wrap:break-word; overflow-wrap:break-word; }
+    /* overflow-wrap:anywhere (not merely break-word) so a long unbroken token — an item name,
+       a serial — also shrinks the column's MINIMUM width. break-word alone
+       wraps the text but still lets the table push past the sheet, taking the
+       right-hand columns off the paper. */
+    th, td { border:1px solid #999; padding:5px 7px; text-align:left; word-wrap:break-word; overflow-wrap:anywhere; }
     th { background:#f1f1f1; font-weight:600; }
     td.num, th.num { text-align:right; }
     tfoot td { font-weight:700; background:#f7f7f7; }
@@ -106,8 +110,13 @@ function buildReportDocument<T>(
     thead { display: table-header-group; }
     @media print {
       body { background:#fff; }
-      /* The @page margin is the paper margin; the sheet is only a screen frame. */
-      .sheet { width:auto; min-height:0; margin:0; padding:0; box-shadow:none; }
+      /* The @page margin is the paper margin; the sheet is only a screen frame.
+         The 0.6mm side padding is not decoration: with border-collapse the
+         table's outer border is painted OUTSIDE its 100% width, so at padding:0
+         that border lands exactly on the page's clip edge and is dropped —
+         printouts came out missing the right-hand border and a hair of the last
+         column. Reserving a hairline keeps the whole frame on the paper. */
+      .sheet { width:auto; min-height:0; margin:0; padding:0 0.6mm; box-shadow:none; }
     }
   </style></head><body>
     <div class="sheet">

@@ -81,7 +81,10 @@ export default function GoogleSignInButton({
           text: "signin_with",
           shape: "rectangular",
           logo_alignment: "center",
-          width: 320,
+          // GIS renders at a FIXED pixel width, so a hardcoded 320 pokes out of
+          // the sign-in card on a narrow phone. Measure the slot instead and
+          // stay inside GIS's own 200-400 range.
+          width: Math.max(200, Math.min(400, hostRef.current.clientWidth || 320)),
         });
       })
       .catch(() => !cancelled && setFailed(true));

@@ -312,15 +312,33 @@ export default function StockIssuePage() {
     setSubmitting(true);
     try {
       const payload = { voucherNo, issueDate, issueBranchId, receiveBranchId, items: validLines };
+      let serial = editingSerial ?? "";
       if (editingSerial) {
         await updateIssue(editingSerial, payload);
         toast.success("Stock issue updated");
       } else {
-        await issueStock(payload);
+        // The create endpoint returns the written Item_Issue rows; every line of
+        // one document shares the serial, so the first row carries it.
+        const rows = (await issueStock(payload)) as { serialNo?: string }[] | undefined;
         toast.success("Stock issue saved");
+        serial = rows?.[0]?.serialNo ?? "";
       }
       setModal(false);
       loadList();
+      // Straight to the Delivery Challan the outlet has to be sent with.
+      if (serial) {
+        setReport(null);
+        setReportOpen(true);
+        setReportLoading(true);
+        try {
+          setReport(await fetchIssue(serial));
+        } catch (err) {
+          toast.error(getErrorMessage(err, "Failed to load the challan"));
+          setReportOpen(false);
+        } finally {
+          setReportLoading(false);
+        }
+      }
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 

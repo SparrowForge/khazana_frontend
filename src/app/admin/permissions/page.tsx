@@ -100,9 +100,9 @@ export default function PermissionsPage() {
       )}
 
       {selectedRole && !loading && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-sage-300 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-sage-100 border-b">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Menu</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Enable</th>
@@ -111,13 +111,13 @@ export default function PermissionsPage() {
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Delete</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-sage-200">
               {menus.map((m) => {
                 const perm = getPermForMenu(m.id);
                 return (
                   <tr
                     key={m.id}
-                    className={`hover:bg-gray-50 ${!m.parentMenu ? "bg-gray-50/60 font-medium" : ""}`}
+                    className={`hover:bg-sage-100 ${!m.parentMenu ? "bg-sage-100/60 font-medium" : ""}`}
                   >
                     <td className="px-4 py-2 text-gray-700">
                       {m.parentMenu

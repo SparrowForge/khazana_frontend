@@ -18,21 +18,23 @@ export default function Table<T extends { id?: number | string | bigint }>({
   columns, data, loading, emptyMessage = "No data found.",
 }: TableProps<T>) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-sage-400 bg-white">
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-200">
+        {/* Green header band, matching the title bars. Rows stay white so dense
+            numeric data keeps its contrast. */}
+        <thead className="bg-primary-800">
           <tr>
             {columns.map((col) => (
               <th
                 key={String(col.key)}
-                className={cn("px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide", col.className)}
+                className={cn("px-4 py-3 text-left text-xs font-semibold text-titlebar uppercase tracking-wide", col.className)}
               >
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-sage-200">
           {loading ? (
             <tr>
               <td colSpan={columns.length} className="text-center py-10 text-gray-400">
@@ -47,7 +49,7 @@ export default function Table<T extends { id?: number | string | bigint }>({
             </tr>
           ) : (
             data.map((row, i) => (
-              <tr key={String(row.id ?? i)} className="hover:bg-gray-50 transition-colors">
+              <tr key={String(row.id ?? i)} className="hover:bg-sage-100 transition-colors">
                 {columns.map((col) => (
                   <td key={String(col.key)} className={cn("px-4 py-3 text-gray-700", col.className)}>
                     {col.render

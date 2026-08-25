@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-800 to-primary-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center"><Logo size={38} /></div>

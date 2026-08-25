@@ -237,7 +237,7 @@ export default function PosSaleEditPage() {
               placeholder="Search by name or code…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-9 pr-4 py-2 border border-sage-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div className="flex-1 overflow-y-auto pr-1">
@@ -246,9 +246,9 @@ export default function PosSaleEditPage() {
                 <button
                   key={p.id}
                   onClick={() => addToCart(p)}
-                  className="bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-primary-500 hover:shadow-md transition-all active:scale-95"
+                  className="bg-white border border-sage-300 rounded-xl p-3 text-left hover:border-primary-500 hover:shadow-md transition-all active:scale-95"
                 >
-                  <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-sage-100 flex items-center justify-center">
                                         {p.imageUrl ? (
                                           <Image
                                             src={p.imageUrl}
@@ -275,8 +275,8 @@ export default function PosSaleEditPage() {
 
         {/* ─── Cart + Payment ────────────────────────────────── */}
         <div className="w-80 flex flex-col gap-3 shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden flex-1">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white rounded-xl border border-sage-300 flex flex-col overflow-hidden flex-1">
+            <div className="px-4 py-3 border-b border-sage-200 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-700 flex items-center gap-2">
                 <ShoppingCart size={16} /> Cart
                 {cart.length > 0 && (
@@ -307,11 +307,11 @@ export default function PosSaleEditPage() {
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => changeQty(c.itemId, -1)} className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                        <button onClick={() => changeQty(c.itemId, -1)} className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center">
                           <Minus size={12} />
                         </button>
                         <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
-                        <button onClick={() => changeQty(c.itemId, 1)} className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                        <button onClick={() => changeQty(c.itemId, 1)} className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center">
                           <Plus size={12} />
                         </button>
                       </div>
@@ -323,7 +323,7 @@ export default function PosSaleEditPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="bg-white rounded-xl border border-sage-300 p-4 space-y-3">
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-500"><span>Sub-total</span><span>৳{fmt(subtotal)}</span></div>
               <div className="flex justify-between text-gray-500"><span>VAT</span><span>৳{fmt(vatAmount)}</span></div>
@@ -331,18 +331,18 @@ export default function PosSaleEditPage() {
               <div className="pt-2 pb-1">
                 <div className="flex items-center gap-1 mb-1.5 text-xs font-medium text-gray-500"><Tag size={11} /> Discount</div>
                 <div className="flex gap-2">
-                  <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs shrink-0">
+                  <div className="flex rounded-md border border-sage-300 overflow-hidden text-xs shrink-0">
                     <button
                       type="button"
                       onClick={() => { setDiscountType("fixed"); setDiscountValue(""); }}
-                      className={`px-2.5 py-1.5 font-medium transition-colors ${discountType === "fixed" ? "bg-primary-700 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                      className={`px-2.5 py-1.5 font-medium transition-colors ${discountType === "fixed" ? "bg-primary-700 text-white" : "bg-white text-gray-500 hover:bg-sage-100"}`}
                     >
                       ৳ Fixed
                     </button>
                     <button
                       type="button"
                       onClick={() => { setDiscountType("percentage"); setDiscountValue(""); }}
-                      className={`px-2.5 py-1.5 font-medium transition-colors border-l border-gray-200 ${discountType === "percentage" ? "bg-primary-700 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                      className={`px-2.5 py-1.5 font-medium transition-colors border-l border-sage-300 ${discountType === "percentage" ? "bg-primary-700 text-white" : "bg-white text-gray-500 hover:bg-sage-100"}`}
                     >
                       % Off
                     </button>
@@ -355,7 +355,7 @@ export default function PosSaleEditPage() {
                     value={discountValue}
                     onChange={(e) => setDiscountValue(e.target.value)}
                     placeholder={discountType === "percentage" ? "0–100" : "0.00"}
-                    className={`flex-1 min-w-0 border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountExceedsTotal ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-gray-200"}`}
+                    className={`flex-1 min-w-0 border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountExceedsTotal ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-sage-300"}`}
                   />
                 </div>
                 {discountExceedsTotal && (
@@ -375,20 +375,20 @@ export default function PosSaleEditPage() {
                       value={discountName}
                       onChange={(e) => setDiscountName(e.target.value)}
                       placeholder="Guest name *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
                     />
                     <input
                       type="text"
                       value={discountContact}
                       onChange={(e) => setDiscountContact(e.target.value)}
                       placeholder="Guest contact no *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
                     />
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-gray-100 text-base">
+              <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-sage-200 text-base">
                 <span>Payable</span><span>৳{fmt(payableAmount)}</span>
               </div>
             </div>

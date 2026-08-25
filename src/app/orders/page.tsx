@@ -298,14 +298,14 @@ export default function OrdersPage() {
           {lines.map((l, i) => (
             <div key={i} className="flex gap-2 items-center">
               <select value={l.itemId} onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                className="flex-1 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
+                className="flex-1 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
                 <option value="">Select item...</option>
                 {availableItems.map((it) => <option key={it.id} value={it.id}>{it.itmCode} — {it.itmName}</option>)}
               </select>
               <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                className="w-20 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
+                className="w-20 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
               <input type="number" placeholder="Price" value={l.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                className="w-24 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
+                className="w-24 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
               <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
             </div>
           ))}
@@ -315,7 +315,7 @@ export default function OrdersPage() {
           <div className="text-sm space-y-0.5">
             <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(totalPrice)}</span></div>
             {vatAmount > 0 && (
-              <div>VAT Amount: <span className="font-semibold text-blue-600">+ ৳ {formatCurrency(vatAmount)}</span></div>
+              <div>VAT Amount: <span className="font-semibold text-primary-700">+ ৳ {formatCurrency(vatAmount)}</span></div>
             )}
             {discountPercent > 0 && (
               <>

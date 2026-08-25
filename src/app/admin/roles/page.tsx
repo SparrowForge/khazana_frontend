@@ -58,7 +58,7 @@ export default function RolesPage() {
         columns={[
           { key: "name", header: "Role Name" },
           { key: "description", header: "Description" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

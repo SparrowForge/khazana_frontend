@@ -142,14 +142,14 @@ function CorporateInvoice({ inv }: { inv: VatCreditInvoice }) {
       {/* Bill To + invoice meta */}
       <div className="flex justify-between gap-8 mb-5">
         <div className="flex-1">
-          <div className="font-bold border-b border-gray-300 mb-1 pb-0.5">Bill To</div>
+          <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Bill To</div>
           <div className="font-semibold">{inv.customer?.name ?? "—"}</div>
           {inv.customer?.code && <div className="text-gray-600">Customer Code: {inv.customer.code}</div>}
           {inv.customer?.address && <div className="text-gray-600">{inv.customer.address}</div>}
           <div className="text-gray-600">Contact No: {inv.customer?.mobile || "—"}</div>
         </div>
         <div className="w-64">
-          <div className="font-bold border-b border-gray-300 mb-1 pb-0.5">Invoice Details</div>
+          <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Invoice Details</div>
           <div className="flex justify-between"><span className="text-gray-600">Invoice No:</span><span className="font-semibold">{inv.invoiceNo}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">Invoice Date:</span><span>{formatDate(inv.invoiceDate)}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">PO No:</span><span>{inv.poNo || "—"}</span></div>
@@ -160,7 +160,7 @@ function CorporateInvoice({ inv }: { inv: VatCreditInvoice }) {
       {/* Lines */}
       <table className="w-full border-collapse text-[11px]">
         <thead>
-          <tr className="bg-gray-100">
+          <tr className="bg-sage-200">
             <th className="border border-gray-400 px-2 py-1.5 text-left w-8">#</th>
             <th className="border border-gray-400 px-2 py-1.5 text-left">Description</th>
             <th className="border border-gray-400 px-2 py-1.5 text-right w-20">Qty</th>
@@ -266,7 +266,7 @@ export default function VatCreditInvoicePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-gray-400 text-sm">Loading invoice…</div>
       </div>
     );
@@ -274,7 +274,7 @@ export default function VatCreditInvoicePage() {
 
   if (error || !inv) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-center">
           <p className="text-gray-500 mb-3">VAT credit sale invoice not found.</p>
           <button onClick={() => router.push("/sales/vat/credit")} className="text-primary-700 underline text-sm">
@@ -305,8 +305,8 @@ export default function VatCreditInvoicePage() {
         @page { size: ${format === "corporate" ? "A4 portrait" : "80mm auto"}; margin: ${format === "corporate" ? "10mm" : "0"}; }
       `}</style>
 
-      <div className="min-h-screen bg-gray-100 flex flex-col">
-        <div className="no-print bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+      <div className="min-h-screen bg-sage-200 flex flex-col">
+        <div className="no-print bg-white border-b border-sage-300 px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
           <button
             onClick={() => router.push("/sales/vat/credit")}
             className="text-sm text-gray-500 hover:text-gray-800"
@@ -318,19 +318,19 @@ export default function VatCreditInvoicePage() {
 
           <div className="flex items-center gap-3">
             {/* Format switch */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+            <div className="flex rounded-lg border border-sage-300 overflow-hidden text-sm">
               <button
                 onClick={() => setFormat("thermal")}
                 className={`px-3 py-1.5 font-medium transition-colors ${
-                  format === "thermal" ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                  format === "thermal" ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-sage-100"
                 }`}
               >
                 POS Receipt
               </button>
               <button
                 onClick={() => setFormat("corporate")}
-                className={`px-3 py-1.5 font-medium transition-colors border-l border-gray-200 ${
-                  format === "corporate" ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                className={`px-3 py-1.5 font-medium transition-colors border-l border-sage-300 ${
+                  format === "corporate" ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-sage-100"
                 }`}
               >
                 Corporate (A4)

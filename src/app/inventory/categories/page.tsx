@@ -66,7 +66,7 @@ export default function CategoriesPage() {
           { key: "remarks", header: "Remarks" },
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
-              {canEdit && <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+              {canEdit && <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button>}
               {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
             </div>
           )},

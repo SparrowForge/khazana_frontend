@@ -72,7 +72,7 @@ export default function PricesPage() {
           { key: "priceListPrice", header: "Price", render: (r) => `৳ ${formatCurrency(r.priceListPrice ?? 0)}`, className: "text-right" },
           { key: "priceVatPercent", header: "VAT%", render: (r) => `${r.priceVatPercent ?? 0}%`, className: "text-right" },
           { key: "priceIsActive", header: "Active" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

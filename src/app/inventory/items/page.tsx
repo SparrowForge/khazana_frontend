@@ -251,7 +251,7 @@ export default function ItemsPage() {
             render: (row) => (
               <div className="flex gap-2">
                 {canEdit && (
-                  <button onClick={() => openEdit(row)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>
+                  <button onClick={() => openEdit(row)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button>
                 )}
                 {canDelete && (
                   <button onClick={() => handleDelete(row)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
@@ -338,13 +338,13 @@ export default function ItemsPage() {
                   alt="Item preview"
                   width={96}
                   height={96}
-                  className="w-24 h-24 rounded-lg object-cover border border-gray-200 shadow-sm"
+                  className="w-24 h-24 rounded-lg object-cover border border-sage-300 shadow-sm"
                 />
                 <div className="flex flex-col gap-2 mt-1 text-xs">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:underline text-left"
+                    className="text-primary-700 hover:underline text-left"
                   >
                     Change image
                   </button>
@@ -362,7 +362,7 @@ export default function ItemsPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingImage}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-5 py-4 text-sm text-gray-500 hover:border-primary-800 hover:text-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-sage-400 px-5 py-4 text-sm text-gray-500 hover:border-primary-800 hover:text-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploadingImage ? (
                   <>

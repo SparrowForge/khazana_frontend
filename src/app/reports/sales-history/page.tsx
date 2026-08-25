@@ -213,7 +213,7 @@ export default function SalesHistoryPage() {
     <AppLayout>
       <PageHeader title="Sales History Summary" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input
           label="From Date"
           type="date"
@@ -241,7 +241,7 @@ export default function SalesHistoryPage() {
             type="checkbox"
             checked={allBranches}
             onChange={(e) => setAllBranches(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary-800 focus:ring-primary-800"
+            className="h-4 w-4 rounded border-sage-400 text-primary-800 focus:ring-primary-800"
           />
           All Branches
         </label>
@@ -263,8 +263,8 @@ export default function SalesHistoryPage() {
       </div>
 
       {report && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
+        <div className="bg-white rounded-lg border border-sage-300 overflow-hidden">
+          <div className="p-4 border-b border-sage-300">
             <h2 className="text-center text-lg font-semibold">{report.branchName || "All Branches"}</h2>
             {report.branchAddress && <p className="text-center text-sm text-gray-600">{report.branchAddress}</p>}
             <p className="text-center text-sm text-gray-600 mt-1">
@@ -279,8 +279,8 @@ export default function SalesHistoryPage() {
             });
 
             return (
-              <div key={dateStr} className="border-b border-gray-200">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+              <div key={dateStr} className="border-b border-sage-300">
+                <div className="bg-sage-100 px-4 py-2 border-b border-sage-300">
                   <h3 className="font-semibold text-sm">Date: {formatDate(dateStr)}</h3>
                 </div>
                 <div className="overflow-x-auto">
@@ -324,7 +324,7 @@ export default function SalesHistoryPage() {
                   />
                 </div>
                 {dateSubTotal && (
-                  <div className="bg-blue-50 overflow-x-auto border-t border-gray-200">
+                  <div className="bg-sage-100 overflow-x-auto border-t border-sage-300">
                     <Table
                       loading={false}
                       data={[{ id: `subtotal-${dateStr}`, ...dateSubTotal }]}

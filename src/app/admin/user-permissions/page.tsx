@@ -193,7 +193,7 @@ export default function UserPermissionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-4">
         {/* ---------------- Left: User selection ---------------- */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-sage-300 p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">User Selection</h3>
             <div className="flex items-end gap-2">
               <Select
@@ -215,7 +215,7 @@ export default function UserPermissionsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-sage-300 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <h3 className="text-sm font-semibold text-gray-700">Assigned User Table</h3>
               <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
@@ -229,14 +229,14 @@ export default function UserPermissionsPage() {
               </label>
             </div>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-sage-100 border-b">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">User Name</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Name</th>
                   <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-16">Select</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-sage-200">
                 {assigned.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-4 py-6 text-center text-gray-400 text-xs">
@@ -245,7 +245,7 @@ export default function UserPermissionsPage() {
                   </tr>
                 ) : (
                   assigned.map((u) => (
-                    <tr key={u.userName} className="hover:bg-gray-50">
+                    <tr key={u.userName} className="hover:bg-sage-100">
                       <td className="px-4 py-2 text-gray-700">{u.userName}</td>
                       <td className="px-4 py-2 text-gray-600">{u.name ?? "—"}</td>
                       <td className="px-4 py-2 text-center">
@@ -265,7 +265,7 @@ export default function UserPermissionsPage() {
         </div>
 
         {/* ---------------- Right: Module & Menu permission matrix ---------------- */}
-        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="lg:col-span-2 bg-white rounded-lg border border-sage-300 overflow-hidden">
           <div className="px-4 py-3 border-b space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">Module &amp; Menu Permission</h3>
             <div className="flex flex-wrap items-end gap-3">
@@ -293,14 +293,14 @@ export default function UserPermissionsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search menus..."
-                className="ml-auto w-56 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800"
+                className="ml-auto w-56 rounded-md border border-sage-400 px-3 py-2 text-sm focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800"
               />
             </div>
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b sticky top-0">
+              <thead className="bg-sage-100 border-b sticky top-0">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Module</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Main Menu</th>
@@ -324,7 +324,7 @@ export default function UserPermissionsPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-sage-200">
                 {visibleMenus.length === 0 ? (
                   <tr>
                     <td colSpan={3 + FLAG_COLS.length} className="px-4 py-6 text-center text-gray-400 text-xs">
@@ -335,7 +335,7 @@ export default function UserPermissionsPage() {
                   visibleMenus.map((m) => {
                     const perm = getPerm(m.controlName);
                     return (
-                      <tr key={m.id} className="hover:bg-gray-50">
+                      <tr key={m.id} className="hover:bg-sage-100">
                         <td className="px-3 py-2 text-gray-500">{m.module ?? "—"}</td>
                         <td className="px-3 py-2 text-gray-600">{m.parentMenu ?? m.menuName}</td>
                         <td className="px-3 py-2 text-gray-700">{m.menuName}</td>

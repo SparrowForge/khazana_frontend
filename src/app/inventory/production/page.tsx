@@ -306,9 +306,9 @@ export default function ProductionEntryPage() {
             Stock Receive / Stock Issue. Scrolls rather than paginates so a
             part-filled sheet is never split across pages. Only rows carrying a
             quantity are saved. */}
-        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="bg-sage-100 sticky top-0 z-10">
               <tr className="text-left text-gray-600">
                 <th className="px-3 py-2 font-medium">Item ID</th>
                 <th className="px-3 py-2 font-medium">Item Name</th>
@@ -323,7 +323,7 @@ export default function ProductionEntryPage() {
                 const entry = entryFor(it);
                 const qty = parseFloat(entry.qty) || 0;
                 return (
-                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                  <tr key={it.id} className={`border-t border-sage-200 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
                     <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
                     <td className="px-3 py-1.5">{it.itmName}</td>
                     {/* Context only — production adds stock, so nothing to cap. */}
@@ -336,7 +336,7 @@ export default function ProductionEntryPage() {
                         value={entry.qty}
                         placeholder="0"
                         onChange={(e) => setEntry(it, { qty: e.target.value })}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
                       />
                     </td>
                     <td className="px-3 py-1.5">
@@ -346,7 +346,7 @@ export default function ProductionEntryPage() {
                         step="0.01"
                         value={entry.rate}
                         onChange={(e) => setEntry(it, { rate: e.target.value })}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
                       />
                     </td>
                     <td className="px-3 py-1.5 text-right text-gray-700 whitespace-nowrap">
@@ -384,7 +384,7 @@ export default function ProductionEntryPage() {
         ) : (
           <>
             {/* Branch header */}
-            <div className="mb-4 pb-4 border-b border-gray-200">
+            <div className="mb-4 pb-4 border-b border-sage-300">
               <h3 className="text-lg font-semibold text-gray-900">{report.branchName || branchName}</h3>
               {report.branchAddress && <p className="text-sm text-gray-600">{report.branchAddress}</p>}
             </div>

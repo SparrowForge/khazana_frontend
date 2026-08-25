@@ -97,7 +97,7 @@ export default function UserRolePermissionsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-4">
         {/* ---------------- Left: searchable user selection grid ---------------- */}
-        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="lg:col-span-2 bg-white rounded-lg border border-sage-300 overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-700">Users</h3>
             <input
@@ -105,12 +105,12 @@ export default function UserRolePermissionsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search users..."
-              className="w-56 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800"
+              className="w-56 rounded-md border border-sage-400 px-3 py-2 text-sm focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800"
             />
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b sticky top-0">
+              <thead className="bg-sage-100 border-b sticky top-0">
                 <tr>
                   <th className="px-4 py-2 text-center w-12">
                     <input
@@ -124,7 +124,7 @@ export default function UserRolePermissionsPage() {
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Name</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-sage-200">
                 {visibleUsers.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-4 py-6 text-center text-gray-400 text-xs">
@@ -135,7 +135,7 @@ export default function UserRolePermissionsPage() {
                   visibleUsers.map((u) => (
                     <tr
                       key={u.userName}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-sage-100 cursor-pointer"
                       onClick={() => toggleUser(u.userName)}
                     >
                       <td className="px-4 py-2 text-center">
@@ -161,7 +161,7 @@ export default function UserRolePermissionsPage() {
         </div>
 
         {/* ---------------- Right: multi-select roles panel ---------------- */}
-        <div className="lg:col-span-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="lg:col-span-1 bg-white rounded-lg border border-sage-300 overflow-hidden">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-700">System Roles</h3>
             <p className="text-xs text-gray-500 mt-0.5">Select roles to assign to the chosen users</p>
@@ -173,7 +173,7 @@ export default function UserRolePermissionsPage() {
               roles.map((r) => (
                 <label
                   key={r.id}
-                  className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-gray-50 cursor-pointer"
+                  className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-sage-100 cursor-pointer"
                 >
                   <input
                     type="checkbox"

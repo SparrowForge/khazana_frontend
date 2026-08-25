@@ -74,7 +74,7 @@ export default function BanksPage() {
             key: "actions", header: "", className: "text-right",
             render: (r) => (
               <div className="flex items-center justify-end gap-3">
-                {canEdit && <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+                {canEdit && <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button>}
                 {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
                 {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
               </div>

@@ -37,7 +37,7 @@ function StatCard({ title, value, icon, color, href }: StatCardProps) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
+      className="bg-white rounded-lg border border-sage-300 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
     >
       <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
       <div>
@@ -63,8 +63,8 @@ export default function Dashboard() {
     {
       title: "Today's Sales",
       value: loading ? "..." : String(stats.todaySales ?? 0),
-      icon: <ShoppingCart size={22} className="text-blue-600" />,
-      color: "bg-blue-50",
+      icon: <ShoppingCart size={22} className="text-primary-700" />,
+      color: "bg-sage-100",
       href: "/reports/sales",
     },
     {
@@ -124,7 +124,7 @@ export default function Dashboard() {
                 href="/reports/sales"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white rounded-lg border border-gray-200 shadow-sm p-5 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
+                className="block bg-white rounded-lg border border-sage-300 shadow-sm p-5 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 size={18} className="text-primary-700" />

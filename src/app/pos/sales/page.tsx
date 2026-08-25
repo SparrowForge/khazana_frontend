@@ -98,7 +98,7 @@ export default function PosSalesListPage() {
           }}
         />
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-sage-300 overflow-hidden">
         {loading ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading...</div>
         ) : sales.length === 0 ? (
@@ -106,7 +106,7 @@ export default function PosSalesListPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+              <tr className="bg-sage-100 text-gray-500 text-xs uppercase tracking-wide">
                 <th className="px-5 py-3 text-left font-medium">Invoice No</th>
                 <th className="px-5 py-3 text-left font-medium">Date & Time</th>
                 <th className="px-5 py-3 text-left font-medium">Type</th>
@@ -119,7 +119,7 @@ export default function PosSalesListPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {sales.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={s.id} className="hover:bg-sage-100 transition-colors">
                   <td className="px-5 py-3 font-mono font-bold text-primary-700">{s.invoiceNo}</td>
                   <td className="px-5 py-3 text-gray-600">{formatDT(s.dateTime)}</td>
                   <td className="px-5 py-3 text-gray-600">{s.salesType}</td>
@@ -135,7 +135,7 @@ export default function PosSalesListPage() {
                       >
                         View Invoice
                       </button>
-                       {canEdit && <button onClick={() => router.push(`/pos/${s.id}`)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button>}
+                       {canEdit && <button onClick={() => router.push(`/pos/${s.id}`)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button>}
                        {canDelete && <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
                        {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
                     </div>

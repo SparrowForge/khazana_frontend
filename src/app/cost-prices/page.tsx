@@ -70,7 +70,7 @@ export default function CostPricesPage() {
           { key: "priceFromDate", header: "From", render: (r) => formatDate(r.priceFromDate) },
           { key: "priceToDate", header: "To", render: (r) => formatDate(r.priceToDate) },
           { key: "priceListPrice", header: "Cost Price", render: (r) => `৳ ${formatCurrency(r.priceListPrice ?? 0)}`, className: "text-right" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

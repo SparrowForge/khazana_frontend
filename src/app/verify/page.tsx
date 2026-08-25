@@ -48,7 +48,7 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-800 to-primary-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center"><Logo size={38} /></div>
@@ -120,7 +120,7 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-primary-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-800 to-primary-900 flex items-center justify-center">
         <div className="bg-white rounded-xl p-8 text-center">
           <svg className="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

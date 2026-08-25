@@ -101,7 +101,7 @@ export default function DemandReportPage() {
     <AppLayout>
       <PageHeader title="Demand Report" subtitle="Branch demands for a date, one column per branch" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -152,7 +152,7 @@ function Report({ data }: { data: DemandReport }) {
   const { company, branches, items, totals } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[10px] border border-gray-300 p-5 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[10px] border border-sage-400 p-5 overflow-x-auto">
       {/* ── Letterhead, as on the printed form ── */}
       <div className="text-center">
         <div className="font-bold text-[17px]">{company.name}</div>

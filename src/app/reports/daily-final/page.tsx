@@ -117,7 +117,7 @@ export default function DailyFinalReportPage() {
     <AppLayout>
       <PageHeader title="Daily Final Report" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && (
@@ -162,7 +162,7 @@ function Report({ data }: { data: DailyFinalReport }) {
   return (
     <div
       id="report"
-      className="mx-auto w-[320px] bg-white text-black text-[11px] leading-tight border border-gray-300 p-3 print:border-0"
+      className="mx-auto w-[320px] bg-white text-black text-[11px] leading-tight border border-sage-400 p-3 print:border-0"
     >
       {/* ── Header ── */}
       <div className="text-center mb-2">
@@ -195,7 +195,7 @@ function Report({ data }: { data: DailyFinalReport }) {
           ].map(([label, row]) => {
             const r = row as DailyFinalReport["categories"]["regular"];
             return (
-              <tr key={label as string} className="border-b border-gray-200">
+              <tr key={label as string} className="border-b border-sage-300">
                 <td className="font-semibold py-0.5">{label as string}</td>
                 <td className="text-right">{kg(r.kg)}</td>
                 <td className="text-right">{pcs(r.pcs)}</td>
@@ -215,7 +215,7 @@ function Report({ data }: { data: DailyFinalReport }) {
             ["Cash", p.cash],
             ["Credit", p.credit],
           ].map(([label, val]) => (
-            <tr key={label as string} className="border-b border-gray-300">
+            <tr key={label as string} className="border-b border-sage-400">
               <td className="font-bold py-0.5 px-2">{label as string}</td>
               <td className="text-right font-semibold px-2">{money(val as number)}</td>
             </tr>
@@ -268,7 +268,7 @@ function Report({ data }: { data: DailyFinalReport }) {
         <tbody>
           {cardBank.length > 0 ? (
             cardBank.map((b, i) => (
-              <tr key={i} className="border-b border-gray-300">
+              <tr key={i} className="border-b border-sage-400">
                 <td className="font-bold py-0.5 px-2">{b.bank}</td>
                 <td className="text-right font-semibold px-2">{money(b.amount)}</td>
               </tr>
@@ -292,7 +292,7 @@ function Report({ data }: { data: DailyFinalReport }) {
         <tbody>
           {salesCorrection.length > 0 ? (
             salesCorrection.map((r, i) => (
-              <tr key={i} className="border-b border-gray-200">
+              <tr key={i} className="border-b border-sage-300">
                 <td className="py-0.5 px-1">{r.invNo}</td>
                 <td className="px-1">{r.name}</td>
                 <td className="text-right px-1">{money(r.chgAmt)}</td>
@@ -317,7 +317,7 @@ function Report({ data }: { data: DailyFinalReport }) {
         <tbody>
           {hourwise.length > 0 ? (
             hourwise.map((h) => (
-              <tr key={h.hour} className="border-b border-gray-200">
+              <tr key={h.hour} className="border-b border-sage-300">
                 <td className="py-0.5 px-1">{h.label}</td>
                 <td className="text-right px-1">{kg(h.qty)}</td>
                 <td className="text-right px-1">{money(h.amount)}</td>
@@ -357,7 +357,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function GroupRow({ label }: { label: string }) {
   return (
-    <tr className="border-y border-black bg-gray-50">
+    <tr className="border-y border-black bg-sage-100">
       <td colSpan={3} className="font-bold py-0.5 px-1">{label}</td>
     </tr>
   );
@@ -365,7 +365,7 @@ function GroupRow({ label }: { label: string }) {
 
 function BreakRow({ name, contact, amount }: { name: string; contact: string; amount: string }) {
   return (
-    <tr className="border-b border-gray-200">
+    <tr className="border-b border-sage-300">
       <td className="py-0.5 px-1">{name}</td>
       <td className="px-1">{contact}</td>
       <td className="text-right px-1">{amount}</td>

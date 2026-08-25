@@ -523,7 +523,7 @@ export default function PosPage() {
 
       {/* ─── Connection / offline-sync status bar ─────────────── */}
       <div className={`mb-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs ${
-        isOnline ? "border-gray-200 bg-white" : "border-amber-200 bg-amber-50"
+        isOnline ? "border-sage-300 bg-white" : "border-amber-200 bg-amber-50"
       }`}>
         <div className="flex items-center gap-2">
           {isOnline ? (
@@ -623,7 +623,7 @@ export default function PosPage() {
               placeholder="Search by name or code…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-9 pr-4 py-2 border border-sage-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -650,13 +650,13 @@ export default function PosPage() {
                     onClick={() => addToCart(p)}
                     disabled={p.stock <= 0}
                     title={p.stock <= 0 ? "Out of stock" : undefined}
-                    className={`bg-white border border-gray-200 rounded-xl p-4 text-left transition-all group ${
+                    className={`bg-white border border-sage-300 rounded-xl p-4 text-left transition-all group ${
                       p.stock <= 0
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:border-primary-500 hover:shadow-md active:scale-95"
                     }`}
                   >
-                    <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-sage-100 flex items-center justify-center">
                       {p.imageUrl ? (
                         <Image
                           src={p.imageUrl}
@@ -701,8 +701,8 @@ export default function PosPage() {
         {/* ─── Cart + Payment ────────────────────────────────── */}
         <div className="w-full lg:w-1/2 flex flex-col gap-3 shrink-0 min-w-0">
           {/* Cart */}
-          <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[16rem]">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white rounded-xl border border-sage-300 flex flex-col overflow-hidden flex-1 min-h-[16rem]">
+            <div className="px-4 py-3 border-b border-sage-200 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-700 flex items-center gap-2">
                 <ShoppingCart size={16} />
                 Cart
@@ -750,7 +750,7 @@ export default function PosPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => changeQty(c.itemId, -1)}
-                            className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                            className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center"
                           >
                             <Minus size={12} />
                           </button>
@@ -769,11 +769,11 @@ export default function PosPage() {
                             }}
                             onFocus={(e) => e.currentTarget.select()}
                             aria-label={`Quantity for ${c.name}`}
-                            className="w-14 text-center text-sm font-semibold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className="w-14 text-center text-sm font-semibold border border-sage-300 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           />
                           <button
                             onClick={() => changeQty(c.itemId, 1)}
-                            className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                            className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center"
                           >
                             <Plus size={12} />
                           </button>
@@ -790,7 +790,7 @@ export default function PosPage() {
           </div>
 
           {/* Payment Summary */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="bg-white rounded-xl border border-sage-300 p-4 space-y-3">
             {/* Totals */}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-500">
@@ -810,14 +810,14 @@ export default function PosPage() {
                 </div>
                 <div className="flex gap-2">
                   {/* Type toggle */}
-                  <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs shrink-0">
+                  <div className="flex rounded-md border border-sage-300 overflow-hidden text-xs shrink-0">
                     <button
                       type="button"
                       onClick={() => { setDiscountType("fixed"); setDiscountValue(""); }}
                       className={`px-2.5 py-1.5 font-medium transition-colors ${
                         discountType === "fixed"
                           ? "bg-primary-700 text-white"
-                          : "bg-white text-gray-500 hover:bg-gray-50"
+                          : "bg-white text-gray-500 hover:bg-sage-100"
                       }`}
                     >
                       ৳ Fixed
@@ -825,10 +825,10 @@ export default function PosPage() {
                     <button
                       type="button"
                       onClick={() => { setDiscountType("percentage"); setDiscountValue(""); }}
-                      className={`px-2.5 py-1.5 font-medium transition-colors border-l border-gray-200 ${
+                      className={`px-2.5 py-1.5 font-medium transition-colors border-l border-sage-300 ${
                         discountType === "percentage"
                           ? "bg-primary-700 text-white"
-                          : "bg-white text-gray-500 hover:bg-gray-50"
+                          : "bg-white text-gray-500 hover:bg-sage-100"
                       }`}
                     >
                       % Off
@@ -846,7 +846,7 @@ export default function PosPage() {
                     className={`flex-1 min-w-0 border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       discountExceedsTotal
                         ? "border-red-400 bg-red-50 focus:ring-red-400"
-                        : "border-gray-200"
+                        : "border-sage-300"
                     }`}
                   />
                 </div>
@@ -871,20 +871,20 @@ export default function PosPage() {
                       value={discountName}
                       onChange={(e) => setDiscountName(e.target.value)}
                       placeholder="Guest name *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
                     />
                     <input
                       type="text"
                       value={discountContact}
                       onChange={(e) => setDiscountContact(e.target.value)}
                       placeholder="Guest contact no *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-gray-200" : "border-red-300 bg-red-50"}`}
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
                     />
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-gray-100 text-base">
+              <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-sage-200 text-base">
                 <span>Payable</span>
                 <span>৳{fmt(payableAmount)}</span>
               </div>

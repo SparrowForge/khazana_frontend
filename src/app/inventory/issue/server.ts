@@ -18,6 +18,9 @@ export interface AvailableItem {
 export interface BranchOption {
   id: string;
   branchName: string;
+  /** Street address of the branch — the Delivery Challan prints the issuing
+   *  branch's own address as its letterhead, not the company's. */
+  address?: string;
 }
 
 /** One item line of an issue. `isProduction` also records the line in

@@ -13,6 +13,9 @@ export interface AvailableItem {
 export interface BranchOption {
   id: string;
   branchName: string;
+  /** Street address — the Goods Received Note prints the receiving branch's own
+   *  address as its letterhead, not the company's. */
+  address?: string;
 }
 
 export interface ReceivePayload {
@@ -43,7 +46,8 @@ export interface ReceiveGroup {
   branchName?: string;
   branchAddress?: string;
   fromBranchId?: string;
-  items: { itemId: string; itemName?: string; qty: number }[];
+  /** `uom` prints in brackets after the item name on the Goods Received Note. */
+  items: { itemId: string; itemName?: string; uom?: string; qty: number }[];
 }
 
 export interface UpdateReceivePayload {

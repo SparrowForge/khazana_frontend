@@ -35,7 +35,7 @@ export default function DailySummaryPage() {
   return (
     <AppLayout>
       <PageHeader title="Daily Summary" />
-      <div className="flex items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200 flex-wrap">
+      <div className="flex items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300 flex-wrap">
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
         <Button onClick={runReport} loading={loading}>Run Report</Button>
         <ReportExportButtons

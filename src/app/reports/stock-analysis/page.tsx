@@ -75,7 +75,7 @@ export default function StockAnalysisPage() {
     <AppLayout>
       <PageHeader title="Stock Analysis Report" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -91,7 +91,7 @@ export default function StockAnalysisPage() {
             type="checkbox"
             checked={allBranches}
             onChange={(e) => setAllBranches(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary-800 focus:ring-primary-800"
+            className="h-4 w-4 rounded border-sage-400 text-primary-800 focus:ring-primary-800"
           />
           All Branches
         </label>
@@ -169,7 +169,7 @@ function Report({ data }: { data: StockAnalysisReport }) {
   const { branch, items, totals, summary: s, categories: c } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-4">
+    <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4">
       {/* ── Header ── */}
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
@@ -198,13 +198,13 @@ function Report({ data }: { data: StockAnalysisReport }) {
         </thead>
         <tbody>
           {items.map((r) => (
-            <tr key={r.itemCode} className="border-b border-gray-200">
-              <td className="border border-gray-200 px-1 text-center">{r.sl}</td>
-              <td className="border border-gray-200 px-1 text-left whitespace-nowrap">
+            <tr key={r.itemCode} className="border-b border-sage-300">
+              <td className="border border-sage-300 px-1 text-center">{r.sl}</td>
+              <td className="border border-sage-300 px-1 text-left whitespace-nowrap">
                 {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
               </td>
               {COLS.map((col) => (
-                <td key={col.key} className="border border-gray-200 px-1">
+                <td key={col.key} className="border border-sage-300 px-1">
                   {col.amount ? amt(r[col.key] as number) : q(r[col.key] as number)}
                 </td>
               ))}
@@ -213,21 +213,21 @@ function Report({ data }: { data: StockAnalysisReport }) {
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-black font-bold">
-            <td className="border border-gray-300 px-1" colSpan={2}></td>
-            <td className="border border-gray-300 px-1"></td>
-            <td className="border border-gray-300 px-1">{q(totals.openStock)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.production)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.gReceive)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.totalStock)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.salesQty)}</td>
-            <td className="border border-gray-300 px-1">{amt(totals.salesAmt)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.assorted)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.nc)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.reject)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.issueQty)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.short)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.excess)}</td>
-            <td className="border border-gray-300 px-1">{q(totals.closing)}</td>
+            <td className="border border-sage-400 px-1" colSpan={2}></td>
+            <td className="border border-sage-400 px-1"></td>
+            <td className="border border-sage-400 px-1">{q(totals.openStock)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.production)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.gReceive)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.totalStock)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.salesQty)}</td>
+            <td className="border border-sage-400 px-1">{amt(totals.salesAmt)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.assorted)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.nc)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.reject)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.issueQty)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.short)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.excess)}</td>
+            <td className="border border-sage-400 px-1">{q(totals.closing)}</td>
           </tr>
         </tfoot>
       </table>
@@ -285,11 +285,11 @@ function Report({ data }: { data: StockAnalysisReport }) {
             ].map(([label, cat]) => {
               const r = cat as StockAnalysisReport["categories"]["regular"];
               return (
-                <tr key={label as string} className="border-b border-gray-200">
+                <tr key={label as string} className="border-b border-sage-300">
                   <td className="font-bold px-3 py-0.5">{label as string}</td>
-                  <td className="text-right px-3 border-l border-gray-300">{r.kg.toFixed(2)}</td>
+                  <td className="text-right px-3 border-l border-sage-400">{r.kg.toFixed(2)}</td>
                   <td className="text-right px-3">{pcs(r.pcs)}</td>
-                  <td className="text-right px-3 border-l border-gray-300">{amt(r.amount)}</td>
+                  <td className="text-right px-3 border-l border-sage-400">{amt(r.amount)}</td>
                 </tr>
               );
             })}

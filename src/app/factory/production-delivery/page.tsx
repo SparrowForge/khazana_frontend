@@ -110,7 +110,7 @@ export default function ProductionDeliveryReportPage() {
     <AppLayout>
       <PageHeader title="Production & Delivery Report" subtitle={`${branchName} — production, sales and delivery movement`} />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
@@ -150,7 +150,7 @@ function Report({ data }: { data: ProductionDeliveryReport }) {
   const { company, branch, items, totals } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-4 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       {/* ── Header ── */}
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">{company.name}</div>
@@ -180,12 +180,12 @@ function Report({ data }: { data: ProductionDeliveryReport }) {
         </thead>
         <tbody>
           {items.map((r) => (
-            <tr key={r.itemCode} className="border-b border-gray-200">
-              <td className="border border-gray-200 px-1 text-center">{r.sl}</td>
-              <td className="border border-gray-200 px-1 text-left whitespace-nowrap">
+            <tr key={r.itemCode} className="border-b border-sage-300">
+              <td className="border border-sage-300 px-1 text-center">{r.sl}</td>
+              <td className="border border-sage-300 px-1 text-left whitespace-nowrap">
                 {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
               </td>
-              <td className="border border-gray-200 px-1">{tk(r.rate)}</td>
+              <td className="border border-sage-300 px-1">{tk(r.rate)}</td>
               {GROUPS.map((g) => (
                 <FragmentCells key={g.label} qty={r[g.qty] as number} amt={r[g.amt] as number} />
               ))}
@@ -194,7 +194,7 @@ function Report({ data }: { data: ProductionDeliveryReport }) {
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-black font-bold">
-            <td className="border border-gray-300 px-1" colSpan={3}></td>
+            <td className="border border-sage-400 px-1" colSpan={3}></td>
             {GROUPS.map((g) => (
               <FragmentCells key={g.label} qty={totals[g.qty]} amt={totals[g.amt]} />
             ))}
@@ -225,8 +225,8 @@ function FragmentQtyTk() {
 function FragmentCells({ qty, amt }: { qty: number; amt: number }) {
   return (
     <>
-      <td className="border border-gray-200 px-1 whitespace-nowrap">{q(qty)}</td>
-      <td className="border border-gray-200 px-1 whitespace-nowrap">{tk(amt)}</td>
+      <td className="border border-sage-300 px-1 whitespace-nowrap">{q(qty)}</td>
+      <td className="border border-sage-300 px-1 whitespace-nowrap">{tk(amt)}</td>
     </>
   );
 }

@@ -8,8 +8,16 @@
  * disappeared against our white option list. */
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Soft leaf green, standing in for the mottled foliage backdrop of the
+   * legacy screen this theme is taken from. */
+  --background: #dbe8d3;
+  --foreground: #1c2a19;
+  /* The green title bar and its pale yellow lettering. */
+  --titlebar: #1e7a1e;
+  --titlebar-text: #ffe680;
+  /* The sage panel forms and cards sit on. */
+  --panel: #e7f1e2;
+  --panel-border: #a3c497;
 }
 
 body {

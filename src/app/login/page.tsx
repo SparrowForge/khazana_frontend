@@ -257,7 +257,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.15fr_1fr]">
       {/* ── Brand panel. Hidden below lg: on a phone it would push the form
              off-screen, and the form is the point of the page. ── */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-950 px-12 py-12 text-white xl:px-16">
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-primary-900 px-12 py-12 text-white xl:px-16">
         {/* Depth in four quiet layers: the mithai photograph, a scrim that
             deepens towards the copy, the navy brand glow, and a hairline grid
             faded out at the edges so the corners never read as flat black. */}
@@ -342,7 +342,7 @@ export default function LoginPage() {
         <div className="relative flex items-center justify-between text-[11px] text-slate-500">
           <span>© {new Date().getFullYear()} Khazana Mithai. All rights reserved.</span>
           <span className="flex items-center gap-1.5">
-            <ShieldCheck size={13} className="text-emerald-400/80" />
+            <ShieldCheck size={13} className="text-titlebar/80" />
             Encrypted connection
           </span>
         </div>

@@ -80,7 +80,7 @@ export default function NCReportPage() {
     <AppLayout>
       <PageHeader title="NC Report" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -124,7 +124,7 @@ function Report({ data }: { data: NCReport }) {
   const { branch, items, totals } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-4 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
         <div className="font-semibold">NC Report</div>
@@ -150,21 +150,21 @@ function Report({ data }: { data: NCReport }) {
         </thead>
         <tbody>
           {items.map((r, i) => (
-            <tr key={`${r.invoiceNo}-${i}`} className="border-b border-gray-200">
-              <td className="border border-gray-200 px-1 whitespace-nowrap">{formatDate(r.date)}</td>
-              <td className="border border-gray-200 px-1 whitespace-nowrap">{r.invoiceNo}</td>
-              <td className="border border-gray-200 px-1 text-left whitespace-nowrap">{r.itemName}</td>
-              <td className="border border-gray-200 px-1 text-center">{r.uom}</td>
-              <td className="border border-gray-200 px-1 text-right">{q(r.qty)}</td>
-              <td className="border border-gray-200 px-1 text-right">{amt(r.amount)}</td>
-              <td className="border border-gray-200 px-1">{r.name}</td>
-              <td className="border border-gray-200 px-1">{r.reference}</td>
-              <td className="border border-gray-200 px-1">{r.outlet}</td>
+            <tr key={`${r.invoiceNo}-${i}`} className="border-b border-sage-300">
+              <td className="border border-sage-300 px-1 whitespace-nowrap">{formatDate(r.date)}</td>
+              <td className="border border-sage-300 px-1 whitespace-nowrap">{r.invoiceNo}</td>
+              <td className="border border-sage-300 px-1 text-left whitespace-nowrap">{r.itemName}</td>
+              <td className="border border-sage-300 px-1 text-center">{r.uom}</td>
+              <td className="border border-sage-300 px-1 text-right">{q(r.qty)}</td>
+              <td className="border border-sage-300 px-1 text-right">{amt(r.amount)}</td>
+              <td className="border border-sage-300 px-1">{r.name}</td>
+              <td className="border border-sage-300 px-1">{r.reference}</td>
+              <td className="border border-sage-300 px-1">{r.outlet}</td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-gray-200 px-2 py-3 text-center text-gray-500" colSpan={9}>
+              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={9}>
                 No NC entries found for the selected filters.
               </td>
             </tr>
@@ -173,10 +173,10 @@ function Report({ data }: { data: NCReport }) {
         {items.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-black font-bold">
-              <td className="border border-gray-300 px-1" colSpan={4}>Total</td>
-              <td className="border border-gray-300 px-1 text-right">{q(totals.qty)}</td>
-              <td className="border border-gray-300 px-1 text-right">{amt(totals.amount)}</td>
-              <td className="border border-gray-300 px-1" colSpan={3}></td>
+              <td className="border border-sage-400 px-1" colSpan={4}>Total</td>
+              <td className="border border-sage-400 px-1 text-right">{q(totals.qty)}</td>
+              <td className="border border-sage-400 px-1 text-right">{amt(totals.amount)}</td>
+              <td className="border border-sage-400 px-1" colSpan={3}></td>
             </tr>
           </tfoot>
         )}

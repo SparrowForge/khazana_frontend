@@ -110,6 +110,7 @@ export default function StockIssuePage() {
   const [heldStock, setHeldStock] = useState<Record<string, number>>({});
 
   const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
+  const branchAddress = (id?: string) => branches.find((b) => b.id === id)?.address || undefined;
 
   /** On-hand qty an issue may still draw on for an item. An issue can't drive
    *  Inventory negative, so this is the ceiling — the server enforces it again. */
@@ -354,6 +355,8 @@ export default function StockIssuePage() {
     companyName: settings?.companyName || "Khazana Mithai Limited",
     companyAddress: settings?.companyAddress || undefined,
     fromBranchName: branchName(opts.issueBranchId),
+    // The challan is the ISSUING branch's document, so its address heads it.
+    letterheadAddress: branchAddress(opts.issueBranchId),
     toBranchName: branchName(opts.receiveBranchId),
     challanNo: opts.challanNo,
     issueDate: opts.issueDate,
@@ -488,9 +491,9 @@ export default function StockIssuePage() {
 
         {/* The whole catalogue, with the quantity typed inline. Scrolls rather
             than paginates so a part-filled sheet is never split across pages. */}
-        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="bg-sage-100 sticky top-0 z-10">
               <tr className="text-left text-gray-600">
                 <th className="px-3 py-2 font-medium">Item ID</th>
                 <th className="px-3 py-2 font-medium">Item Name</th>
@@ -526,7 +529,7 @@ export default function StockIssuePage() {
                 return (
                   <tr
                     key={it.id}
-                    className={`border-t border-gray-100 ${
+                    className={`border-t border-sage-200 ${
                       // Production-selected rows are called out; an over-issue
                       // outranks that, since it blocks the save.
                       over ? "bg-red-50" : entry.isProduction && qty > 0 ? "bg-amber-50" : qty > 0 ? "bg-primary-50/40" : ""
@@ -544,7 +547,7 @@ export default function StockIssuePage() {
                         placeholder="0"
                         onChange={(e) => setEntry(it.id, { qty: e.target.value })}
                         className={`w-full border rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 ${
-                          over ? "border-red-400 focus:ring-red-400" : "border-gray-300 focus:ring-primary-800"
+                          over ? "border-red-400 focus:ring-red-400" : "border-sage-400 focus:ring-primary-800"
                         }`}
                       />
                     </td>

@@ -30,11 +30,12 @@ export default function Modal({ open, onClose, title, children, size = "md" }: M
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className={cn("relative bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] flex flex-col", sizes[size])}>
+      {/* Green title bar over a sage panel — the legacy form, as a dialog. */}
+      <div className={cn("relative bg-sage-100 rounded-lg shadow-xl w-full mx-4 max-h-[90vh] flex flex-col overflow-hidden border border-sage-400", sizes[size])}>
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-800">{title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <div className="flex items-center justify-between px-6 py-3 bg-primary-800">
+            <h3 className="text-base font-bold text-titlebar">{title}</h3>
+            <button onClick={onClose} className="text-titlebar/70 hover:text-titlebar transition-colors">
               <X size={18} />
             </button>
           </div>

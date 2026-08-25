@@ -179,7 +179,7 @@ export default function InvoicePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-gray-400 text-sm">Loading invoice...</div>
       </div>
     );
@@ -187,7 +187,7 @@ export default function InvoicePage() {
 
   if (error || !sale) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-center">
           <p className="text-gray-500 mb-3">Invoice not found.</p>
           <button
@@ -222,9 +222,9 @@ export default function InvoicePage() {
       `}</style>
 
       {/* ── Screen wrapper ── */}
-      <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="min-h-screen bg-sage-200 flex flex-col">
         {/* Top bar (hidden on print) */}
-        <div className="no-print bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <div className="no-print bg-white border-b border-sage-300 px-6 py-3 flex items-center justify-between">
           <button
             onClick={() => router.push("/pos")}
             className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5"

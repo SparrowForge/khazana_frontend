@@ -15,14 +15,23 @@ import {
   type AvailableItem, type BranchOption, type ReceiveRecord, type ReceiveGroup,
   type PendingReceive, type PendingReceiveDetail,
 } from "./server";
+import { fetchSettings, type Settings } from "@/app/admin/settings/server";
 import { useAuthStore } from "@/store/auth.store";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Eye, Printer } from "lucide-react";
 import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
+import {
+  previewGoodsReceivedNote,
+  printGoodsReceivedNote,
+  challanItemName,
+  sortChallanLines,
+  type DeliveryChallanData,
+  type DeliveryChallanLine,
+} from "@/lib/export/deliveryChallanDocument";
 
 /** What the user typed against one item in the entry grid. The grid lists the
  *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
@@ -34,6 +43,24 @@ const BLANK_ENTRY: ItemEntry = { qty: "" };
 const reportColumns: ExportColumn<{ itemName?: string; qty: number }>[] = [
   { header: "Item Name", value: (r) => r.itemName ?? "-" },
   { header: "Qty", value: (r) => r.qty, numeric: true },
+];
+
+/** A Goods Received Note line, numbered. `Remarks` prints blank — it is there
+ *  for the store keeper to write in by hand. */
+interface NoteRow extends DeliveryChallanLine { sl: number; }
+
+/** Sorted and numbered exactly as the printed pad renders them, so the
+ *  on-screen table, the sheet and the spreadsheet agree row for row. */
+const challanRows = (lines: DeliveryChallanLine[]): NoteRow[] =>
+  sortChallanLines(lines).map((l, i) => ({ ...l, sl: i + 1 }));
+
+// One spec behind the PDF and Excel exports; the printed/preview pad is
+// rendered by deliveryChallanDocument from the same rows.
+const noteColumns: ExportColumn<NoteRow>[] = [
+  { header: "SL No", value: (r) => r.sl, numeric: true },
+  { header: "Item Of Name", value: (r) => challanItemName(r), width: 34 },
+  { header: "Received Qty", value: (r) => r.qty, numeric: true },
+  { header: "Remarks", value: () => "", width: 22 },
 ];
 
 const getDefaultDateRange = () => {
@@ -87,8 +114,27 @@ export default function StockReceivePage() {
   const [itemSearch, setItemSearch] = useState("");
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  /** Letterhead fallback for the printed pad — company name and address. */
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
+  const branchAddress = (id?: string) => branches.find((b) => b.id === id)?.address || undefined;
+
+  /** The saved receive as a Goods Received Note — the receiving end of the same
+   *  pad the Delivery Challan prints, so the two can be checked against each
+   *  other line for line. The letterhead is the RECEIVING branch, because this
+   *  copy of the document belongs to it. */
+  const savedNote = (doc: ReceiveGroup): DeliveryChallanData => ({
+    companyName: settings?.companyName || "Khazana Mithai Limited",
+    companyAddress: settings?.companyAddress || undefined,
+    letterheadAddress: doc.branchAddress || branchAddress(doc.branchId),
+    fromBranchName: branchName(doc.fromBranchId),
+    toBranchName: doc.branchName || branchName(doc.branchId),
+    challanNo: doc.voucherNo || doc.serialNo,
+    issueDate: doc.purDate ?? "",
+    preparedBy: user?.name || user?.userName || undefined,
+    items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
+  });
 
   const loadList = () => {
     setListLoading(true);
@@ -109,6 +155,8 @@ export default function StockReceivePage() {
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchBranches().then(setBranches).catch(() => {});
+    // Letterhead fallback only — a failure here still leaves a printable pad.
+    fetchSettings().then(setSettings).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
@@ -279,7 +327,7 @@ export default function StockReceivePage() {
         action={canAdd ? { label: "New Receive", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
       {/* Confirming what was sent is the everyday job, so it leads. */}
-      <div className="no-print mb-4 flex border-b border-gray-200 text-sm">
+      <div className="no-print mb-4 flex border-b border-sage-300 text-sm">
         {([
           ["pending", `Pending Receive${pending.length ? ` (${pending.length})` : ""}`],
           ["history", "Received History"],
@@ -418,9 +466,9 @@ export default function StockReceivePage() {
 
         {/* The whole catalogue, with the quantity typed inline. Only rows
             carrying a quantity are saved. */}
-        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="bg-sage-100 sticky top-0 z-10">
               <tr className="text-left text-gray-600">
                 <th className="px-3 py-2 font-medium">Item ID</th>
                 <th className="px-3 py-2 font-medium">Item Name</th>
@@ -433,7 +481,7 @@ export default function StockReceivePage() {
                 const entry = entryFor(it.id);
                 const qty = parseFloat(entry.qty) || 0;
                 return (
-                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                  <tr key={it.id} className={`border-t border-sage-200 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
                     <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
                     <td className="px-3 py-1.5">{it.itmName}</td>
                     {/* Context only — receiving adds stock, so nothing to cap. */}
@@ -446,7 +494,7 @@ export default function StockReceivePage() {
                         value={entry.qty}
                         placeholder="0"
                         onChange={(e) => setEntry(it.id, e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
                       />
                     </td>
                   </tr>
@@ -481,44 +529,61 @@ export default function StockReceivePage() {
         {reportLoading || !report ? (
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
-          <>
-            {/* Receiving branch header */}
-            <div className="mb-4 pb-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{report.branchName || branchName(report.branchId)}</h3>
-              {report.branchAddress && <p className="text-sm text-gray-600">{report.branchAddress}</p>}
-            </div>
+          (() => {
+            const note = savedNote(report);
+            const noteRows = challanRows(note.items);
+            const totalQty = noteRows.reduce((sum, r) => sum + r.qty, 0);
+            return (
+              <>
+                {/* Letterhead of the receiving branch — the pad's own heading. */}
+                <div className="mb-4 pb-4 border-b border-sage-300">
+                  <h3 className="text-lg font-semibold text-gray-900">{note.toBranchName}</h3>
+                  {note.letterheadAddress && <p className="text-sm text-gray-600">{note.letterheadAddress}</p>}
+                </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
-              <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
-              <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
-              <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.purDate)}</span></div>
-              <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.fromBranchId)}</span></div>
-              <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.branchId)}</span></div>
-            </div>
-            <div className="mb-3 flex justify-end">
-              <ReportExportButtons
-                rows={report.items}
-                columns={reportColumns}
-                meta={{
-                  title: "Stock Receive Report",
-                  subtitle: [
-                    report.branchName || branchName(report.branchId),
-                    `Serial No: ${report.serialNo}`,
-                    `Date: ${formatDate(report.purDate)}`,
-                  ].join(" · "),
-                  forcePortrait: true,
-                }}
-                showPreview
-              />
-            </div>
-            <Table
-              data={report.items.map((it, i) => ({ id: i, ...it }))}
-              columns={[
-                { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
-                { key: "qty", header: "Qty", className: "text-right" },
-              ]}
-            />
-          </>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+                  <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
+                  <div><span className="text-gray-500">GRN No:</span> <span className="font-medium">{note.challanNo || "-"}</span></div>
+                  <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.purDate)}</span></div>
+                  <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{note.fromBranchName}</span></div>
+                  <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{note.toBranchName}</span></div>
+                </div>
+
+                <div className="mb-3 flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => previewGoodsReceivedNote(note)}>
+                    <Eye size={14} /> Preview
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => printGoodsReceivedNote(note)}>
+                    <Printer size={14} /> Print
+                  </Button>
+                  <ReportExportButtons
+                    rows={noteRows}
+                    columns={noteColumns}
+                    meta={{
+                      title: "Goods Received Note",
+                      subtitle: [note.toBranchName, `GRN No: ${note.challanNo || "-"}`, `Date: ${formatDate(report.purDate)}`].join(" · "),
+                      footer: ["", "", totalQty.toFixed(2), ""],
+                      forcePortrait: true,
+                    }}
+                    showPrint={false}
+                  />
+                </div>
+
+                <Table
+                  data={noteRows.map((r) => ({ id: r.sl, ...r }))}
+                  columns={[
+                    { key: "sl", header: "SL No", className: "text-center w-16" },
+                    { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
+                    { key: "qty", header: "Received Qty", className: "text-right", render: (r) => r.qty.toFixed(2) },
+                    { key: "remarks", header: "Remarks", render: () => "" },
+                  ]}
+                />
+                <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
+                  Total Received: {totalQty.toFixed(2)}
+                </div>
+              </>
+            );
+          })()
         )}
       </Modal>
       {/* Read-only by construction: there is no input in this table, and the
@@ -540,9 +605,9 @@ export default function StockReceivePage() {
               </div>
             </div>
 
-            <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+            <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
+                <thead className="bg-sage-100 sticky top-0">
                   <tr className="text-left text-gray-600">
                     <th className="px-3 py-2 font-medium">Item ID</th>
                     <th className="px-3 py-2 font-medium">Item Name</th>
@@ -552,7 +617,7 @@ export default function StockReceivePage() {
                 </thead>
                 <tbody>
                   {confirmDoc.items.map((it, i) => (
-                    <tr key={`${it.itemId}-${i}`} className="border-t border-gray-100">
+                    <tr key={`${it.itemId}-${i}`} className="border-t border-sage-200">
                       <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itemId.slice(0, 8)}</td>
                       <td className="px-3 py-1.5">{it.itemName ?? "-"}</td>
                       <td className="px-3 py-1.5 text-right font-medium">{it.qty}</td>

@@ -214,7 +214,7 @@ export default function UsersPage() {
           { key: "branch", header: "Branch(es)", render: branchLabel },
           { key: "isVerified", header: "Verified", render: (r) => r.isVerified ? <CheckCircle size={15} className="text-green-500" /> : <XCircle size={15} className="text-gray-300" /> },
           { key: "isActive", header: "Active" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-blue-700"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
@@ -224,7 +224,7 @@ export default function UsersPage() {
         <div className="flex flex-col items-center mb-6">
           <div className="relative group">
             {uploadingAvatar ? (
-              <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+              <div className="w-24 h-24 rounded-full bg-sage-200 flex items-center justify-center border-2 border-dashed border-sage-400">
                 <svg className="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -236,10 +236,10 @@ export default function UsersPage() {
                 alt="Avatar preview"
                 width={96}
                 height={96}
-                className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 shadow"
+                className="w-24 h-24 rounded-full object-cover border-2 border-sage-300 shadow"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-400">
+              <div className="w-24 h-24 rounded-full bg-sage-200 flex items-center justify-center border-2 border-dashed border-sage-400 text-gray-400">
                 {form.name || form.userName
                   ? <span className="text-2xl font-semibold text-gray-500">{(form.name || form.userName).slice(0, 2).toUpperCase()}</span>
                   : <Camera size={28} />
@@ -330,7 +330,7 @@ export default function UsersPage() {
         {/* Branch multi-select */}
         <div className="mt-4">
           <p className="text-sm font-medium text-gray-700 mb-2">Branch Access *</p>
-          <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+          <div className="border border-sage-400 rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
             {branches.length === 0 ? (
               <p className="text-xs text-gray-400">No branches available</p>
             ) : (

@@ -241,7 +241,7 @@ export default function CreditSalePage() {
                 options={orderOptions}
               />
               {selectedCustomer && (
-                <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
+                <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md bg-sage-100 border border-sage-300 px-3 py-2 text-sm">
                   <span className="text-gray-500">
                     Contact No:{" "}
                     <span className="font-medium text-gray-800">
@@ -306,7 +306,7 @@ export default function CreditSalePage() {
                     type="number" min="0" max="100" step="0.01" inputMode="decimal"
                     value={discountPercent}
                     onChange={(e) => setDiscountPercent(e.target.value)}
-                    className="w-24 text-right border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    className="w-24 text-right border border-sage-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
                   />
                 </div>
                 {invoiceDiscount > 0 && (

@@ -303,7 +303,7 @@ export default function StockTransferPage() {
               <div className="w-28">
                 {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
                 <input type="number" min="1" step="1" value={line.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
+                  className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
               </div>
               <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
             </div>

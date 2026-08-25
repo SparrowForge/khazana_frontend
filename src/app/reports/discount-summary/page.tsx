@@ -86,7 +86,7 @@ export default function DiscountSummaryPage() {
     <AppLayout>
       <PageHeader title="Discount Summary" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -130,7 +130,7 @@ function Report({ data }: { data: DiscountSummary }) {
   const { branch, items, totals } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-6 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-6 overflow-x-auto">
       {/* Letterhead — company, outlet and outlet address, as on the printed sheet. */}
       <div className="text-center">
         <div className="font-extrabold text-[18px] italic">Khazana Mithai Limited.</div>
@@ -160,19 +160,19 @@ function Report({ data }: { data: DiscountSummary }) {
         <tbody>
           {items.map((r, i) => (
             <tr key={`${r.invoiceNo}-${i}`} className="border-b border-dotted border-gray-400">
-              <td className="border-x border-gray-300 px-1">{i + 1}</td>
-              <td className="border-x border-gray-300 px-1 whitespace-nowrap">{formatDate(r.date)}</td>
-              <td className="border-x border-gray-300 px-1 whitespace-nowrap">{r.invoiceNo}</td>
-              <td className="border-x border-gray-300 px-1 text-right">{amt(r.amount)}</td>
-              <td className="border-x border-gray-300 px-1 text-right">{pct(r.discountPercent)}</td>
-              <td className="border-x border-gray-300 px-1 text-right">{amt(r.discount)}</td>
-              <td className="border-x border-gray-300 px-1 whitespace-nowrap">{r.contactNo}</td>
-              <td className="border-x border-gray-300 px-1">{r.remarks}</td>
+              <td className="border-x border-sage-400 px-1">{i + 1}</td>
+              <td className="border-x border-sage-400 px-1 whitespace-nowrap">{formatDate(r.date)}</td>
+              <td className="border-x border-sage-400 px-1 whitespace-nowrap">{r.invoiceNo}</td>
+              <td className="border-x border-sage-400 px-1 text-right">{amt(r.amount)}</td>
+              <td className="border-x border-sage-400 px-1 text-right">{pct(r.discountPercent)}</td>
+              <td className="border-x border-sage-400 px-1 text-right">{amt(r.discount)}</td>
+              <td className="border-x border-sage-400 px-1 whitespace-nowrap">{r.contactNo}</td>
+              <td className="border-x border-sage-400 px-1">{r.remarks}</td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-gray-200 px-2 py-3 text-center text-gray-500" colSpan={8}>
+              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={8}>
                 No discounted invoices found for the selected filters.
               </td>
             </tr>
@@ -181,11 +181,11 @@ function Report({ data }: { data: DiscountSummary }) {
         {items.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-black font-bold">
-              <td className="border border-gray-300 px-1" colSpan={3}>Total ({items.length} invoices)</td>
-              <td className="border border-gray-300 px-1 text-right">{amt(totals.amount)}</td>
-              <td className="border border-gray-300 px-1"></td>
-              <td className="border border-gray-300 px-1 text-right">{amt(totals.discount)}</td>
-              <td className="border border-gray-300 px-1" colSpan={2}></td>
+              <td className="border border-sage-400 px-1" colSpan={3}>Total ({items.length} invoices)</td>
+              <td className="border border-sage-400 px-1 text-right">{amt(totals.amount)}</td>
+              <td className="border border-sage-400 px-1"></td>
+              <td className="border border-sage-400 px-1 text-right">{amt(totals.discount)}</td>
+              <td className="border border-sage-400 px-1" colSpan={2}></td>
             </tr>
           </tfoot>
         )}

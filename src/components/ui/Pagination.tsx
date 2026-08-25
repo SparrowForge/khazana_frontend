@@ -32,7 +32,7 @@ export default function Pagination({ meta, onPageChange, onLimitChange }: Pagina
   const pages = getPageNumbers(page, totalPages);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-600">
+    <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-primary-900">
       <div className="flex items-center gap-3">
         <span>
           Showing {from}–{to} of {total}
@@ -40,7 +40,7 @@ export default function Pagination({ meta, onPageChange, onLimitChange }: Pagina
         <select
           value={limit}
           onChange={(e) => onLimitChange(Number(e.target.value))}
-          className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+          className="border border-sage-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
         >
           {PAGE_SIZES.map((s) => (
             <option key={s} value={s}>{s} / page</option>
@@ -52,7 +52,7 @@ export default function Pagination({ meta, onPageChange, onLimitChange }: Pagina
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={!meta.hasPreviousPage}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1.5 rounded hover:bg-sage-200 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft size={16} />
         </button>
@@ -67,7 +67,7 @@ export default function Pagination({ meta, onPageChange, onLimitChange }: Pagina
               className={`min-w-[32px] h-8 rounded text-sm font-medium ${
                 p === page
                   ? "bg-primary-800 text-white"
-                  : "hover:bg-gray-100 text-gray-700"
+                  : "hover:bg-sage-200 text-primary-900"
               }`}
             >
               {p}
@@ -78,7 +78,7 @@ export default function Pagination({ meta, onPageChange, onLimitChange }: Pagina
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={!meta.hasNextPage}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1.5 rounded hover:bg-sage-200 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronRight size={16} />
         </button>

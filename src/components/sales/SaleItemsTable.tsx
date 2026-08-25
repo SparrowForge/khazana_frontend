@@ -289,7 +289,7 @@ export default function SaleItemsTable({
           placeholder="Search by name or code…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="w-full pl-9 pr-4 py-2 border border-sage-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
       {filteredCatalog.length === 0 ? (
@@ -323,7 +323,7 @@ export default function SaleItemsTable({
                           : "All available stock is already on this invoice"
                         : undefined
                   }
-                  className={`relative bg-white border border-gray-200 rounded-xl p-4 text-left transition-all group ${
+                  className={`relative bg-white border border-sage-300 rounded-xl p-4 text-left transition-all group ${
                     blocked
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:border-primary-500 hover:shadow-md active:scale-95"
@@ -334,7 +334,7 @@ export default function SaleItemsTable({
                       {fmtQty(billed)}
                     </span>
                   )}
-                  <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-sage-100 flex items-center justify-center">
                     {p.image?.fileUrl ? (
                       <Image
                         src={p.image.fileUrl}
@@ -389,7 +389,7 @@ export default function SaleItemsTable({
         <select
           value={selectedItemId}
           onChange={(e) => setSelectedItemId(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+          className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
         >
           <option value="">Select item...</option>
           {availableItems.map((i) => {
@@ -409,7 +409,7 @@ export default function SaleItemsTable({
         <input
           type="number" min="0.01" step="0.01" inputMode="decimal"
           value={qty} onChange={(e) => setQty(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+          className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
         />
       </div>
       <div className="w-28">
@@ -417,7 +417,7 @@ export default function SaleItemsTable({
         <input
           type="number" min="0" step="0.01"
           value={disc} onChange={(e) => setDisc(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+          className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
         />
       </div>
       <Button size="sm" onClick={addItem} disabled={!selectedItemId}>
@@ -430,9 +430,9 @@ export default function SaleItemsTable({
     <div className="space-y-3">
       {itemPicker === "grid" ? gridPicker : selectPicker}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-lg border border-sage-300">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-sage-100 border-b border-sage-300">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">#</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Item</th>
@@ -446,12 +446,12 @@ export default function SaleItemsTable({
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-sage-200">
             {items.length === 0 && (
               <tr><td colSpan={8} className="text-center py-6 text-gray-400">No items added</td></tr>
             )}
             {items.map((item, i) => (
-              <tr key={i} className="hover:bg-gray-50">
+              <tr key={i} className="hover:bg-sage-100">
                 <td className="px-3 py-2 text-gray-500">{i + 1}</td>
                 <td className="px-3 py-2">{item.itemCode} — {item.itemName}</td>
                 <td className="px-3 py-2 text-right">{formatCurrency(item.rate)}</td>
@@ -462,7 +462,7 @@ export default function SaleItemsTable({
                       onClick={() => stepQty(i, -1)}
                       disabled={r2(item.quantity - 1) <= 0}
                       title="Decrease qty"
-                      className="p-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="p-1 rounded border border-sage-300 text-gray-500 hover:bg-sage-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Minus size={11} />
                     </button>
@@ -472,7 +472,7 @@ export default function SaleItemsTable({
                       onChange={(e) => setDraft({ idx: i, field: "quantity", value: e.target.value })}
                       onBlur={commitDraft}
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                      className="w-16 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      className="w-16 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
                     />
                     <button
                       type="button"
@@ -483,7 +483,7 @@ export default function SaleItemsTable({
                           ? "No more stock available"
                           : "Increase qty"
                       }
-                      className="p-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="p-1 rounded border border-sage-300 text-gray-500 hover:bg-sage-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus size={11} />
                     </button>
@@ -496,7 +496,7 @@ export default function SaleItemsTable({
                     onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
                     onBlur={commitDraft}
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    className="w-20 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
                   />
                 </td>
                 <td className="px-3 py-2 text-right text-gray-600">
@@ -515,7 +515,7 @@ export default function SaleItemsTable({
             ))}
           </tbody>
           {items.length > 0 && (
-            <tfoot className="bg-gray-50 border-t border-gray-200">
+            <tfoot className="bg-sage-100 border-t border-sage-300">
               <tr>
                 <td colSpan={4} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Subtotal</td>
                 <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalDiscount)}</td>

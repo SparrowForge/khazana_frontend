@@ -142,7 +142,7 @@ export default function BranchwiseDeliveryReportPage() {
     <AppLayout>
       <PageHeader title="Branchwise Delivery Report" subtitle="Item deliveries out of a branch, day by day" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -195,7 +195,7 @@ function Report({ data }: { data: BranchwiseDeliveryReport }) {
   const label = dayHeader(days);
 
   return (
-    <div id="report" className="bg-white text-black text-[10px] border border-gray-300 p-4 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[10px] border border-sage-400 p-4 overflow-x-auto">
       {/* ── Letterhead: the company, then the branch the goods went out from ── */}
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">{company.name}</div>
@@ -224,22 +224,22 @@ function Report({ data }: { data: BranchwiseDeliveryReport }) {
         </thead>
         <tbody>
           {items.map((r) => (
-            <tr key={`${r.itemCode}-${r.sl}`} className="border-b border-gray-200">
-              <td className="border border-gray-200 px-1 text-center">{r.sl}</td>
-              <td className="border border-gray-200 px-1 text-left">
+            <tr key={`${r.itemCode}-${r.sl}`} className="border-b border-sage-300">
+              <td className="border border-sage-300 px-1 text-center">{r.sl}</td>
+              <td className="border border-sage-300 px-1 text-left">
                 {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
               </td>
-              <td className="border border-gray-200 px-1">{amt(r.rate)}</td>
+              <td className="border border-sage-300 px-1">{amt(r.rate)}</td>
               {days.map((d) => (
-                <td key={d} className="border border-gray-200 px-1">{q(r.qtyByDate[d])}</td>
+                <td key={d} className="border border-sage-300 px-1">{q(r.qtyByDate[d])}</td>
               ))}
-              <td className="border border-gray-200 px-1 font-semibold">{q(r.totalQty)}</td>
-              <td className="border border-gray-200 px-1 font-semibold">{amt(r.amount)}</td>
+              <td className="border border-sage-300 px-1 font-semibold">{q(r.totalQty)}</td>
+              <td className="border border-sage-300 px-1 font-semibold">{amt(r.amount)}</td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-gray-200 px-2 py-3 text-center text-gray-500" colSpan={days.length + 5}>
+              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={days.length + 5}>
                 No deliveries found for the selected branches and date range.
               </td>
             </tr>
@@ -248,12 +248,12 @@ function Report({ data }: { data: BranchwiseDeliveryReport }) {
         {items.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-black font-bold">
-              <td className="border border-gray-300 px-1" colSpan={3}>Total ({items.length} items)</td>
+              <td className="border border-sage-400 px-1" colSpan={3}>Total ({items.length} items)</td>
               {days.map((d) => (
-                <td key={d} className="border border-gray-300 px-1">{q(totals.qtyByDate[d])}</td>
+                <td key={d} className="border border-sage-400 px-1">{q(totals.qtyByDate[d])}</td>
               ))}
-              <td className="border border-gray-300 px-1">{q(totals.totalQty)}</td>
-              <td className="border border-gray-300 px-1">{amt(totals.amount)}</td>
+              <td className="border border-sage-400 px-1">{q(totals.totalQty)}</td>
+              <td className="border border-sage-400 px-1">{amt(totals.amount)}</td>
             </tr>
           </tfoot>
         )}

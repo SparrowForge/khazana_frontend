@@ -99,7 +99,7 @@ export default function ItemReceiveReportPage() {
     <AppLayout>
       <PageHeader title="Item Receive Report" />
 
-      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-gray-200">
+      <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Select
@@ -160,7 +160,7 @@ function Report({ data, singleMonth }: { data: ItemReceiveReport; singleMonth: b
   const { receiveBranch, fromBranch, items, dates, totals } = data;
 
   return (
-    <div id="report" className="bg-white text-black text-[11px] border border-gray-300 p-4 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
         <div className="font-semibold">Item Receive Report</div>
@@ -188,22 +188,22 @@ function Report({ data, singleMonth }: { data: ItemReceiveReport; singleMonth: b
         </thead>
         <tbody>
           {items.map((r) => (
-            <tr key={r.itemCode} className="border-b border-gray-200">
-              <td className="border border-gray-200 px-1 text-center">{r.sl}</td>
-              <td className="border border-gray-200 px-1 text-left whitespace-nowrap">
+            <tr key={r.itemCode} className="border-b border-sage-300">
+              <td className="border border-sage-300 px-1 text-center">{r.sl}</td>
+              <td className="border border-sage-300 px-1 text-left whitespace-nowrap">
                 {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
               </td>
-              <td className="border border-gray-200 px-1">{amt(r.price)}</td>
+              <td className="border border-sage-300 px-1">{amt(r.price)}</td>
               {dates.map((d) => (
-                <td key={d} className="border border-gray-200 px-1">{q(r.qtyByDate[d] ?? 0)}</td>
+                <td key={d} className="border border-sage-300 px-1">{q(r.qtyByDate[d] ?? 0)}</td>
               ))}
-              <td className="border border-gray-200 px-1 font-semibold">{q(r.totalQty)}</td>
-              <td className="border border-gray-200 px-1 font-semibold">{amt(r.amount)}</td>
+              <td className="border border-sage-300 px-1 font-semibold">{q(r.totalQty)}</td>
+              <td className="border border-sage-300 px-1 font-semibold">{amt(r.amount)}</td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-gray-200 px-2 py-3 text-center text-gray-500" colSpan={dates.length + 4}>
+              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={dates.length + 4}>
                 No receipts found for the selected filters.
               </td>
             </tr>
@@ -212,13 +212,13 @@ function Report({ data, singleMonth }: { data: ItemReceiveReport; singleMonth: b
         {items.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-black font-bold">
-              <td className="border border-gray-300 px-1" colSpan={2}></td>
-              <td className="border border-gray-300 px-1"></td>
+              <td className="border border-sage-400 px-1" colSpan={2}></td>
+              <td className="border border-sage-400 px-1"></td>
               {dates.map((d) => (
-                <td key={d} className="border border-gray-300 px-1">{q(totals.byDate[d] ?? 0)}</td>
+                <td key={d} className="border border-sage-400 px-1">{q(totals.byDate[d] ?? 0)}</td>
               ))}
-              <td className="border border-gray-300 px-1">{q(totals.totalQty)}</td>
-              <td className="border border-gray-300 px-1">{amt(totals.amount)}</td>
+              <td className="border border-sage-400 px-1">{q(totals.totalQty)}</td>
+              <td className="border border-sage-400 px-1">{amt(totals.amount)}</td>
             </tr>
           </tfoot>
         )}

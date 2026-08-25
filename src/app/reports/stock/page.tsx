@@ -31,7 +31,7 @@ export default function StockReportPage() {
   return (
     <AppLayout>
       <PageHeader title="Stock Report" />
-      <div className="mb-5 p-4 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+      <div className="mb-5 p-4 bg-white rounded-lg border border-sage-300 flex items-center justify-between gap-3 flex-wrap">
         <Button onClick={runReport} loading={loading}>Run Report</Button>
         <ReportExportButtons
           rows={data}

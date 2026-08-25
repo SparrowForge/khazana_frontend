@@ -279,9 +279,9 @@ export default function DemandOrderPage() {
 
         {/* The whole catalogue, with the quantity typed inline. Only rows
             carrying a quantity are saved. */}
-        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh] mb-4">
+        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh] mb-4">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="bg-sage-100 sticky top-0 z-10">
               <tr className="text-left text-gray-600">
                 <th className="px-3 py-2 font-medium">Item ID</th>
                 <th className="px-3 py-2 font-medium">Item Name</th>
@@ -294,7 +294,7 @@ export default function DemandOrderPage() {
                 const entry = entryFor(it.id);
                 const qty = parseFloat(entry.qty) || 0;
                 return (
-                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                  <tr key={it.id} className={`border-t border-sage-200 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
                     <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
                     <td className="px-3 py-1.5">{it.itmName}</td>
                     <td className="px-3 py-1.5">
@@ -305,7 +305,7 @@ export default function DemandOrderPage() {
                         value={entry.qty}
                         placeholder="0"
                         onChange={(e) => setEntry(it.id, { qty: e.target.value })}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
                       />
                     </td>
                     <td className="px-3 py-1.5">
@@ -316,7 +316,7 @@ export default function DemandOrderPage() {
                         // Only sent with a quantity — a remark alone is not a demand.
                         disabled={qty <= 0}
                         onChange={(e) => setEntry(it.id, { remarks: e.target.value })}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800 disabled:bg-gray-50"
+                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800 disabled:bg-sage-100"
                       />
                     </td>
                   </tr>

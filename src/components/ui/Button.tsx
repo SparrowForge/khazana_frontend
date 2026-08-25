@@ -2,7 +2,9 @@ import { cn } from "@/lib/utils";
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  /** `light` is for buttons that sit ON the green title bar, where the usual
+   *  green-on-green primary would disappear. */
+  variant?: "primary" | "secondary" | "danger" | "ghost" | "light";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 }
@@ -11,9 +13,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", loading, children, disabled, ...props }, ref) => {
     const variants = {
       primary: "bg-primary-800 text-white hover:bg-primary-700 focus:ring-primary-500",
-      secondary: "bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400",
-      danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
-      ghost: "bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-400",
+      // Sage rather than grey, so a Cancel/Close reads as part of the panel.
+      secondary: "bg-sage-300 text-primary-900 hover:bg-sage-400 focus:ring-sage-500",
+      // The maroon of the legacy action bar's Close button.
+      danger: "bg-accent-700 text-white hover:bg-accent-600 focus:ring-accent-500",
+      ghost: "bg-transparent text-primary-900 hover:bg-sage-200 focus:ring-sage-500",
+      light: "bg-sage-50 text-primary-900 hover:bg-white focus:ring-titlebar border border-sage-300",
     };
     const sizes = {
       sm: "px-3 py-1.5 text-xs",

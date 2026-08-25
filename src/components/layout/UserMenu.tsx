@@ -55,7 +55,7 @@ export default function UserMenu({ collapsed = false }: { collapsed?: boolean })
         aria-expanded={isOpen}
         title={collapsed ? displayName : undefined}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-slate-300 hover:bg-slate-700 hover:text-white transition-colors",
+          "flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sage-100 hover:bg-primary-800 hover:text-titlebar transition-colors",
           collapsed ? "w-full justify-center" : "w-full justify-between"
         )}
       >
@@ -79,21 +79,21 @@ export default function UserMenu({ collapsed = false }: { collapsed?: boolean })
         <div
           role="menu"
           className={cn(
-            "absolute z-50 w-40 overflow-hidden rounded-md border border-slate-600 bg-slate-700 shadow-lg",
+            "absolute z-50 w-40 overflow-hidden rounded-md border border-primary-700 bg-primary-800 shadow-lg",
             collapsed ? "bottom-0 left-full ml-1" : "bottom-full left-0 mb-1 w-full"
           )}
         >
           <button
             role="menuitem"
             onClick={goProfile}
-            className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-600 hover:text-white transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-sage-100 hover:bg-primary-700 hover:text-titlebar transition-colors"
           >
             <UserIcon size={14} /> Profile
           </button>
           <button
             role="menuitem"
             onClick={openChangePassword}
-            className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-600 hover:text-white transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-sage-100 hover:bg-primary-700 hover:text-titlebar transition-colors"
           >
             <KeyRound size={14} /> Change Password
           </button>

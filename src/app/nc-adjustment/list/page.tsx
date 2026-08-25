@@ -115,7 +115,7 @@ export default function NCAdjustmentListPage() {
           { key: "value", header: "Value", render: (r) => `৳ ${formatCurrency(ncTotalValue(r))}`, className: "text-right" },
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
-              {canEdit && <button onClick={() => router.push(`/nc-adjustment/${r.id}`)} className="text-blue-500 hover:text-blue-700" title="Edit"><Edit2 size={14} /></button>}
+              {canEdit && <button onClick={() => router.push(`/nc-adjustment/${r.id}`)} className="text-primary-600 hover:text-primary-800" title="Edit"><Edit2 size={14} /></button>}
               {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete"><Trash2 size={14} /></button>}
               {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
             </div>

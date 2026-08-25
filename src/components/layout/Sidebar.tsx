@@ -79,8 +79,8 @@ function NavLinkRow({ link, collapsed }: { link: RenderLink; collapsed: boolean 
         "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
         collapsed && "justify-center px-2",
         pathname === link.href
-          ? "bg-primary-800 text-white"
-          : "text-slate-300 hover:bg-slate-700 hover:text-white"
+          ? "bg-primary-600 text-white font-medium"
+          : "text-sage-100 hover:bg-primary-800 hover:text-titlebar"
       )}
     >
       {link.icon}
@@ -155,8 +155,8 @@ function NavGroup({
           className={cn(
             "w-full flex items-center justify-center px-2 py-2 rounded-md text-sm transition-colors",
             isChildActive || flyoutOpen
-              ? "text-white bg-slate-700"
-              : "text-slate-300 hover:bg-slate-700 hover:text-white"
+              ? "text-white bg-primary-800"
+              : "text-sage-100 hover:bg-primary-800 hover:text-titlebar"
           )}
         >
           {icon}
@@ -168,9 +168,9 @@ function NavGroup({
               ref={flyoutRef}
               role="menu"
               style={{ position: "fixed", top: flyoutPos.top, left: flyoutPos.left }}
-              className="z-50 min-w-[170px] rounded-md border border-slate-700 bg-slate-800 py-1 shadow-lg"
+              className="z-50 min-w-[170px] rounded-md border border-primary-800 bg-primary-900 py-1 shadow-lg"
             >
-              <div className="px-3 py-1.5 text-xs font-semibold text-slate-400">{label}</div>
+              <div className="px-3 py-1.5 text-xs font-semibold text-sage-300">{label}</div>
               {links.map((child) => (
                 <Link
                   key={child.href}
@@ -179,8 +179,8 @@ function NavGroup({
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
                     pathname === child.href
-                      ? "bg-primary-800 text-white"
-                      : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                      ? "bg-primary-600 text-white font-medium"
+                      : "text-sage-100 hover:bg-primary-800 hover:text-titlebar"
                   )}
                 >
                   {child.icon}
@@ -200,14 +200,14 @@ function NavGroup({
         onClick={() => setOpen(!open)}
         className={cn(
           "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors",
-          isChildActive ? "text-white bg-slate-700" : "text-slate-300 hover:bg-slate-700 hover:text-white"
+          isChildActive ? "text-white bg-primary-800" : "text-sage-100 hover:bg-primary-800 hover:text-titlebar"
         )}
       >
         <span className="flex items-center gap-2">{icon}{label}</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       {open && (
-        <div className="ml-4 mt-1 space-y-0.5 border-l border-slate-600 pl-2">
+        <div className="ml-4 mt-1 space-y-0.5 border-l border-primary-700 pl-2">
           {links.map((child) => (
             <Link
               key={child.href}
@@ -215,8 +215,8 @@ function NavGroup({
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors",
                 pathname === child.href
-                  ? "bg-primary-800 text-white"
-                  : "text-slate-400 hover:bg-slate-700 hover:text-white"
+                  ? "bg-primary-600 text-white font-medium"
+                  : "text-sage-300 hover:bg-primary-800 hover:text-titlebar"
               )}
             >
               {child.icon}
@@ -279,13 +279,13 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "h-screen bg-slate-800 flex flex-col overflow-y-auto shrink-0 transition-all duration-200",
+        "h-screen bg-primary-900 flex flex-col overflow-y-auto shrink-0 transition-all duration-200",
         collapsed ? "w-16" : "w-60"
       )}
     >
       <div
         className={cn(
-          "flex items-center border-b border-slate-700 py-4",
+          "flex items-center border-b border-primary-800 py-4",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
@@ -294,14 +294,14 @@ export default function Sidebar() {
             {/* Lettering in white so it reads on the dark sidebar; the mark's
                 own red carries fine against it. */}
             <Logo size={30} tone="light" />
-            <p className="text-slate-400 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
+            <p className="text-sage-300 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
           </div>
         )}
         <button
           onClick={toggleCollapsed}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          className="shrink-0 p-1.5 rounded-md text-sage-300 hover:text-titlebar hover:bg-primary-800 transition-colors"
         >
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
@@ -323,13 +323,13 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className={cn("border-t border-slate-700 py-3", collapsed ? "px-1.5" : "px-2")}>
+      <div className={cn("border-t border-primary-800 py-3", collapsed ? "px-1.5" : "px-2")}>
         <UserMenu collapsed={collapsed} />
         <button
           onClick={handleLogout}
           title={collapsed ? "Logout" : undefined}
           className={cn(
-            "mt-2 flex items-center gap-2 text-slate-400 hover:text-white text-xs transition-colors",
+            "mt-2 flex items-center gap-2 text-sage-300 hover:text-titlebar text-xs transition-colors",
             collapsed ? "justify-center w-full py-1" : "px-2"
           )}
         >

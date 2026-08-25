@@ -1,12 +1,17 @@
-// Delivery Challan — the paper form that travels with a stock issue, reproduced
-// from the pre-printed original: letterhead, receiving-shop heading, then
-// SL / Item Of Name / Delivery, with "Received Qty" and "Remarks" left blank for
-// the outlet to fill in by hand on arrival.
+// The pre-printed stock-movement pads, reproduced as real A4 portrait sheets:
+// letterhead, From/To branches, then SL / Item Of Name / qty with the remaining
+// columns left blank for the receiving shop to fill in by hand.
 //
-// Laid out as real A4 portrait sheets rather than one full-width flow, so the
-// on-screen preview is the same page the printer produces. A long issue is split
-// across numbered sheets; the total and the signature block belong to the last
-// one only.
+// Two documents share this one engine, because they are the same piece of paper
+// read from either end and any drift between them would break the check the
+// outlet performs on arrival:
+//
+//   Delivery Challan    — travels WITH a Stock Issue (the sending branch's copy)
+//   Goods Received Note — the Stock Receive pad (the receiving branch's copy)
+//
+// Laid out as sheets rather than one full-width flow, so the on-screen preview
+// is the same page the printer produces. A long document is split across
+// numbered sheets; the total and the signature block belong to the last one only.
 
 export interface DeliveryChallanLine {
   itemName: string;
@@ -17,12 +22,19 @@ export interface DeliveryChallanLine {
 
 export interface DeliveryChallanData {
   companyName: string;
+  /** Fallback letterhead address, used only when the owning branch has none of
+   *  its own. */
   companyAddress?: string;
+  /** Address of the branch this document BELONGS to — the issuing branch on a
+   *  Delivery Challan, the receiving branch on a Goods Received Note. It is the
+   *  branch address, not the company's, that heads the pad. */
+  letterheadAddress?: string;
   /** The issuing branch (factory/warehouse) — shown as "From:" */
   fromBranchName?: string;
   /** The receiving outlet — the underlined heading under the letterhead. */
   toBranchName: string;
-  /** Printed as "Challan No-"; the voucher number, falling back to the serial. */
+  /** Printed after the document-number label; the voucher number, falling back
+   *  to the serial. */
   challanNo: string;
   issueDate: string | Date;
   /** Stamped as "Time -"; defaults to when the document is built. */
@@ -32,6 +44,38 @@ export interface DeliveryChallanData {
   revision?: string;
   items: DeliveryChallanLine[];
 }
+
+/** What distinguishes one pad from the other. Everything else — the sheet, the
+ *  letterhead, the pagination, the CSS — is shared. */
+interface PadSpec {
+  /** Centre heading, and the browser tab title. */
+  title: string;
+  /** Label before the document number, e.g. "Challan No-". */
+  docNoLabel: string;
+  /** Header over the quantity column. */
+  qtyHeader: string;
+  /** Trailing columns printed empty for hand-filling on arrival. */
+  blankHeaders: string[];
+  signRoles: string[];
+}
+
+const CHALLAN_SPEC: PadSpec = {
+  title: "Delivery Challan",
+  docNoLabel: "Challan No-",
+  qtyHeader: "Delivery",
+  blankHeaders: ["Received Qty", "Remarks"],
+  signRoles: ["Checked By Security", "Delivery Man", "Sales Man (Received By)", "Manager"],
+};
+
+const GRN_SPEC: PadSpec = {
+  // The receiving end of the same movement: the quantity is what actually
+  // arrived, so only Remarks is left open.
+  title: "Goods Received Note",
+  docNoLabel: "GRN No-",
+  qtyHeader: "Received Qty",
+  blankHeaders: ["Remarks"],
+  signRoles: ["Received By", "Checked By", "Store Keeper", "Manager"],
+};
 
 /** Rows per sheet. Deliberately short of what the page could hold — the last
  *  sheet also carries the total and the four signature lines, and a sheet that
@@ -83,6 +127,7 @@ const chunk = <T,>(rows: T[], size: number): T[][] => {
 
 function sheetHtml(
   data: DeliveryChallanData,
+  spec: PadSpec,
   rows: DeliveryChallanLine[],
   startSl: number,
   page: number,
@@ -91,6 +136,9 @@ function sheetHtml(
   printedAt: Date,
 ): string {
   const isLast = page === pages;
+  // SL + name + qty, then however many hand-fill columns this pad has.
+  const cols = 3 + spec.blankHeaders.length;
+  const blankCells = spec.blankHeaders.map(() => "<td></td>").join("");
 
   const body = rows
     .map(
@@ -98,18 +146,26 @@ function sheetHtml(
         <td class="sl">${startSl + i}</td>
         <td>${esc(challanItemName(r))}</td>
         <td class="num">${esc(qty(r.qty))}</td>
-        <td></td>
-        <td></td>
+        ${blankCells}
       </tr>`,
     )
     .join("");
 
-  const signRoles = ["Delivery Man", "Chef", "Sales Man", "Manager"];
+  // A few ruled but empty rows after the last item, so a short document still
+  // leaves the receiver room to write in anything that arrived unlisted.
+  const spareRows = isLast
+    ? `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`.repeat(3)
+    : "";
+
+  // The pad belongs to one branch, so the letterhead carries that branch's own
+  // address. The company address is only a fallback for a branch whose address
+  // has not been filled in.
+  const letterheadAddress = data.letterheadAddress || data.companyAddress;
 
   return `<div class="sheet">
     <div class="letterhead">
       <div class="co">${esc(data.companyName)}</div>
-      ${data.companyAddress ? `<div class="addr">${esc(data.companyAddress)}</div>` : ""}
+      ${letterheadAddress ? `<div class="addr">${esc(letterheadAddress)}</div>` : ""}
     </div>
     ${data.fromBranchName ? `<div class="from-branch">From: <span>${esc(data.fromBranchName)}</span></div>` : ""}
     <div class="branch">To: <span>${esc(data.toBranchName)}</span></div>
@@ -119,8 +175,8 @@ function sheetHtml(
       <span class="r">Time - ${esc(formatChallanTime(printedAt))}</span>
     </div>
     <div class="meta">
-      <span class="l">Challan No- ${esc(data.challanNo)}</span>
-      <span class="c title">Delivery Challan</span>
+      <span class="l">${esc(spec.docNoLabel)} ${esc(data.challanNo)}</span>
+      <span class="c title">${esc(spec.title)}</span>
       <span class="r"></span>
     </div>
     <div class="fill">
@@ -129,27 +185,25 @@ function sheetHtml(
           <tr>
             <th class="w-sl">SL No</th>
             <th class="w-name">Item Of Name</th>
-            <th class="w-qty">Delivery</th>
-            <th class="w-rec">Received Qty</th>
-            <th class="w-rem">Remarks</th>
+            <th class="w-qty">${esc(spec.qtyHeader)}</th>
+            ${spec.blankHeaders.map((h) => `<th class="w-blank">${esc(h)}</th>`).join("")}
           </tr>
         </thead>
-        <tbody>${body || `<tr><td class="empty" colspan="5">No items on this challan.</td></tr>`}</tbody>
+        <tbody>${body || `<tr><td class="empty" colspan="${cols}">No items on this document.</td></tr>`}${spareRows}</tbody>
         ${
           isLast
             ? `<tfoot><tr>
                  <td class="bare"></td>
                  <td class="bare"></td>
                  <td class="bare num total">${esc(qty(total))}</td>
-                 <td class="bare"></td>
-                 <td class="bare"></td>
+                 ${spec.blankHeaders.map(() => `<td class="bare"></td>`).join("")}
                </tr></tfoot>`
             : ""
         }
       </table>
       ${
         isLast
-          ? `<div class="signs">${signRoles
+          ? `<div class="signs">${spec.signRoles
               .map((role) => `<div class="sign"><div class="rule"></div><div class="role">${esc(role)}</div></div>`)
               .join("")}</div>`
           : ""
@@ -163,7 +217,7 @@ function sheetHtml(
   </div>`;
 }
 
-function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: boolean): string {
+function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: boolean): string {
   const printedAt = data.printedAt ?? new Date();
   const lines = sortChallanLines(data.items);
   const total = lines.reduce((sum, r) => sum + Number(r.qty || 0), 0);
@@ -171,7 +225,7 @@ function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: bool
 
   const sheets = pages
     .map((rows, i) =>
-      sheetHtml(data, rows, i * ROWS_PER_PAGE + 1, i + 1, pages.length, total, printedAt),
+      sheetHtml(data, spec, rows, i * ROWS_PER_PAGE + 1, i + 1, pages.length, total, printedAt),
     )
     .join("");
 
@@ -180,7 +234,7 @@ function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: bool
     : "";
 
   return `<!doctype html><html><head><meta charset="utf-8">
-  <title>Delivery Challan — ${esc(data.challanNo)}</title>
+  <title>${esc(spec.title)} — ${esc(data.challanNo)}</title>
   <style>
     @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; }
@@ -215,12 +269,12 @@ function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: bool
     td.sl { text-align:center; }
     td.num, th.num { text-align:right; padding-right:6mm; }
     td.empty { text-align:center; color:#666; height:12mm; }
-    .w-sl { width:12mm; } .w-qty { width:26mm; } .w-rec { width:32mm; } .w-rem { width:44mm; }
+    .w-sl { width:12mm; } .w-qty { width:26mm; } .w-blank { width:38mm; }
     /* The total hangs under the Delivery column, outside the ruled grid. */
     tfoot td.bare { border:none; }
     tfoot td.total { font-weight:700; }
 
-    .signs { display:flex; gap:8mm; margin-top:22mm; }
+    .signs { display:flex; gap:8mm; margin-top:40mm; text-align: center;}
     .sign { flex:1; }
     .rule { border-top:1px dotted #000; }
     .role { font-size:9pt; margin-top:1mm; }
@@ -243,20 +297,25 @@ function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: bool
   </body></html>`;
 }
 
-/** Opens the challan in a new tab without triggering the print dialog. */
-export function previewDeliveryChallan(data: DeliveryChallanData): void {
-  if (typeof window === "undefined") return;
+/** Opens a pad in a new tab, printing it once it paints if asked. Returns false
+ *  when the popup was blocked, so the caller can surface a toast. */
+function openPad(data: DeliveryChallanData, spec: PadSpec, autoPrint: boolean): boolean {
+  if (typeof window === "undefined") return false;
   const w = window.open("", "_blank");
-  if (!w) return; // popup blocked — caller surfaces the toast
-  w.document.write(buildDeliveryChallanDocument(data, false));
+  if (!w) return false;
+  w.document.write(buildPadDocument(data, spec, autoPrint));
   w.document.close();
+  return true;
 }
 
-/** Opens the challan in a new tab and prints it once it paints. */
-export function printDeliveryChallan(data: DeliveryChallanData): void {
-  if (typeof window === "undefined") return;
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.write(buildDeliveryChallanDocument(data, true));
-  w.document.close();
-}
+/** Opens the Delivery Challan without triggering the print dialog. */
+export const previewDeliveryChallan = (data: DeliveryChallanData) => openPad(data, CHALLAN_SPEC, false);
+
+/** Opens the Delivery Challan and prints it once it paints. */
+export const printDeliveryChallan = (data: DeliveryChallanData) => openPad(data, CHALLAN_SPEC, true);
+
+/** Opens the Goods Received Note — the Stock Receive side of the same pad. */
+export const previewGoodsReceivedNote = (data: DeliveryChallanData) => openPad(data, GRN_SPEC, false);
+
+/** Opens the Goods Received Note and prints it once it paints. */
+export const printGoodsReceivedNote = (data: DeliveryChallanData) => openPad(data, GRN_SPEC, true);

@@ -5,7 +5,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
 import Sidebar from "./Sidebar";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/verify", "/verify-code"];
+// `/invoice` is the customer-facing share link — no session, no sidebar, and it
+// must render for someone who has never logged in.
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/verify", "/verify-code", "/invoice"];
 
 // Per-page route → permission controlName. More specific prefixes MUST come
 // before their parent (matched top-down via startsWith). Each entry mirrors a

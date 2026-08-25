@@ -415,7 +415,11 @@ export default function StockReceivePage() {
           },
           { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
+          // On the raw Item_Receive row `branchId` is the SOURCE and
+          // `receiveBranchID` the destination — the same split findOneReceive
+          // flips when it builds the document.
           { key: "branchId", header: "From Branch", render: (r) => branchName(r.branchId) },
+          { key: "receiveBranchID", header: "Receive Branch", render: (r) => branchName(r.receiveBranchID) },
           {
             key: "actions", header: "",
             render: (r) => (

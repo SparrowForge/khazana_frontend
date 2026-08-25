@@ -64,7 +64,7 @@ const CHALLAN_SPEC: PadSpec = {
   docNoLabel: "Challan No-",
   qtyHeader: "Delivery",
   blankHeaders: ["Received Qty", "Remarks"],
-  signRoles: ["Checked By Security", "Delivery Man", "Sales Man (Received By)", "Manager"],
+  signRoles: ["Checked By Security", "Delivery Man", "Received By (Sales Man)", "Manager"],
 };
 
 const GRN_SPEC: PadSpec = {
@@ -151,12 +151,6 @@ function sheetHtml(
     )
     .join("");
 
-  // A few ruled but empty rows after the last item, so a short document still
-  // leaves the receiver room to write in anything that arrived unlisted.
-  const spareRows = isLast
-    ? `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`.repeat(3)
-    : "";
-
   // The pad belongs to one branch, so the letterhead carries that branch's own
   // address. The company address is only a fallback for a branch whose address
   // has not been filled in.
@@ -189,7 +183,7 @@ function sheetHtml(
             ${spec.blankHeaders.map((h) => `<th class="w-blank">${esc(h)}</th>`).join("")}
           </tr>
         </thead>
-        <tbody>${body || `<tr><td class="empty" colspan="${cols}">No items on this document.</td></tr>`}${spareRows}</tbody>
+        <tbody>${body || `<tr><td class="empty" colspan="${cols}">No items on this document.</td></tr>`}</tbody>
         ${
           isLast
             ? `<tfoot><tr>

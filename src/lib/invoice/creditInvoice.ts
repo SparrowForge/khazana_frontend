@@ -1,7 +1,7 @@
 import api from "@/lib/api";
 
-/** Shape returned by GET /sales/credit/:id/invoice — everything needed to print,
- *  in either the thermal (POS-style) or the corporate A4 format. */
+/** Shape returned by the credit-sale invoice endpoints — everything needed to
+ *  print, in either the thermal (POS-style) or the corporate A4 format. */
 export interface CreditInvoiceItem {
   itemCode: string;
   itemName: string;
@@ -14,7 +14,8 @@ export interface CreditInvoiceItem {
 }
 
 export interface CreditInvoice {
-  id: string;
+  /** Absent on the public payload — the customer's copy carries no internal id. */
+  id?: string;
   invoiceNo: string;
   invoiceDate: string | null;
   poNo: string | null;
@@ -54,5 +55,22 @@ export interface CreditInvoice {
   dueAmount: number;
 }
 
+/** Staff copy — behind login. */
 export const fetchCreditInvoice = (id: string) =>
   api.get<CreditInvoice>(`/sales/credit/${id}/invoice`).then((r) => r.data);
+
+/** Customer copy — no login required. See `publicInvoiceUrl` for the caveat on
+ *  what that means. */
+export const fetchPublicCreditInvoice = (id: string) =>
+  api.get<CreditInvoice>(`/sales/public/credit/${id}/invoice`).then((r) => r.data);
+
+/**
+ * The link to hand a customer.
+ *
+ * Anyone holding it can read the invoice — there is no login, no expiry and no
+ * revocation. The sale's UUID is the only thing protecting it: 122 bits of
+ * entropy, so it cannot be guessed or enumerated, but it also cannot be taken
+ * back once sent. Treat the URL itself as the secret.
+ */
+export const publicInvoiceUrl = (id: string) =>
+  typeof window === "undefined" ? "" : `${window.location.origin}/invoice/credit/${id}`;

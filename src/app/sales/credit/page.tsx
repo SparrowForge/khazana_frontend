@@ -257,6 +257,9 @@ export default function CreditSalePage() {
               )}
             </div>
           </Card>
+          {/* Catalogue only — the billed lines sit in the right column, the way
+              the POS terminal splits picking from the cart. Both halves share
+              `items`/`setItems`, so they stay in step. */}
           <Card title="Items">
             <SaleItemsTable
               items={items}
@@ -265,10 +268,23 @@ export default function CreditSalePage() {
               enforceStock
               vatInclusiveTotal
               itemPicker="grid"
+              section="picker"
             />
           </Card>
         </div>
-        <div>
+        <div className="space-y-5">
+          <Card title="Cart">
+            <SaleItemsTable
+              items={items}
+              onItemsChange={setItems}
+              availableItems={availableItems}
+              enforceStock
+              vatInclusiveTotal
+              itemPicker="grid"
+              section="lines"
+              compactLines
+            />
+          </Card>
           <Card title="Invoice Summary">
             <div className="space-y-3">
               <div className="flex justify-between text-sm">

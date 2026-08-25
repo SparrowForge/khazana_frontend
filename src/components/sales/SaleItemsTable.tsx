@@ -48,6 +48,20 @@ interface SaleItemsTableProps {
    *  and on-hand qty on the card, out-of-stock cards disabled — so a credit
    *  sale is rung up exactly the way the counter rings up a cash sale. */
   itemPicker?: "select" | "grid";
+  /** Which half of the control to render. `"all"` (default) is picker above
+   *  lines, as every sale form has always had it.
+   *
+   *  Splitting it lets a page put the picker and the billed lines in different
+   *  columns — the POS terminal's shape, catalogue left / cart right. Render two
+   *  instances sharing one `items` + `onItemsChange`: the parent owns the lines,
+   *  so the halves stay in step, and the state each keeps to itself (the
+   *  picker's search box, the lines' in-flight cell edit) belongs to that half
+   *  anyway. */
+  section?: "all" | "picker" | "lines";
+  /** Render billed lines as the terminal's stacked cart rows instead of the wide
+   *  8-column table. The table needs the full page width; a side column doesn't
+   *  have it. */
+  compactLines?: boolean;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -65,6 +79,8 @@ export default function SaleItemsTable({
   heldStock,
   vatInclusiveTotal = false,
   itemPicker = "select",
+  section = "all",
+  compactLines = false,
 }: SaleItemsTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
@@ -426,10 +442,98 @@ export default function SaleItemsTable({
   </div>
   );
 
-  return (
-    <div className="space-y-3">
-      {itemPicker === "grid" ? gridPicker : selectPicker}
+  /** The terminal's cart row: name and bin on top, then rate × qty stepper,
+   *  discount and the line total. Same handlers as the table — only the shape
+   *  differs, so the two can't drift on validation. */
+  const compactList = (
+    <div className="rounded-lg border border-sage-300 bg-white overflow-hidden">
+      {items.length === 0 ? (
+        <div className="py-10 text-center text-sm text-gray-400">No items added yet</div>
+      ) : (
+        <div className="divide-y divide-sage-200 max-h-[26rem] overflow-y-auto">
+          {items.map((item, i) => (
+            <div key={i} className="px-3 py-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-medium text-gray-800 leading-tight">
+                  <span className="text-gray-400 font-normal mr-1">{i + 1}.</span>
+                  {item.itemName || item.itemCode}
+                </p>
+                <button
+                  onClick={() => removeItem(i)}
+                  title="Remove line"
+                  className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-1.5">
+                <p className="text-xs text-gray-400 whitespace-nowrap">
+                  ৳{formatCurrency(item.rate)}
+                  {!!item.vatPercentage && (
+                    <span className="text-orange-400 ml-1">+{item.vatPercentage}% VAT</span>
+                  )}
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => stepQty(i, -1)}
+                      disabled={r2(item.quantity - 1) <= 0}
+                      title="Decrease qty"
+                      className="w-6 h-6 rounded-md bg-sage-200 hover:bg-sage-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <input
+                      type="number" min="0.01" step="0.01" inputMode="decimal"
+                      value={cellValue(i, "quantity")}
+                      onChange={(e) => setDraft({ idx: i, field: "quantity", value: e.target.value })}
+                      onBlur={commitDraft}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label={`Quantity for ${item.itemName || item.itemCode}`}
+                      className="w-14 text-center text-sm font-semibold border border-sage-300 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => stepQty(i, 1)}
+                      disabled={enforceStock && remainingFor(item.itemId) <= 0}
+                      title={
+                        enforceStock && remainingFor(item.itemId) <= 0
+                          ? "No more stock available"
+                          : "Increase qty"
+                      }
+                      className="w-6 h-6 rounded-md bg-sage-200 hover:bg-sage-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-1 text-[11px] text-gray-400">
+                    Disc
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={cellValue(i, "discount")}
+                      onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
+                      onBlur={commitDraft}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label={`Discount for ${item.itemName || item.itemCode}`}
+                      className="w-16 text-right border border-sage-300 rounded-md px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    />
+                  </label>
+                  <span className="text-sm font-bold text-primary-700 whitespace-nowrap w-20 text-right">
+                    ৳{formatCurrency(lineTotal(item))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
+  const wideTable = (
       <div className="overflow-x-auto rounded-lg border border-sage-300">
         <table className="w-full text-sm">
           <thead className="bg-sage-100 border-b border-sage-300">
@@ -527,13 +631,55 @@ export default function SaleItemsTable({
           )}
         </table>
       </div>
-      <div className="text-right text-sm text-gray-500">
-        Gross: <span className="font-medium">{formatCurrency(totalAmount)}</span>
-        {" | "}Discount: <span className="font-medium">{formatCurrency(totalDiscount)}</span>
-        {" | "}Net: <span className="font-medium">{formatCurrency(netAmount)}</span>
-        {" | "}VAT: <span className="font-medium">{formatCurrency(totalVat)}</span>
-        {" | "}Total: <span className="font-bold text-gray-800 text-base">{formatCurrency(grandTotal)}</span>
+  );
+
+  /** Running totals under the lines. Stacked when compact — the one-line strip
+   *  wraps into an unreadable knot in a side column. */
+  const totalsStrip = compactLines ? (
+    <dl className="rounded-lg border border-sage-300 bg-sage-100 px-3 py-2 text-sm">
+      {([
+        ["Gross", totalAmount],
+        ["Discount", totalDiscount],
+        ["Net", netAmount],
+        ["VAT", totalVat],
+      ] as const).map(([label, value]) => (
+        <div key={label} className="flex justify-between text-gray-500">
+          <dt>{label}</dt>
+          <dd className="font-medium text-gray-700">{formatCurrency(value)}</dd>
+        </div>
+      ))}
+      <div className="flex justify-between border-t border-sage-300 mt-1.5 pt-1.5">
+        <dt className="font-semibold text-gray-700">Total</dt>
+        <dd className="font-bold text-gray-800">{formatCurrency(grandTotal)}</dd>
       </div>
+    </dl>
+  ) : (
+    <div className="text-right text-sm text-gray-500">
+      Gross: <span className="font-medium">{formatCurrency(totalAmount)}</span>
+      {" | "}Discount: <span className="font-medium">{formatCurrency(totalDiscount)}</span>
+      {" | "}Net: <span className="font-medium">{formatCurrency(netAmount)}</span>
+      {" | "}VAT: <span className="font-medium">{formatCurrency(totalVat)}</span>
+      {" | "}Total: <span className="font-bold text-gray-800 text-base">{formatCurrency(grandTotal)}</span>
+    </div>
+  );
+
+  if (section === "picker") {
+    return itemPicker === "grid" ? gridPicker : selectPicker;
+  }
+
+  const lines = (
+    <div className="space-y-3">
+      {compactLines ? compactList : wideTable}
+      {totalsStrip}
+    </div>
+  );
+
+  if (section === "lines") return lines;
+
+  return (
+    <div className="space-y-3">
+      {itemPicker === "grid" ? gridPicker : selectPicker}
+      {lines}
     </div>
   );
 }

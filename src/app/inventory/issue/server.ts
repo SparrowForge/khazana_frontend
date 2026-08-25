@@ -5,6 +5,8 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  /** Unit of measure — printed in brackets on the Delivery Challan. */
+  itmUOM?: string;
   /** VAT-EXCLUSIVE list price — what gets stored on the issue line. */
   price?: number;
   /** VAT rate on that price, so the preview can show the gross figure. */
@@ -58,6 +60,8 @@ export interface IssueGroup {
   items: {
     itemId: string;
     itemName?: string;
+    /** Unit of measure — printed in brackets on the Delivery Challan. */
+    uom?: string;
     qty: number;
     /** As stored — VAT-EXCLUSIVE (t_Price.priceListPrice). */
     unitPrice?: number;

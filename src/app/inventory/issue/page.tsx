@@ -13,6 +13,7 @@ import {
   fetchItems, fetchBranches, fetchIssues, fetchIssue, issueStock, updateIssue, deleteIssue,
   type AvailableItem, type BranchOption, type IssueRecord, type IssueGroup,
 } from "./server";
+import { fetchSettings, type Settings } from "@/app/admin/settings/server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
@@ -20,8 +21,16 @@ import { isFactoryBranch } from "@/lib/branch";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Plus, Trash2, Edit2 } from "lucide-react";
-import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
+import { Plus, Trash2, Edit2, Eye, Printer } from "lucide-react";
+import { type ExportColumn } from "@/lib/export/reportExport";
+import {
+  previewDeliveryChallan,
+  printDeliveryChallan,
+  challanItemName,
+  sortChallanLines,
+  type DeliveryChallanData,
+  type DeliveryChallanLine,
+} from "@/lib/export/deliveryChallanDocument";
 
 /** What the user typed against one item in the entry grid. The grid lists the
  *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
@@ -30,24 +39,23 @@ interface ItemEntry { qty: string; isProduction: boolean; }
 
 const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false };
 
-/** Unit Price prints INCLUSIVE of VAT. `Item_Issue.unitPrice` is stored ex-VAT,
- *  so the document carries `unitPriceWithVat` alongside it; the fallback keeps
- *  an older payload (or a line with no price row) readable rather than blank. */
-const unitPriceWithVat = (r: { unitPrice?: number; unitPriceWithVat?: number }) =>
-  r.unitPriceWithVat ?? r.unitPrice ?? 0;
+/** A challan line, numbered. `Received Qty` and `Remarks` stay blank on every
+ *  output — they are there for the receiving outlet to write in by hand. */
+interface ChallanRow extends DeliveryChallanLine { sl: number; }
 
-// One spec behind Print, PDF, Excel and Preview, so the four can't disagree.
-const reportColumns: ExportColumn<{
-  itemName?: string;
-  qty: number;
-  unitPrice?: number;
-  unitPriceWithVat?: number;
-  isProduction?: boolean;
-}>[] = [
-  { header: "Item Name", value: (r) => r.itemName ?? "-" },
-  { header: "Qty", value: (r) => r.qty, numeric: true },
-  { header: "Unit Price (Inc. VAT)", value: (r) => unitPriceWithVat(r), numeric: true },
-  { header: "Production", value: (r) => (r.isProduction ? "Yes" : "") },
+/** Sorted and numbered exactly as {@link previewDeliveryChallan} renders them,
+ *  so the on-screen table, the printed sheet and the spreadsheet agree row for row. */
+const challanRows = (lines: DeliveryChallanLine[]): ChallanRow[] =>
+  sortChallanLines(lines).map((l, i) => ({ ...l, sl: i + 1 }));
+
+// One spec behind the PDF and Excel exports; the printed/preview challan is
+// rendered by deliveryChallanDocument from the same rows.
+const challanColumns: ExportColumn<ChallanRow>[] = [
+  { header: "SL No", value: (r) => r.sl, numeric: true },
+  { header: "Item Of Name", value: (r) => challanItemName(r), width: 34 },
+  { header: "Delivery", value: (r) => r.qty, numeric: true },
+  { header: "Received Qty", value: () => "", width: 14 },
+  { header: "Remarks", value: () => "", width: 22 },
 ];
 
 const getDefaultDateRange = () => {
@@ -93,6 +101,8 @@ export default function StockIssuePage() {
   const [itemSearch, setItemSearch] = useState("");
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
+  /** Letterhead for the printed challan — company name and address. */
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [submitting, setSubmitting] = useState(false);
   /** Qty per item as the document being edited was saved. Editing is
    *  purge-and-replace — the stock it already took out comes back to it — so
@@ -130,6 +140,9 @@ export default function StockIssuePage() {
   useEffect(() => {
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchBranches().then(setBranches).catch(() => {});
+    // Letterhead only — a failure here still leaves a printable challan, just
+    // with the fallback company name.
+    fetchSettings().then(setSettings).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
@@ -311,32 +324,66 @@ export default function StockIssuePage() {
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
   };
 
+  /** The Delivery Challan header, from whichever document is on screen. The
+   *  challan is the receiving outlet's paperwork, so it is headed by the branch
+   *  the stock is going TO — the issuing branch is implied by the letterhead. */
+  const buildChallan = (opts: {
+    challanNo: string;
+    issueDate: string | Date;
+    receiveBranchId?: string;
+    items: DeliveryChallanLine[];
+  }): DeliveryChallanData => ({
+    companyName: settings?.companyName || "Khazana Mithai Limited",
+    companyAddress: settings?.companyAddress || undefined,
+    toBranchName: branchName(opts.receiveBranchId),
+    challanNo: opts.challanNo,
+    issueDate: opts.issueDate,
+    preparedBy: sessionUser?.name || sessionUser?.userName || undefined,
+    items: opts.items,
+  });
+
+  /** Challan lines for the document being typed. Nothing is saved yet, so the
+   *  name and unit come off the catalogue row rather than the issue record. */
+  const draftChallanLines = (): DeliveryChallanLine[] =>
+    validLines.map((l) => {
+      const item = availableItems.find((it) => it.id === l.itemId);
+      return { itemName: item?.itmName || item?.itmCode || "-", uom: item?.itmUOM, qty: l.qty };
+    });
+
   const handlePreview = () => {
     if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
-    const rows = validLines.map((l) => {
-      const item = availableItems.find((it) => it.id === l.itemId);
-      const vat = Number(item?.vatPercentage ?? 0);
-      return {
-        itemName: item?.itmName,
-        qty: l.qty,
-        unitPrice: l.unitPrice,
-        // Nothing is saved yet, so the gross figure is derived here from the
-        // item's own VAT rate — the same sum the server does on a saved issue.
-        unitPriceWithVat: Math.round(l.unitPrice * (1 + vat / 100) * 100) / 100,
-        isProduction: l.isProduction,
-      };
-    });
-    previewReport(rows, reportColumns, {
-      title: "Stock Issue Preview",
-      subtitle: [
-        `Serial No: ${editingSerial || "New"}`,
-        `Voucher No: ${voucherNo || "-"}`,
-        `Date: ${formatDate(issueDate)}`,
-        `From: ${branchName(issueBranchId)}`,
-        `To: ${branchName(receiveBranchId)}`,
-      ].join(" · "),
-    });
+    previewDeliveryChallan(
+      buildChallan({
+        // A challan number is the voucher the outlet quotes back; an unsaved
+        // document has neither, so the field prints blank rather than "New".
+        challanNo: voucherNo || editingSerial || "",
+        issueDate,
+        receiveBranchId,
+        items: draftChallanLines(),
+      }),
+    );
   };
+
+  const handlePrintDraft = () => {
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item to print"); return; }
+    printDeliveryChallan(
+      buildChallan({
+        challanNo: voucherNo || editingSerial || "",
+        issueDate,
+        receiveBranchId,
+        items: draftChallanLines(),
+      }),
+    );
+  };
+
+  /** The saved document's challan — same builder, lines straight off the record. */
+  const savedChallan = (doc: IssueGroup): DeliveryChallanData =>
+    buildChallan({
+      challanNo: doc.voucherNo || doc.serialNo,
+      issueDate: doc.issueDate ?? "",
+      receiveBranchId: doc.receiveBranchId,
+      items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
+    });
 
   return (
     <AppLayout>
@@ -528,7 +575,12 @@ export default function StockIssuePage() {
 
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>Preview</Button>
+          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>
+            <Eye size={14} /> Preview
+          </Button>
+          <Button variant="secondary" onClick={handlePrintDraft} disabled={!validLines.length}>
+            <Printer size={14} /> Print Challan
+          </Button>
           <Button
             onClick={handleSubmit}
             loading={submitting}
@@ -543,47 +595,60 @@ export default function StockIssuePage() {
         {reportLoading || !report ? (
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
-              <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
-              <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
-              <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.issueDate)}</span></div>
-              <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.issueBranchId)}</span></div>
-              <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.receiveBranchId)}</span></div>
-            </div>
-            <div className="mb-3 flex justify-end">
-              <ReportExportButtons
-                rows={report.items}
-                columns={reportColumns}
-                meta={{
-                  title: "Stock Issue Report",
-                  subtitle: [
-                    `Serial No: ${report.serialNo}`,
-                    `Voucher No: ${report.voucherNo || "-"}`,
-                    `Date: ${formatDate(report.issueDate)}`,
-                    `From: ${branchName(report.issueBranchId)}`,
-                    `To: ${branchName(report.receiveBranchId)}`,
-                  ].join(" · "),
-                }}
-                showPreview
-              />
-            </div>
-            <Table
-              data={report.items.map((it, i) => ({ id: i, ...it }))}
-              columns={[
-                { key: "itemName", header: "Item Name", render: (r) => r.itemName ?? "-" },
-                { key: "qty", header: "Qty", className: "text-right" },
-                {
-                  key: "unitPrice", header: "Unit Price (Inc. VAT)", className: "text-right",
-                  render: (r) => unitPriceWithVat(r).toFixed(2),
-                },
-                {
-                  key: "isProduction", header: "Production", className: "text-center",
-                  render: (r) => (r.isProduction ? <span className="text-amber-700 font-medium">Yes</span> : <span className="text-gray-300">-</span>),
-                },
-              ]}
-            />
-          </>
+          (() => {
+            const challan = savedChallan(report);
+            const rows = challanRows(challan.items);
+            const totalQty = rows.reduce((sum, r) => sum + r.qty, 0);
+            return (
+              <>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
+                  <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
+                  <div><span className="text-gray-500">Challan No:</span> <span className="font-medium">{challan.challanNo || "-"}</span></div>
+                  <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.issueDate)}</span></div>
+                  <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.issueBranchId)}</span></div>
+                  <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.receiveBranchId)}</span></div>
+                </div>
+                <div className="mb-3 flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => previewDeliveryChallan(challan)}>
+                    <Eye size={14} /> Preview
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => printDeliveryChallan(challan)}>
+                    <Printer size={14} /> Print
+                  </Button>
+                  {/* Print and Preview render the real Delivery Challan sheet, so
+                      the generic ones are turned off — only PDF/Excel are wanted here. */}
+                  <ReportExportButtons
+                    rows={rows}
+                    columns={challanColumns}
+                    meta={{
+                      title: "Delivery Challan",
+                      subtitle: [
+                        challan.toBranchName,
+                        `Challan No: ${challan.challanNo || "-"}`,
+                        `Date: ${formatDate(report.issueDate)}`,
+                      ].join(" · "),
+                      footer: ["", "", totalQty.toFixed(2), "", ""],
+                    }}
+                    showPrint={false}
+                  />
+                </div>
+                <Table
+                  data={rows.map((r) => ({ id: r.sl, ...r }))}
+                  columns={[
+                    { key: "sl", header: "SL No", className: "text-center w-16" },
+                    { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
+                    { key: "qty", header: "Delivery", className: "text-right", render: (r) => r.qty.toFixed(2) },
+                    // Blank on purpose — the outlet writes these in on the paper copy.
+                    { key: "received", header: "Received Qty", render: () => "" },
+                    { key: "remarks", header: "Remarks", render: () => "" },
+                  ]}
+                />
+                <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
+                  Total Delivery: {totalQty.toFixed(2)}
+                </div>
+              </>
+            );
+          })()
         )}
       </Modal>
     </AppLayout>

@@ -176,7 +176,7 @@ export default function BranchwiseDeliveryReportPage() {
         <>
           <style>{`
             @media print {
-              @page { size: landscape; margin: 8mm; }
+              @page { size: A4 landscape; margin: 8mm; }
               body * { visibility: hidden !important; }
               #report, #report * { visibility: visible !important; }
               #report { position: absolute; top: 0; left: 0; width: 100%; }

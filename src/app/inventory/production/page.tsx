@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -7,7 +7,6 @@ import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchItems, fetchProductions, fetchProduction, createProduction, updateProduction, deleteProduction,
@@ -23,7 +22,12 @@ import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { previewReport, type ExportColumn } from "@/lib/export/reportExport";
 
-interface ProductionLine { itemId: string; qty: string; rate: string; }
+/** What the user typed against one item in the entry grid. The grid lists the
+ *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
+ *  only rows with qty > 0 are ever sent. `rate` is seeded from the item's
+ *  VAT-inclusive price and stays editable: a production rate is a costing
+ *  decision, not the sale price. */
+interface ItemEntry { qty: string; rate: string; }
 
 /** Report/export rows. `rate` is VAT-inclusive, so amount is simply qty × rate
  *  — no VAT is added on top of it anywhere on this screen. */
@@ -45,9 +49,7 @@ const getDefaultDateRange = () => {
   };
 };
 
-const emptyLine = (): ProductionLine => ({ itemId: "", qty: "1", rate: "0" });
-
-const lineAmount = (l: ProductionLine) => (parseFloat(l.qty) || 0) * (parseFloat(l.rate) || 0);
+const entryAmount = (e: ItemEntry) => (parseFloat(e.qty) || 0) * (parseFloat(e.rate) || 0);
 
 export default function ProductionEntryPage() {
   const { can } = usePermissions();
@@ -75,13 +77,11 @@ export default function ProductionEntryPage() {
   const [serialNo, setSerialNo] = useState("");
   const [productionDate, setProductionDate] = useState(new Date().toISOString().split("T")[0]);
   const [remarks, setRemarks] = useState("");
-  const [lines, setLines] = useState<ProductionLine[]>([emptyLine()]);
+  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
+  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
+  const [itemSearch, setItemSearch] = useState("");
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
-
-  const itemLabel = (it: AvailableItem) => `${it.itmCode} — ${it.itmName} (stock: ${it.stock ?? 0})`;
-
-  const formTotal = lines.reduce((sum, l) => sum + lineAmount(l), 0);
 
   const loadList = () => {
     setListLoading(true);
@@ -96,26 +96,55 @@ export default function ProductionEntryPage() {
   }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate]);
 
-  const addLine = () => setLines([...lines, emptyLine()]);
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, field: keyof ProductionLine, val: string) =>
-    setLines(lines.map((l, idx) => {
-      if (idx !== i) return l;
-      // Picking an item pre-fills the rate with its VAT-INCLUSIVE price; it stays
-      // editable because a production rate is a costing decision, not the sale price.
-      if (field === "itemId") {
-        const item = availableItems.find((it) => it.id === val);
-        return { ...l, itemId: val, rate: String(vatInclusiveRate(item)) };
-      }
-      return { ...l, [field]: val };
-    }));
+  /** An untouched row still shows the item's own VAT-inclusive price, so the
+   *  grid reads as a rate sheet the user only has to type quantities into. */
+  const entryFor = (it: AvailableItem): ItemEntry =>
+    entries[it.id] ?? { qty: "", rate: String(vatInclusiveRate(it)) };
+
+  const setEntry = (it: AvailableItem, patch: Partial<ItemEntry>) =>
+    setEntries((prev) => ({ ...prev, [it.id]: { ...entryFor(it), ...patch } }));
+
+  /** The lines that will actually be saved: qty > 0, in catalogue order. */
+  const validLines = useMemo(
+    () =>
+      availableItems
+        .filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0)
+        .map((it) => {
+          const entry = entries[it.id];
+          return {
+            itemId: it.id,
+            itemName: it.itmName,
+            qty: parseFloat(entry.qty),
+            // A row the user never edited the rate on falls back to the item's
+            // own price rather than saving a zero-value production line.
+            rate: parseFloat(entry.rate || "") || vatInclusiveRate(it),
+          };
+        }),
+    [availableItems, entries],
+  );
+
+  const formTotal = validLines.reduce((sum, l) => sum + l.qty * l.rate, 0);
+
+  /** The grid shows every item; a catalogue of any size needs a filter. Rows
+   *  already carrying a qty stay visible so a search can't hide pending input. */
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return availableItems;
+    return availableItems.filter(
+      (it) =>
+        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
+        it.itmCode?.toLowerCase().includes(q) ||
+        it.itmName?.toLowerCase().includes(q),
+    );
+  }, [availableItems, entries, itemSearch]);
 
   const openCreate = () => {
     setEditingSerial(null);
     setSerialNo("");
     setProductionDate(new Date().toISOString().split("T")[0]);
     setRemarks("");
-    setLines([emptyLine()]);
+    setEntries({});
+    setItemSearch("");
     setModal(true);
   };
 
@@ -126,7 +155,19 @@ export default function ProductionEntryPage() {
       setSerialNo(full.serialNo);
       setProductionDate(full.productionDate ? full.productionDate.split("T")[0] : new Date().toISOString().split("T")[0]);
       setRemarks(full.remarks ?? "");
-      setLines(full.items.map((it) => ({ itemId: it.itemId, qty: String(it.qty ?? 1), rate: String(it.rate ?? 0) })));
+      setItemSearch("");
+      // Repeated lines of one item collapse into the grid's single row for it;
+      // the last rate saved for that item wins.
+      setEntries(
+        full.items.reduce<Record<string, ItemEntry>>((acc, it) => {
+          const previous = parseFloat(acc[it.itemId]?.qty ?? "0") || 0;
+          acc[it.itemId] = {
+            qty: String(previous + Number(it.qty ?? 0)),
+            rate: String(it.rate ?? 0),
+          };
+          return acc;
+        }, {}),
+      );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load production entry")); }
   };
@@ -155,12 +196,11 @@ export default function ProductionEntryPage() {
   };
 
   const handleSubmit = async () => {
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line"); return; }
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     const payload = {
       productionDate,
       remarks,
-      items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), rate: parseFloat(l.rate || "0") })),
+      items: validLines.map((l) => ({ itemId: l.itemId, qty: l.qty, rate: l.rate })),
     };
     setSubmitting(true);
     try {
@@ -182,13 +222,8 @@ export default function ProductionEntryPage() {
     [`Serial No: ${serial}`, `Date: ${formatDate(date)}`, `Branch: ${branchName}`, `Remarks: ${note || "-"}`].join(" · ");
 
   const handlePreview = () => {
-    const valid = lines.filter((l) => l.itemId && parseFloat(l.qty) > 0);
-    if (!valid.length) { toast.error("Add at least one valid line to preview"); return; }
-    const rows: ReportRow[] = valid.map((l) => ({
-      itemName: availableItems.find((it) => it.id === l.itemId)?.itmName,
-      qty: parseFloat(l.qty),
-      rate: parseFloat(l.rate || "0"),
-    }));
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
+    const rows: ReportRow[] = validLines.map((l) => ({ itemName: l.itemName, qty: l.qty, rate: l.rate }));
     previewReport(rows, reportColumns, {
       title: "Production Entry Preview",
       subtitle: reportSubtitle(editingSerial || "New", productionDate, remarks),
@@ -255,43 +290,91 @@ export default function ProductionEntryPage() {
           <Input label="Branch" value={branchName} disabled readOnly />
           <Input label="Remarks" value={remarks} maxLength={500} onChange={(e) => setRemarks(e.target.value)} />
         </div>
-        <div className="space-y-2">
-          {lines.map((line, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <Select
-                label={i === 0 ? "Item" : undefined}
-                value={line.itemId}
-                onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                placeholder="Select item..."
-                options={availableItems.map((it) => ({ value: it.id, label: itemLabel(it) }))}
-                className="flex-1"
-              />
-              <div className="w-24">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Qty</label>}
-                <input type="number" min="0" step="0.01" value={line.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              </div>
-              <div className="w-32">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block">Rate (incl. VAT)</label>}
-                <input type="number" min="0" step="0.01" value={line.rate} onChange={(e) => updateLine(i, "rate", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              </div>
-              <div className="w-28 text-right pb-2 text-sm text-gray-700">
-                {i === 0 && <label className="text-sm font-medium text-gray-700 mb-1 block text-right">Amount</label>}
-                {formatCurrency(lineAmount(line))}
-              </div>
-              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 pb-2"><Trash2 size={16} /></button>
-            </div>
-          ))}
-          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <Input
+            placeholder="Search items by code or name..."
+            value={itemSearch}
+            onChange={(e) => setItemSearch(e.target.value)}
+            className="w-72"
+          />
+          <div className="text-sm text-gray-500">
+            {validLines.length} item{validLines.length === 1 ? "" : "s"} to produce
+          </div>
         </div>
+
+        {/* The whole catalogue, with the quantity typed inline — same sheet as
+            Stock Receive / Stock Issue. Scrolls rather than paginates so a
+            part-filled sheet is never split across pages. Only rows carrying a
+            quantity are saved. */}
+        <div className="border border-gray-200 rounded-lg overflow-auto max-h-[45vh]">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr className="text-left text-gray-600">
+                <th className="px-3 py-2 font-medium">Item ID</th>
+                <th className="px-3 py-2 font-medium">Item Name</th>
+                <th className="px-3 py-2 font-medium text-right">Current Stock</th>
+                <th className="px-3 py-2 font-medium text-right w-28">Qty</th>
+                <th className="px-3 py-2 font-medium text-right w-32">Rate (incl. VAT)</th>
+                <th className="px-3 py-2 font-medium text-right w-28">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((it) => {
+                const entry = entryFor(it);
+                const qty = parseFloat(entry.qty) || 0;
+                return (
+                  <tr key={it.id} className={`border-t border-gray-100 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
+                    <td className="px-3 py-1.5">{it.itmName}</td>
+                    {/* Context only — production adds stock, so nothing to cap. */}
+                    <td className="px-3 py-1.5 text-right text-gray-500">{it.stock ?? 0}</td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={entry.qty}
+                        placeholder="0"
+                        onChange={(e) => setEntry(it, { qty: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={entry.rate}
+                        onChange={(e) => setEntry(it, { rate: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-gray-700 whitespace-nowrap">
+                      {formatCurrency(entryAmount(entry))}
+                    </td>
+                  </tr>
+                );
+              })}
+              {visibleItems.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-6 text-center text-gray-400">
+                    No items match that search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
         <div className="mt-4 flex justify-end text-sm font-medium text-gray-700">
           Total (incl. VAT): <span className="ml-2 w-28 text-right">{formatCurrency(formTotal)}</span>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button variant="secondary" onClick={handlePreview}>Preview</Button>
-          <Button onClick={handleSubmit} loading={submitting}>{editingSerial ? "Update Production" : "Save Production"}</Button>
+          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>Preview</Button>
+          <Button onClick={handleSubmit} loading={submitting} disabled={!validLines.length}>
+            {editingSerial ? "Update Production" : "Save Production"}
+          </Button>
         </div>
       </Modal>
 

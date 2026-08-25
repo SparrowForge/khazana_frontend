@@ -36,15 +36,28 @@ function filename(meta: ReportMeta, ext: string) {
   return `${stem}_${stamp}.${ext}`;
 }
 
+/** Column count past which a report is laid out on landscape A4 — the same
+ *  threshold {@link exportPdf} uses, so the printed sheet and the downloaded
+ *  PDF pick the same orientation. */
+const LANDSCAPE_FROM_COLUMNS = 6;
+
 /** Builds the standalone print/preview document — a print stylesheet on the
  *  page itself would need per-page CSS and app chrome hiding; a dedicated
- *  document just contains exactly the exported columns. */
+ *  document just contains exactly the exported columns.
+ *
+ *  The content sits on a real A4 sheet rather than filling the window, so the
+ *  preview is the page that comes out of the printer: what overflows the sheet
+ *  on screen is what spills onto sheet two on paper. */
 function buildReportDocument<T>(
   rows: T[],
   columns: ExportColumn<T>[],
   meta: ReportMeta,
   autoPrint: boolean,
 ): string {
+  const landscape = columns.length >= LANDSCAPE_FROM_COLUMNS;
+  // A4 minus the 12mm margins the @page rule reserves on each side.
+  const sheetWidth = landscape ? 297 - 24 : 210 - 24;
+  const sheetHeight = landscape ? 210 - 24 : 297 - 24;
   const head = columns
     .map((c) => `<th class="${c.numeric ? "num" : ""}">${esc(c.header)}</th>`)
     .join("");
@@ -64,29 +77,46 @@ function buildReportDocument<T>(
         .join("")}</tr></tfoot>`
     : "";
 
+  const autoPrintScript = autoPrint
+    ? '<script>window.onload=function(){setTimeout(function(){window.print();},250);};<' + '/script>'
+    : "";
+
   return `<!doctype html><html><head><meta charset="utf-8">
   <title>${esc(meta.title)}</title>
   <style>
-    @page { size: A4 landscape; margin: 12mm; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color:#111; margin:0; }
+    @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color:#111; margin:0; background:#e9e9ec; }
+    /* One A4 sheet's worth of printable area, centred — not a full-width flow. */
+    .sheet {
+      width:${sheetWidth}mm; min-height:${sheetHeight}mm;
+      margin:8mm auto; padding:8mm; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.28);
+    }
     h1 { font-size:18px; margin:0 0 2px; }
     .sub { font-size:12px; color:#555; margin-bottom:12px; }
     table { width:100%; border-collapse:collapse; font-size:11px; }
-    th, td { border:1px solid #999; padding:5px 7px; text-align:left; }
+    th, td { border:1px solid #999; padding:5px 7px; text-align:left; word-wrap:break-word; overflow-wrap:break-word; }
     th { background:#f1f1f1; font-weight:600; }
     td.num, th.num { text-align:right; }
     tfoot td { font-weight:700; background:#f7f7f7; }
     tr { break-inside: avoid; }
     thead { display: table-header-group; }
+    @media print {
+      body { background:#fff; }
+      /* The @page margin is the paper margin; the sheet is only a screen frame. */
+      .sheet { width:auto; min-height:0; margin:0; padding:0; box-shadow:none; }
+    }
   </style></head><body>
-    <h1>${esc(meta.title)}</h1>
-    ${meta.subtitle ? `<div class="sub">${esc(meta.subtitle)}</div>` : ""}
-    <table>
-      <thead><tr>${head}</tr></thead>
-      <tbody>${body}</tbody>
-      ${foot}
-    </table>
-    ${autoPrint ? `<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>` : ""}
+    <div class="sheet">
+      <h1>${esc(meta.title)}</h1>
+      ${meta.subtitle ? `<div class="sub">${esc(meta.subtitle)}</div>` : ""}
+      <table>
+        <thead><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
+        ${foot}
+      </table>
+    </div>
+    ${autoPrintScript}
   </body></html>`;
 }
 
@@ -122,7 +152,7 @@ export async function exportPdf<T>(
 
   // Landscape once a report gets wide enough that portrait would squeeze columns.
   const doc = new jsPDF({
-    orientation: columns.length > 5 ? "landscape" : "portrait",
+    orientation: columns.length >= LANDSCAPE_FROM_COLUMNS ? "landscape" : "portrait",
     unit: "pt",
     format: "a4",
   });

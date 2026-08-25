@@ -134,7 +134,7 @@ export default function DemandReportPage() {
         <>
           <style>{`
             @media print {
-              @page { size: portrait; margin: 8mm; }
+              @page { size: A4 portrait; margin: 8mm; }
               body * { visibility: hidden !important; }
               #report, #report * { visibility: visible !important; }
               #report { position: absolute; top: 0; left: 0; width: 100%; }

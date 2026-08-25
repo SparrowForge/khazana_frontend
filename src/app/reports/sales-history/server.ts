@@ -4,6 +4,7 @@ export interface SalesHistoryItem {
   serialNo: number;
   date: string;
   invoiceNo: string;
+  clientName: string;
   itemName: string;
   uom: string;
   qty: number;
@@ -30,6 +31,9 @@ export interface SalesHistoryItem {
 export interface SalesHistoryRow {
   date: string;
   invoiceNo: string;
+  /** Customer on the invoice — blank on running (POS) counter sales, which
+   *  carry no customer at all. Repeats down an invoice's lines like invoiceNo. */
+  clientName: string;
   itemName: string;
   /** Unit the qty is in (KG / Pcs), shown beside it the way the sheet reads. */
   uom: string;

@@ -51,6 +51,7 @@ const exportColumns: ExportColumn<ExportRow>[] = [
   { header: "SI#", value: (r) => String(r.si ?? "") },
   { header: "Date", value: (r) => String(r.dateHeader ?? "") },
   { header: "Inv No", value: (r) => String(r.invoiceNo ?? "") },
+  { header: "Client Name", value: (r) => String(r.clientName ?? ""), width: 24 },
   { header: "Item Name", value: (r) => String(r.itemName ?? "") },
   { header: "Qty", value: (r) => (r.type === "spacer" ? "" : Number(r.qty) || 0), numeric: true },
   // Kept out of Qty so the column stays numeric (sortable/summable) in Excel.
@@ -163,6 +164,9 @@ export default function SalesHistoryPage() {
           type: "item",
           si: siCounter++,
           invoiceNo: invoiceLabels[idx],
+          // The client belongs to the invoice, not the line — it blanks out on
+          // an invoice's continuation rows the same way its number does.
+          clientName: invoiceLabels[idx] ? item.clientName : "",
           dateHeader: invoiceLabels[idx] ? formatDate(dateStr) : "",
         });
       });
@@ -289,12 +293,15 @@ export default function SalesHistoryPage() {
                         id: `${dateStr}-${idx}`,
                         ...item,
                         invoiceNo: labels[idx],
+                        // Blanked on continuation rows alongside the invoice no.
+                        clientName: labels[idx] ? item.clientName : "",
                         si: idx + 1,
                       }));
                     })()}
                     columns={[
                       { key: "si", header: "SI#", className: "w-12" },
                       { key: "invoiceNo", header: "Inv No" },
+                      { key: "clientName", header: "Client Name", render: (r) => r.clientName || "" },
                       { key: "itemName", header: "Item Name" },
                       { key: "qty", header: "Qty", className: "text-right whitespace-nowrap", render: (r) => fmtQtyUom(r.qty, r.uom) },
                       { key: "price", header: "Price", className: "text-right", render: (r) => fmt(priceWithVat(r.price, r.vat, r.qty)) },

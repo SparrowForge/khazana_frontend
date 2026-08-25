@@ -151,6 +151,9 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       // menu and permission. The page is a re-export, not a copy.
       { label: "Discount Log Report", route: "/factory/discount-log", icon: <FileText size={16} />, controlName: "DiscountLogReport", factoryOnly: true },
       { label: "Demand Report", route: "/factory/demand-report", icon: <FileText size={16} />, controlName: "DemandReport", factoryOnly: true },
+      // Same report as Reports > Sales History Summary, under the factory's own
+      // menu and permission. The page is a re-export, not a copy.
+      { label: "Sales History Report", route: "/factory/sales-history", icon: <BarChart2 size={16} />, controlName: "SalesHistoryReport", factoryOnly: true },
     ],
   },
 

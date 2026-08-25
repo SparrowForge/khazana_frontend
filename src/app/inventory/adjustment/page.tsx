@@ -288,6 +288,7 @@ export default function StockAdjustmentPage() {
                     `Reference No: ${report.invNo}`,
                     `Date: ${formatDate(report.date)}`,
                   ].join(" · "),
+                  forcePortrait: true,
                 }}
                 showPreview
               />

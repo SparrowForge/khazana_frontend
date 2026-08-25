@@ -342,6 +342,7 @@ export default function StockTransferPage() {
                     `From: ${branchName(report.issueBranchId)}`,
                     `To: ${branchName(report.receiveBranchId)}`,
                   ].join(" · "),
+                  forcePortrait: true,
                 }}
                 showPreview
               />

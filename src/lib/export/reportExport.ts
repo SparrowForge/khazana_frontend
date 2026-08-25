@@ -22,6 +22,8 @@ export interface ReportMeta {
   subtitle?: string;
   /** Optional summary row appended under the table (same column count). */
   footer?: (string | number)[];
+  /** Force portrait orientation (default: auto-detect based on column count). */
+  forcePortrait?: boolean;
 }
 
 const esc = (s: unknown) =>
@@ -54,7 +56,8 @@ function buildReportDocument<T>(
   meta: ReportMeta,
   autoPrint: boolean,
 ): string {
-  const landscape = columns.length >= LANDSCAPE_FROM_COLUMNS;
+  // Force portrait for stock reports, otherwise auto-detect based on column count
+  const landscape = meta.forcePortrait ? false : columns.length >= LANDSCAPE_FROM_COLUMNS;
   // A4 minus the 12mm margins the @page rule reserves on each side.
   const sheetWidth = landscape ? 297 - 24 : 210 - 24;
   const sheetHeight = landscape ? 210 - 24 : 297 - 24;
@@ -150,9 +153,10 @@ export async function exportPdf<T>(
     import("jspdf-autotable"),
   ]);
 
-  // Landscape once a report gets wide enough that portrait would squeeze columns.
+  // Force portrait for stock reports, otherwise landscape if 6+ columns.
+  const forcePortrait = meta.forcePortrait || false;
   const doc = new jsPDF({
-    orientation: columns.length >= LANDSCAPE_FROM_COLUMNS ? "landscape" : "portrait",
+    orientation: forcePortrait ? "portrait" : (columns.length >= LANDSCAPE_FROM_COLUMNS ? "landscape" : "portrait"),
     unit: "pt",
     format: "a4",
   });

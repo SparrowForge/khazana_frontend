@@ -502,6 +502,7 @@ export default function StockReceivePage() {
                     `From: ${branchName(report.fromBranchId)}`,
                     `To: ${branchName(report.branchId)}`,
                   ].join(" · "),
+                  forcePortrait: true,
                 }}
                 showPreview
               />

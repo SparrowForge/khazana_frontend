@@ -87,7 +87,6 @@ export default function StockIssuePage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<IssueGroup | null>(null);
-  const [reportView, setReportView] = useState<"standard" | "challan">("standard");
   const [serialNo, setSerialNo] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
@@ -326,16 +325,17 @@ export default function StockIssuePage() {
   };
 
   /** The Delivery Challan header, from whichever document is on screen. The
-   *  challan is the receiving outlet's paperwork, so it is headed by the branch
-   *  the stock is going TO — the issuing branch is implied by the letterhead. */
+   *  challan shows both the issuing branch (From) and receiving outlet (To). */
   const buildChallan = (opts: {
     challanNo: string;
     issueDate: string | Date;
+    issueBranchId?: string;
     receiveBranchId?: string;
     items: DeliveryChallanLine[];
   }): DeliveryChallanData => ({
     companyName: settings?.companyName || "Khazana Mithai Limited",
     companyAddress: settings?.companyAddress || undefined,
+    fromBranchName: branchName(opts.issueBranchId),
     toBranchName: branchName(opts.receiveBranchId),
     challanNo: opts.challanNo,
     issueDate: opts.issueDate,
@@ -359,18 +359,7 @@ export default function StockIssuePage() {
         // document has neither, so the field prints blank rather than "New".
         challanNo: voucherNo || editingSerial || "",
         issueDate,
-        receiveBranchId,
-        items: draftChallanLines(),
-      }),
-    );
-  };
-
-  const handlePrintDraft = () => {
-    if (!validLines.length) { toast.error("Enter a quantity on at least one item to print"); return; }
-    printDeliveryChallan(
-      buildChallan({
-        challanNo: voucherNo || editingSerial || "",
-        issueDate,
+        issueBranchId,
         receiveBranchId,
         items: draftChallanLines(),
       }),
@@ -382,6 +371,7 @@ export default function StockIssuePage() {
     buildChallan({
       challanNo: doc.voucherNo || doc.serialNo,
       issueDate: doc.issueDate ?? "",
+      issueBranchId: doc.issueBranchId,
       receiveBranchId: doc.receiveBranchId,
       items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
     });
@@ -579,9 +569,6 @@ export default function StockIssuePage() {
           <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>
             <Eye size={14} /> Preview
           </Button>
-          <Button variant="secondary" onClick={handlePrintDraft} disabled={!validLines.length}>
-            <Printer size={14} /> Print Challan
-          </Button>
           <Button
             onClick={handleSubmit}
             loading={submitting}
@@ -592,7 +579,7 @@ export default function StockIssuePage() {
         </div>
       </Modal>
 
-      <Modal open={reportOpen} onClose={() => { setReportOpen(false); setReportView("standard"); }} title="Stock Issue Report" size="xl">
+      <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Stock Issue Report" size="lg">
         {reportLoading || !report ? (
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
@@ -600,117 +587,48 @@ export default function StockIssuePage() {
             const challan = savedChallan(report);
             const challanRowsData = challanRows(challan.items);
             const totalQty = challanRowsData.reduce((sum, r) => sum + r.qty, 0);
-            // Standard report table (like credit sales): Item Name, Qty, Unit Price, Amount
-            const standardRows = report.items.map((it) => ({
-              itemName: it.itemName ?? "-",
-              qty: Number(it.qty ?? 0),
-              unitPrice: Number(it.unitPriceWithVat ?? 0),
-              amount: Number(it.qty ?? 0) * Number(it.unitPriceWithVat ?? 0),
-            }));
-            const standardTotal = standardRows.reduce((sum, r) => sum + r.amount, 0);
-            const standardColumns: ExportColumn<typeof standardRows[0]>[] = [
-              { header: "Item Name", value: (r) => r.itemName },
-              { header: "Qty", value: (r) => r.qty, numeric: true },
-              { header: "Unit Price (Inc. VAT)", value: (r) => r.unitPrice, numeric: true },
-              { header: "Amount", value: (r) => r.amount, numeric: true },
-            ];
             return (
               <>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
                   <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
-                  <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
+                  <div><span className="text-gray-500">Challan No:</span> <span className="font-medium">{challan.challanNo || "-"}</span></div>
                   <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.issueDate)}</span></div>
                   <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.issueBranchId)}</span></div>
                   <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.receiveBranchId)}</span></div>
                 </div>
 
-                {/* View toggle */}
-                <div className="mb-3 flex gap-2 items-center justify-between">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setReportView("standard")}
-                      className={`px-3 py-1 rounded text-sm font-medium ${reportView === "standard" ? "bg-primary-800 text-white" : "bg-gray-100 text-gray-700"}`}
-                    >
-                      Standard Report
-                    </button>
-                    <button
-                      onClick={() => setReportView("challan")}
-                      className={`px-3 py-1 rounded text-sm font-medium ${reportView === "challan" ? "bg-primary-800 text-white" : "bg-gray-100 text-gray-700"}`}
-                    >
-                      Delivery Challan
-                    </button>
-                  </div>
-                  {reportView === "standard" && (
-                    <ReportExportButtons
-                      rows={standardRows}
-                      columns={standardColumns}
-                      meta={{
-                        title: "Stock Issue Report",
-                        subtitle: [report.serialNo, branchName(report.issueBranchId), branchName(report.receiveBranchId), formatDate(report.issueDate)].join(" · "),
-                        footer: ["", "", "", standardTotal.toFixed(2)],
-                        forcePortrait: true,
-                      }}
-                      showPrint={false}
-                    />
-                  )}
-                  {reportView === "challan" && (
-                    <div className="flex gap-2">
-                      <Button variant="secondary" size="sm" onClick={() => previewDeliveryChallan(challan)}>
-                        <Eye size={14} /> Preview
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => printDeliveryChallan(challan)}>
-                        <Printer size={14} /> Print
-                      </Button>
-                      <ReportExportButtons
-                        rows={challanRowsData}
-                        columns={challanColumns}
-                        meta={{
-                          title: "Delivery Challan",
-                          subtitle: [challan.toBranchName, `Challan No: ${challan.challanNo || "-"}`, `Date: ${formatDate(report.issueDate)}`].join(" · "),
-                          footer: ["", "", totalQty.toFixed(2), "", ""],
-                        }}
-                        showPrint={false}
-                      />
-                    </div>
-                  )}
+                <div className="mb-3 flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => previewDeliveryChallan(challan)}>
+                    <Eye size={14} /> Preview
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => printDeliveryChallan(challan)}>
+                    <Printer size={14} /> Print
+                  </Button>
+                  <ReportExportButtons
+                    rows={challanRowsData}
+                    columns={challanColumns}
+                    meta={{
+                      title: "Delivery Challan",
+                      subtitle: [challan.toBranchName, `Challan No: ${challan.challanNo || "-"}`, `Date: ${formatDate(report.issueDate)}`].join(" · "),
+                      footer: ["", "", totalQty.toFixed(2), "", ""],
+                    }}
+                    showPrint={false}
+                  />
                 </div>
 
-                {/* Standard report table */}
-                {reportView === "standard" && (
-                  <>
-                    <Table
-                      data={standardRows.map((it, i) => ({ id: i, ...it }))}
-                      columns={[
-                        { key: "itemName", header: "Item Name" },
-                        { key: "qty", header: "Qty", className: "text-right" },
-                        { key: "unitPrice", header: "Unit Price (Inc. VAT)", className: "text-right", render: (r) => r.unitPrice.toFixed(2) },
-                        { key: "amount", header: "Amount", className: "text-right", render: (r) => r.amount.toFixed(2) },
-                      ]}
-                    />
-                    <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
-                      Total: {standardTotal.toFixed(2)}
-                    </div>
-                  </>
-                )}
-
-                {/* Challan format table */}
-                {reportView === "challan" && (
-                  <>
-                    <Table
-                      data={challanRowsData.map((r) => ({ id: r.sl, ...r }))}
-                      columns={[
-                        { key: "sl", header: "SL No", className: "text-center w-16" },
-                        { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
-                        { key: "qty", header: "Delivery", className: "text-right", render: (r) => r.qty.toFixed(2) },
-                        { key: "received", header: "Received Qty", render: () => "" },
-                        { key: "remarks", header: "Remarks", render: () => "" },
-                      ]}
-                    />
-                    <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
-                      Total Delivery: {totalQty.toFixed(2)}
-                    </div>
-                  </>
-                )}
+                <Table
+                  data={challanRowsData.map((r) => ({ id: r.sl, ...r }))}
+                  columns={[
+                    { key: "sl", header: "SL No", className: "text-center w-16" },
+                    { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
+                    { key: "qty", header: "Delivery", className: "text-right", render: (r) => r.qty.toFixed(2) },
+                    { key: "received", header: "Received Qty", render: () => "" },
+                    { key: "remarks", header: "Remarks", render: () => "" },
+                  ]}
+                />
+                <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
+                  Total Delivery: {totalQty.toFixed(2)}
+                </div>
               </>
             );
           })()

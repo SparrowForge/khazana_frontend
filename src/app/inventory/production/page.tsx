@@ -383,6 +383,12 @@ export default function ProductionEntryPage() {
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
           <>
+            {/* Branch header */}
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">{report.branchName || branchName}</h3>
+              {report.branchAddress && <p className="text-sm text-gray-600">{report.branchAddress}</p>}
+            </div>
+
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
               <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
               <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.productionDate)}</span></div>
@@ -395,7 +401,12 @@ export default function ProductionEntryPage() {
                 columns={reportColumns}
                 meta={{
                   title: "Production Entry Report",
-                  subtitle: reportSubtitle(report.serialNo, report.productionDate, report.remarks),
+                  subtitle: [
+                    report.branchName || branchName,
+                    `Serial No: ${report.serialNo}`,
+                    `Date: ${formatDate(report.productionDate)}`,
+                  ].join(" · "),
+                  forcePortrait: true,
                 }}
                 showPreview
               />

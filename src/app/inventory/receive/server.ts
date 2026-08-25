@@ -40,6 +40,8 @@ export interface ReceiveGroup {
   voucherNo?: string;
   purDate?: string;
   branchId?: string;
+  branchName?: string;
+  branchAddress?: string;
   fromBranchId?: string;
   items: { itemId: string; itemName?: string; qty: number }[];
 }

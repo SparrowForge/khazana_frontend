@@ -43,6 +43,8 @@ export interface ProductionRecord {
 export interface ProductionGroup {
   serialNo: string;
   branchId?: string;
+  branchName?: string;
+  branchAddress?: string;
   productionDate?: string;
   remarks?: string;
   items: { itemId: string; itemName?: string; qty: number; rate?: number }[];

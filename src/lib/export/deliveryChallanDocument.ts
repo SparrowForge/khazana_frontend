@@ -18,6 +18,8 @@ export interface DeliveryChallanLine {
 export interface DeliveryChallanData {
   companyName: string;
   companyAddress?: string;
+  /** The issuing branch (factory/warehouse) — shown as "From:" */
+  fromBranchName?: string;
   /** The receiving outlet — the underlined heading under the letterhead. */
   toBranchName: string;
   /** Printed as "Challan No-"; the voucher number, falling back to the serial. */
@@ -109,7 +111,8 @@ function sheetHtml(
       <div class="co">${esc(data.companyName)}</div>
       ${data.companyAddress ? `<div class="addr">${esc(data.companyAddress)}</div>` : ""}
     </div>
-    <div class="branch"><span>${esc(data.toBranchName)}</span></div>
+    ${data.fromBranchName ? `<div class="from-branch">From: <span>${esc(data.fromBranchName)}</span></div>` : ""}
+    <div class="branch">To: <span>${esc(data.toBranchName)}</span></div>
     <div class="meta">
       <span class="l">Date- ${esc(formatChallanDate(data.issueDate))}</span>
       <span class="c"></span>
@@ -194,7 +197,9 @@ function buildDeliveryChallanDocument(data: DeliveryChallanData, autoPrint: bool
     .letterhead { text-align:center; }
     .co { font-size:15pt; font-weight:700; font-style:italic; }
     .addr { font-size:9pt; font-style:italic; }
-    .branch { text-align:center; margin:6mm 0 2mm; font-size:11pt; font-weight:700; }
+    .from-branch { text-align:left; font-size:10pt; margin:4mm 0 2mm; }
+    .from-branch span { font-weight:600; }
+    .branch { text-align:center; margin:2mm 0 2mm; font-size:11pt; font-weight:700; }
     .branch span { border-bottom:1px solid #000; padding:0 2mm 1px; }
 
     .meta { display:flex; align-items:flex-end; font-size:10pt; margin-bottom:1.5mm; }

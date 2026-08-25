@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
+import Logo from "@/components/ui/Logo";
 import Sidebar from "./Sidebar";
 
 // `/invoice` is the customer-facing share link — no session, no sidebar, and it
@@ -88,6 +90,9 @@ const FACTORY_ONLY_ROUTES = ["/inventory/production", "/factory"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  // Mobile nav drawer. Owned here because the hamburger that opens it lives in
+  // the mobile top bar, outside the (off-canvas) sidebar itself.
+  const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
@@ -129,9 +134,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-sage-200 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+      <Sidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile-only top bar: the sidebar is off-canvas below md, so this is
+            the only way to reach the navigation there. */}
+        <div className="md:hidden flex items-center gap-3 bg-primary-900 border-b border-primary-800 px-4 py-2.5 shrink-0">
+          <button
+            onClick={() => setNavOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={navOpen}
+            className="p-1.5 rounded-md text-sage-100 hover:text-titlebar hover:bg-primary-800 transition-colors"
+          >
+            <Menu size={20} />
+          </button>
+          <Logo size={24} tone="light" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </div>
       </main>

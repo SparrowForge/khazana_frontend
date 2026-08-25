@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LogOut, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
@@ -232,37 +232,73 @@ function NavGroup({
 const SIDEBAR_COLLAPSED_KEY = "khazana-sidebar-collapsed";
 const MOBILE_BREAKPOINT = 768;
 
-export default function Sidebar() {
+/**
+ * On mobile the sidebar is not a slim icon rail but an off-canvas drawer: it
+ * slides in over the page on top of a dimming backdrop, and closes when the
+ * user taps the backdrop, presses Escape, or navigates. `mobileOpen` is owned
+ * by AppShell, which renders the hamburger that opens it.
+ */
+export default function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const [menus, setMenus] = useState<NavMenu[]>([]);
-  const [collapsed, setCollapsed] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     fetchNavMenus().then(setMenus).catch(() => setMenus([]));
   }, []);
 
-  // Default: honour a saved preference; otherwise collapse on mobile viewports.
+  // Track the viewport so the drawer can render full-width labels on mobile
+  // regardless of the desktop collapse preference.
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Desktop-only preference; on mobile the drawer is always fully expanded.
   useEffect(() => {
     const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-    if (stored !== null) {
-      setCollapsed(stored === "true");
-    } else if (window.innerWidth < MOBILE_BREAKPOINT) {
-      setCollapsed(true);
-    }
+    if (stored !== null) setDesktopCollapsed(stored === "true");
   }, []);
 
-  // Auto-collapse when the viewport narrows into mobile range.
+  // Close the drawer on navigation — tapping a menu link should take you to the
+  // page, not leave the overlay covering it.
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < MOBILE_BREAKPOINT) setCollapsed(true);
+    if (mobileOpen) onMobileClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Escape closes the drawer, and while it is open the page behind it must not
+  // scroll away under the overlay.
+  useEffect(() => {
+    if (!mobileOpen || !isMobile) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onMobileClose?.();
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen, isMobile, onMobileClose]);
+
+  const collapsed = isMobile ? false : desktopCollapsed;
 
   const toggleCollapsed = () => {
-    setCollapsed((prev) => {
+    setDesktopCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
       return next;
@@ -277,66 +313,93 @@ export default function Sidebar() {
   const items = buildNav(menus, user?.permissions ?? [], isFactoryBranch(user));
 
   return (
-    <aside
-      className={cn(
-        "h-screen bg-primary-900 flex flex-col overflow-y-auto shrink-0 transition-all duration-200",
-        collapsed ? "w-16" : "w-60"
-      )}
-    >
+    <>
+      {/* Backdrop — mobile only; tapping outside the menu dismisses it. */}
       <div
+        onClick={onMobileClose}
+        aria-hidden
         className={cn(
-          "flex items-center border-b border-primary-800 py-4",
-          collapsed ? "justify-center px-2" : "justify-between px-4"
+          "fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      />
+
+      <aside
+        className={cn(
+          "bg-primary-900 flex flex-col overflow-y-auto shrink-0 transition-all duration-200",
+          // Mobile: fixed off-canvas drawer sliding in from the left.
+          "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] shadow-xl",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop: back to an in-flow column, collapsible as before.
+          "md:static md:h-screen md:translate-x-0 md:shadow-none md:max-w-none",
+          collapsed ? "md:w-16" : "md:w-60"
         )}
       >
-        {!collapsed && (
-          <div className="min-w-0">
-            {/* Lettering in white so it reads on the dark sidebar; the mark's
-                own red carries fine against it. */}
-            <Logo size={30} tone="light" />
-            <p className="text-sage-300 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
-          </div>
-        )}
-        <button
-          onClick={toggleCollapsed}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="shrink-0 p-1.5 rounded-md text-sage-300 hover:text-titlebar hover:bg-primary-800 transition-colors"
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
-      </div>
-
-      <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-2")}>
-        {items.map((item) =>
-          item.kind === "link" ? (
-            <NavLinkRow key={item.href} link={item} collapsed={collapsed} />
-          ) : (
-            <NavGroup
-              key={item.label}
-              label={item.label}
-              icon={item.icon}
-              links={item.children}
-              collapsed={collapsed}
-            />
-          )
-        )}
-      </nav>
-
-      <div className={cn("border-t border-primary-800 py-3", collapsed ? "px-1.5" : "px-2")}>
-        <UserMenu collapsed={collapsed} />
-        <button
-          onClick={handleLogout}
-          title={collapsed ? "Logout" : undefined}
+        <div
           className={cn(
-            "mt-2 flex items-center gap-2 text-sage-300 hover:text-titlebar text-xs transition-colors",
-            collapsed ? "justify-center w-full py-1" : "px-2"
+            "flex items-center border-b border-primary-800 py-4",
+            collapsed ? "justify-center px-2" : "justify-between px-4"
           )}
         >
-          <LogOut size={14} />
-          {!collapsed && "Logout"}
-        </button>
-      </div>
-    </aside>
+          {!collapsed && (
+            <div className="min-w-0">
+              {/* Lettering in white so it reads on the dark sidebar; the mark's
+                  own red carries fine against it. */}
+              <Logo size={30} tone="light" />
+              <p className="text-sage-300 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
+            </div>
+          )}
+          {isMobile ? (
+            <button
+              onClick={onMobileClose}
+              aria-label="Close menu"
+              className="shrink-0 p-1.5 rounded-md text-sage-300 hover:text-titlebar hover:bg-primary-800 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          ) : (
+            <button
+              onClick={toggleCollapsed}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="shrink-0 p-1.5 rounded-md text-sage-300 hover:text-titlebar hover:bg-primary-800 transition-colors"
+            >
+              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+          )}
+        </div>
+
+        <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-2")}>
+          {items.map((item) =>
+            item.kind === "link" ? (
+              <NavLinkRow key={item.href} link={item} collapsed={collapsed} />
+            ) : (
+              <NavGroup
+                key={item.label}
+                label={item.label}
+                icon={item.icon}
+                links={item.children}
+                collapsed={collapsed}
+              />
+            )
+          )}
+        </nav>
+
+        <div className={cn("border-t border-primary-800 py-3", collapsed ? "px-1.5" : "px-2")}>
+          <UserMenu collapsed={collapsed} />
+          <button
+            onClick={handleLogout}
+            title={collapsed ? "Logout" : undefined}
+            className={cn(
+              "mt-2 flex items-center gap-2 text-sage-300 hover:text-titlebar text-xs transition-colors",
+              collapsed ? "justify-center w-full py-1" : "px-2"
+            )}
+          >
+            <LogOut size={14} />
+            {!collapsed && "Logout"}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

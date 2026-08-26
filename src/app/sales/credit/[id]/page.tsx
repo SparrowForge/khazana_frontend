@@ -24,6 +24,7 @@ import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
+import { useStockChanged } from "@/lib/stockEvents";
 import { Factory } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
@@ -69,6 +70,10 @@ export default function CreditSaleEditPage() {
 
   /** Re-pulls the catalogue (and with it on-hand stock) after production. */
   const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
+  // Fires for the quick Production dialog on this page and for a Production
+  // Entry booked in another tab alike, so the edit form's on-hand figures move
+  // the moment the stock does.
+  useStockChanged(loadItems);
 
   useEffect(() => {
     if (!id) return;
@@ -376,7 +381,6 @@ export default function CreditSaleEditPage() {
         onClose={() => setProductionModal(false)}
         items={availableItems}
         suggested={shortfalls}
-        onCreated={loadItems}
       />
     </AppLayout>
   );

@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -90,11 +91,18 @@ export const fetchProductions = ({
 export const fetchProduction = (serialNo: string): Promise<ProductionGroup> =>
   api.get(`/production/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
+/* Production moves on-hand stock, so each of these announces itself once the
+ * server has confirmed — that is what lets an open credit sale re-read stock
+ * without being reloaded, whether the entry came from this page or from the
+ * quick dialog on the invoice itself. */
+
 export const createProduction = (data: ProductionPayload) =>
-  api.post("/production", data).then((r) => r.data);
+  api.post("/production", data).then((r) => { emitStockChanged("production:create"); return r.data; });
 
 export const updateProduction = (serialNo: string, data: ProductionPayload) =>
-  api.patch(`/production/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
+  api.patch(`/production/${encodeURIComponent(serialNo)}`, data)
+    .then((r) => { emitStockChanged("production:update"); return r.data; });
 
 export const deleteProduction = (serialNo: string) =>
-  api.delete(`/production/${encodeURIComponent(serialNo)}`).then((r) => r.data);
+  api.delete(`/production/${encodeURIComponent(serialNo)}`)
+    .then((r) => { emitStockChanged("production:delete"); return r.data; });

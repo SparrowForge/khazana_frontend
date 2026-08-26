@@ -31,8 +31,6 @@ interface Props {
   /** Quantities to pre-fill — the invoice's shortfalls, so the sheet opens with
    *  what is missing already typed in, on top of the full catalogue. */
   suggested?: { itemId: string; qty: number }[];
-  /** Fired after a successful save so the caller can re-pull on-hand stock. */
-  onCreated?: () => void | Promise<void>;
 }
 
 const entryAmount = (e: ItemEntry) => (parseFloat(e.qty) || 0) * (parseFloat(e.rate) || 0);
@@ -49,13 +47,17 @@ const entryAmount = (e: ItemEntry) => (parseFloat(e.qty) || 0) * (parseFloat(e.r
  * The invoice's shortfalls arrive pre-filled, so the common case is still one
  * glance and save — but anything else made that day can be booked alongside it.
  *
+ * Saving re-pulls the invoice's catalogue on its own: createProduction fires
+ * the app-wide stock-changed signal, which the sale form is listening to — so
+ * the freshly produced quantities show up behind the dialog as it closes.
+ *
  * The rate is the VAT-INCLUSIVE unit price (the same convention the Production
  * Entry page records), seeded from the item's list price grossed up by its VAT
  * rate and editable — a production rate is a costing decision, not the sale
  * price. The branch is never asked for: the backend books it against the
  * session's branch.
  */
-export default function ProductionQuickEntryModal({ open, onClose, items, suggested, onCreated }: Props) {
+export default function ProductionQuickEntryModal({ open, onClose, items, suggested }: Props) {
   const branchName = useAuthStore((s) => s.user?.branchName) ?? "Factory";
   const [productionDate, setProductionDate] = useState(new Date().toISOString().split("T")[0]);
   const [remarks, setRemarks] = useState("");
@@ -141,7 +143,6 @@ export default function ProductionQuickEntryModal({ open, onClose, items, sugges
       });
       toast.success(`Production booked for ${validLines.length} item(s)`);
       onClose();
-      await onCreated?.();
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to save production entry"));
     } finally {

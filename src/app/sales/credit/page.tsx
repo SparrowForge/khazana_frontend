@@ -27,6 +27,7 @@ import { getErrorMessage } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
+import { useStockChanged } from "@/lib/stockEvents";
 import { Plus, Factory } from "lucide-react";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
@@ -62,6 +63,11 @@ export default function CreditSalePage() {
   const canProduce = isFactoryBranch(user) && can("ProductionEntry", "add");
 
   const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
+  // On-hand stock is what gates the lines this invoice can carry, so anything
+  // that moves it — the quick Production dialog below, or the Production Entry
+  // page in another tab — re-pulls the catalogue here rather than leaving the
+  // form quoting yesterday's numbers until it is reloaded.
+  useStockChanged(loadItems);
   /** Resolves with the fresh list too, so a just-created customer can be found
    *  in it and selected. */
   const loadCustomers = () =>
@@ -432,7 +438,6 @@ export default function CreditSalePage() {
         onClose={() => setProductionModal(false)}
         items={availableItems}
         suggested={shortfalls}
-        onCreated={loadItems}
       />
     </AppLayout>
   );

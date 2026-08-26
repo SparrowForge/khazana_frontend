@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,12 +84,12 @@ function VerifyCodeContent() {
         </form>
 
         <div className="mt-5 text-center space-y-1">
-          <a href="/forgot-password" className="text-xs text-gray-400 hover:underline block">
+          <Link href="/forgot-password" className="text-xs text-gray-400 hover:underline block">
             Didn&apos;t receive a code? Request again
-          </a>
-          <a href="/login" className="text-xs text-gray-400 hover:underline block">
+          </Link>
+          <Link href="/login" className="text-xs text-gray-400 hover:underline block">
             Back to login
-          </a>
+          </Link>
         </div>
       </div>
     </div>

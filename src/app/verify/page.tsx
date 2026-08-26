@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { verifyEmail, resendVerification } from "./server";
@@ -110,7 +111,7 @@ function VerifyEmailContent() {
         )}
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          <a href="/login" className="hover:underline">Back to login</a>
+          <Link href="/login" className="hover:underline">Back to login</Link>
         </p>
       </div>
     </div>

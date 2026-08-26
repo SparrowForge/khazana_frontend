@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Edit2, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -31,6 +32,7 @@ const getDefaultDateRange = () => {
 };
 
 export default function AssortmentListPage() {
+  const router = useRouter();
   const [list, setList] = useState<Assortment[]>([]);
   const [loading, setLoading] = useState(true);
   const defaultDates = getDefaultDateRange();
@@ -62,7 +64,7 @@ export default function AssortmentListPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Assortment List" action={{ label: "New Assortment", onClick: () => window.location.href = "/assortment" }} />
+      <PageHeader title="Assortment List" action={{ label: "New Assortment", onClick: () => router.push("/assortment") }} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-3">
           <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

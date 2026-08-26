@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -101,7 +102,7 @@ function ResetPasswordContent() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          <a href="/login" className="hover:underline">Back to login</a>
+          <Link href="/login" className="hover:underline">Back to login</Link>
         </p>
       </div>
     </div>

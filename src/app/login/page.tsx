@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -459,12 +460,12 @@ export default function LoginPage() {
                     <label htmlFor="password" className={labelClass}>
                       Password
                     </label>
-                    <a
+                    <Link
                       href="/forgot-password"
                       className="text-[12px] font-medium text-primary-700 transition-colors hover:text-primary-800 hover:underline"
                     >
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
                   <div className="relative">
                     <Lock className={iconClass} size={17} />

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { ShoppingCart, DollarSign, Package, Users, TrendingUp, RefreshCw, Building2 } from "lucide-react";
@@ -63,10 +64,8 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, color, href }: StatCardProps) {
   return (
-    <a
+    <Link
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
       className="bg-white rounded-lg border border-sage-300 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
     >
       <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
@@ -74,7 +73,7 @@ function StatCard({ title, value, icon, color, href }: StatCardProps) {
         <p className="text-sm text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-800 mt-0.5">{value}</p>
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -157,11 +156,9 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-gray-700 mb-3">Today&apos;s Sales by Branch</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {stats.branches!.map((b) => (
-              <a
+              <Link
                 key={b.branchId}
                 href="/reports/sales"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block bg-white rounded-lg border border-sage-300 shadow-sm p-5 hover:shadow-md hover:border-primary-300 transition-shadow cursor-pointer"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -178,7 +175,7 @@ export default function Dashboard() {
                     <p className="text-xl font-bold text-green-600">৳ {formatCurrency(b.todayRevenue)}</p>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -192,13 +189,13 @@ export default function Dashboard() {
           {quickActions.length ? (
             <div className="grid grid-cols-2 gap-3">
               {quickActions.map((a) => (
-                <a
+                <Link
                   key={a.href}
                   href={a.href}
                   className="block text-center text-sm font-medium text-primary-800 bg-primary-50 hover:bg-primary-100 rounded-md px-3 py-2 transition-colors"
                 >
                   {a.label}
-                </a>
+                </Link>
               ))}
             </div>
           ) : (

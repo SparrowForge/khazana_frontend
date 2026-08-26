@@ -15,6 +15,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const exportColumns: ExportColumn<Sale>[] = [
   { header: "Invoice No", value: (r) => r.invoiceNo || "-" },
@@ -34,6 +35,7 @@ const getDefaultDateRange = () => {
 
 /** Credit sales only — cash / POS billing is listed on the POS Sales screen. */
 export default function SalesListPage() {
+  const router = useRouter();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -80,7 +82,7 @@ export default function SalesListPage() {
       <PageHeader
         title="Credit Sales List"
         subtitle="Credit sale invoices"
-        action={{ label: "New Credit Sale", onClick: () => window.location.href = "/sales/credit" }}
+        action={{ label: "New Credit Sale", onClick: () => router.push("/sales/credit") }}
       />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-3">

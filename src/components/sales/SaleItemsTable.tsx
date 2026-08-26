@@ -165,14 +165,20 @@ export default function SaleItemsTable({
   /** Grid pick: tapping a card bills one more of that item — the POS terminal's
    *  behaviour. An item already on the invoice bumps its existing line rather
    *  than opening a second one, so the qty a card shows as left is the qty the
-   *  invoice can still take. */
+   *  invoice can still take.
+   *
+   *  Stock sold by weight rarely lands on a whole number: the last 0.5 kg of an
+   *  item is real, sellable stock, so a card tap bills whatever is left when
+   *  that is under one unit rather than refusing the line and stranding it. Only
+   *  a genuinely empty balance is an error. */
   const addFromGrid = (itemMeta: AvailableItem) => {
     const name = itemMeta.itmName || itemMeta.itmCode;
     if ((itemMeta.price ?? 0) <= 0) {
       stockToast(`${name} — no active price, set one in Pricing → Price Setup`);
       return;
     }
-    if (enforceStock && r2(remainingFor(itemMeta.id) - 1) < 0) {
+    const remaining = remainingFor(itemMeta.id);
+    if (enforceStock && remaining <= 0) {
       const available = availableFor(itemMeta.id);
       const onInvoice = committedFor(itemMeta.id);
       stockToast(
@@ -184,10 +190,16 @@ export default function SaleItemsTable({
       );
       return;
     }
+    // `remaining` is Infinity on forms that don't police stock, so this is 1
+    // there — the behaviour those forms have always had.
+    const add = Math.min(1, remaining);
+    if (add < 1) {
+      toast.success(`${name} — added the last ${fmtQty(add)}`, { id: "sale-items-stock" });
+    }
     const idx = items.findIndex((it) => it.itemId === itemMeta.id);
     if (idx >= 0) {
       onItemsChange(
-        items.map((it, i) => (i === idx ? recalc({ ...it, quantity: r2(it.quantity + 1) }) : it)),
+        items.map((it, i) => (i === idx ? recalc({ ...it, quantity: r2(it.quantity + add) }) : it)),
       );
       return;
     }
@@ -197,7 +209,7 @@ export default function SaleItemsTable({
         itemId: itemMeta.id,
         itemCode: itemMeta.itmCode,
         itemName: itemMeta.itmName,
-        quantity: 1,
+        quantity: add,
         rate: itemMeta.price ?? 0,
         discount: 0,
         vatPercentage: itemMeta.vatPercentage ?? 0,
@@ -224,11 +236,20 @@ export default function SaleItemsTable({
     onItemsChange(items.map((item, i) => (i === idx ? recalc({ ...item, [field]: value }) : item)));
   };
 
-  /** +/- stepper on a billed line, matching the terminal's cart controls. */
+  /** +/- stepper on a billed line, matching the terminal's cart controls.
+   *
+   *  Raising past a partial tail lands on the tail rather than being refused —
+   *  the same rule the card grid follows, so "+" on a line holding 1 of an item
+   *  with 1.5 on hand bills the 0.5 instead of nothing. */
   const stepQty = (idx: number, delta: number) => {
     setDraft(null);
-    const next = r2(items[idx].quantity + delta);
+    const { itemId, quantity } = items[idx];
+    let next = r2(quantity + delta);
     if (next <= 0) return; // removing a line is an explicit action (the bin icon)
+    if (enforceStock && delta > 0) {
+      const ceiling = r2(availableFor(itemId) - committedFor(itemId, idx));
+      if (next > ceiling && ceiling > quantity) next = ceiling;
+    }
     updateItem(idx, "quantity", next);
   };
 

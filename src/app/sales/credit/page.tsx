@@ -8,6 +8,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
+import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
+import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
 import {
   fetchItems,
   fetchCustomers,
@@ -22,6 +24,8 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { getErrorMessage } from "@/lib/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Plus } from "lucide-react";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
 
@@ -43,11 +47,39 @@ export default function CreditSalePage() {
    *  be cleared while typing. Defaults from the order picked in the PO list. */
   const [discountPercent, setDiscountPercent] = useState("0");
   const [submitting, setSubmitting] = useState(false);
+  // Quick-add dialogs — an invoice can be raised for a customer or an item that
+  // isn't on file yet without abandoning the half-filled form.
+  const [itemModal, setItemModal] = useState(false);
+  const [customerModal, setCustomerModal] = useState(false);
+
+  const { can } = usePermissions();
+  const canAddItem = can("Items", "add") && can("Pricing", "add");
+  const canAddCustomer = can("Customers", "add");
+
+  const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
+  /** Resolves with the fresh list too, so a just-created customer can be found
+   *  in it and selected. */
+  const loadCustomers = () =>
+    fetchCustomers().then((list) => { setCustomers(list); return list; });
 
   useEffect(() => {
-    fetchItems().then(setAvailableItems).catch(() => {});
-    fetchCustomers().then(setCustomers).catch(() => {});
+    loadItems();
+    loadCustomers().catch(() => {});
   }, []);
+
+  /** A customer created from this screen is selected straight away, so the
+   *  invoice carries on where it left off. */
+  const handleCustomerCreated = async (created: { id: string | number; code?: string }) => {
+    try {
+      const list = await loadCustomers();
+      const match =
+        list.find((c) => String(c.id) === String(created.id)) ??
+        (created.code ? list.find((c) => c.code === created.code) : undefined);
+      if (match) setCustomerId(match.id);
+    } catch {
+      toast.error("Customer saved, but the list didn't refresh — reload to pick them");
+    }
+  };
 
   // The PO picker is customer-driven: choosing a customer loads that customer's
   // open (not yet invoiced) orders, and switching customer drops the PO link
@@ -221,13 +253,24 @@ export default function CreditSalePage() {
             <div className="grid grid-cols-2 gap-4">
               <Input label="Invoice No" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Auto-generated" />
               <Input label="Invoice Date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
-              <Select
-                label="Customer"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                placeholder="Select customer..."
-                options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
-              />
+              <div className="flex flex-col gap-1">
+                <Select
+                  label="Customer"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  placeholder="Select customer..."
+                  options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                />
+                {canAddCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomerModal(true)}
+                    className="self-start inline-flex items-center gap-1 text-xs text-primary-700 hover:underline"
+                  >
+                    <Plus size={12} /> New customer
+                  </button>
+                )}
+              </div>
               {/* PO No is the order this invoice fulfils — picking one stores the
                   order's number on the credit sale (CSMaster.PONo), which is what
                   flips that order to "Delivery Done" on the order list. The list
@@ -260,7 +303,14 @@ export default function CreditSalePage() {
           {/* Catalogue only — the billed lines sit in the right column, the way
               the POS terminal splits picking from the cart. Both halves share
               `items`/`setItems`, so they stay in step. */}
-          <Card title="Items">
+          <Card
+            title="Items"
+            action={canAddItem ? (
+              <Button variant="light" size="sm" onClick={() => setItemModal(true)}>
+                <Plus size={14} /> New Item
+              </Button>
+            ) : undefined}
+          >
             <SaleItemsTable
               items={items}
               onItemsChange={setItems}
@@ -343,6 +393,19 @@ export default function CreditSalePage() {
           </Card>
         </div>
       </div>
+
+      {/* Catalogue / customer file maintenance, raised from the invoice itself.
+          Both refresh the list they feed, so the new record is pickable at once. */}
+      <ItemQuickAddModal
+        open={itemModal}
+        onClose={() => setItemModal(false)}
+        onCreated={loadItems}
+      />
+      <CustomerQuickAddModal
+        open={customerModal}
+        onClose={() => setCustomerModal(false)}
+        onCreated={handleCustomerCreated}
+      />
     </AppLayout>
   );
 }

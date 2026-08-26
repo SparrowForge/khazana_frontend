@@ -38,3 +38,13 @@ export const updatePrice = (id: string, data: Partial<PricePayload>) =>
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
   api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+
+/** The item's currently active price, or null if it has never been priced.
+ *  Backs the Price Setup dialog opened from the Items page, which prefills
+ *  with whatever the item is selling for today. Responds with the raw t_Price
+ *  row (no envelope) — an unpriced item comes back empty. */
+export const fetchCurrentPrice = (itemCode: string): Promise<Price | null> =>
+  api
+    .get<Price | null | "">(`/pricing/prices/current?itemCode=${encodeURIComponent(itemCode)}`)
+    .then((r) => (r.data && typeof r.data === "object" ? r.data : null))
+    .catch(() => null);

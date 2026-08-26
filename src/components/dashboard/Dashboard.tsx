@@ -4,6 +4,9 @@ import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { ShoppingCart, DollarSign, Package, Users, TrendingUp, RefreshCw, Building2 } from "lucide-react";
 import Card from "@/components/ui/Card";
+import { useAuthStore } from "@/store/auth.store";
+import { usePermissions } from "@/hooks/usePermissions";
+import { isFactoryBranch } from "@/lib/branch";
 
 interface BranchSales {
   branchId: string;
@@ -22,6 +25,33 @@ interface DashboardStats {
   pendingOrders?: number;
   branches?: BranchSales[];
 }
+
+/** Quick Actions. `controlName` mirrors the leaf's entry in navRegistry, so a
+ *  tile is only offered when the sidebar would offer the page too. */
+interface QuickAction {
+  label: string;
+  href: string;
+  controlName: string;
+}
+
+/** The factory's own working day: issue stock to the outlets, book production,
+ *  ring up a sale, raise a credit invoice, then read the day back. */
+const FACTORY_QUICK_ACTIONS: QuickAction[] = [
+  { label: "Stock Issue",          href: "/inventory/issue",      controlName: "StockIssue" },
+  { label: "Production Entry",     href: "/inventory/production", controlName: "ProductionEntry" },
+  { label: "POS Terminal Sale",    href: "/pos",                  controlName: "POSTerminal" },
+  { label: "Credit Sale",          href: "/sales/credit",         controlName: "CreditSales" },
+  // The Sales Report opens on today's date, so it lands as today's figures.
+  { label: "Today's Sales Report", href: "/reports/sales",        controlName: "SalesReport" },
+];
+
+/** An outlet receives rather than produces, so its shortcuts stay as they were. */
+const BRANCH_QUICK_ACTIONS: QuickAction[] = [
+  { label: "New Cash Sale",   href: "/sales/cash",       controlName: "CashSales" },
+  { label: "New Credit Sale", href: "/sales/credit",     controlName: "CreditSales" },
+  { label: "Stock Receive",   href: "/inventory/receive", controlName: "StockReceive" },
+  { label: "New Order",       href: "/orders",           controlName: "OrdersList" },
+];
 
 interface StatCardProps {
   title: string;
@@ -51,6 +81,14 @@ function StatCard({ title, value, icon, color, href }: StatCardProps) {
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({});
   const [loading, setLoading] = useState(true);
+
+  // Production Entry is factory-only (the page itself is guarded), so the
+  // factory set is offered only to a factory session — same branch test the
+  // sidebar and the route guard use.
+  const user = useAuthStore((s) => s.user);
+  const { can } = usePermissions();
+  const quickActions = (isFactoryBranch(user) ? FACTORY_QUICK_ACTIONS : BRANCH_QUICK_ACTIONS)
+    .filter((a) => can(a.controlName));
 
   useEffect(() => {
     api.get("/dashboard")
@@ -151,22 +189,21 @@ export default function Dashboard() {
           <p className="text-sm text-gray-400">Recent sales will appear here.</p>
         </Card>
         <Card title="Quick Actions">
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "New Cash Sale", href: "/sales/cash" },
-              { label: "New Credit Sale", href: "/sales/credit" },
-              { label: "Stock Receive", href: "/inventory/receive" },
-              { label: "New Order", href: "/orders" },
-            ].map((a) => (
-              <a
-                key={a.href}
-                href={a.href}
-                className="block text-center text-sm font-medium text-primary-800 bg-primary-50 hover:bg-primary-100 rounded-md px-3 py-2 transition-colors"
-              >
-                {a.label}
-              </a>
-            ))}
-          </div>
+          {quickActions.length ? (
+            <div className="grid grid-cols-2 gap-3">
+              {quickActions.map((a) => (
+                <a
+                  key={a.href}
+                  href={a.href}
+                  className="block text-center text-sm font-medium text-primary-800 bg-primary-50 hover:bg-primary-100 rounded-md px-3 py-2 transition-colors"
+                >
+                  {a.label}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No quick actions available for your permissions.</p>
+          )}
         </Card>
       </div>
     </div>

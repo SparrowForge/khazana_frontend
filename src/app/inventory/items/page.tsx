@@ -10,7 +10,7 @@ import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import Pagination from "@/components/ui/Pagination";
 import NextImage from "next/image";
-import { Plus, Edit2, Trash2, ImagePlus, X } from "lucide-react";
+import { Plus, Edit2, Trash2, ImagePlus, X, Tag } from "lucide-react";
 import {
   fetchItems,
   createItem,
@@ -22,26 +22,13 @@ import {
   type ItemPayload,
 } from "./server";
 import { fetchAllCategories, type Category } from "../categories/server";
+import PriceSetupModal from "@/components/catalog/PriceSetupModal";
+import { ITEM_TYPES, UOM_OPTIONS } from "@/components/catalog/ItemQuickAddModal";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 import toast from "react-hot-toast";
-
-const ITEM_TYPES = [
-  { value: "RW",  label: "RW — Raw Material" },
-  { value: "FG",  label: "FG — Finished Goods" },
-  { value: "SFG", label: "SFG — Semi-Finished Goods" },
-  { value: "P",   label: "P — Packaging" },
-];
-
-const UOM_OPTIONS = [
-  { value: "Pcs", label: "Pcs" },
-  { value: "Cup", label: "Cup" },
-  { value: "gm",  label: "gm" },
-  { value: "KG",  label: "KG" },
-  { value: "LT",  label: "LT" },
-  { value: "ml",  label: "ml" },
-];
 
 const emptyForm: ItemPayload = {
   itmCode: "", itmName: "", itmCategory: "", itmType: "",
@@ -65,10 +52,15 @@ export default function ItemsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { page, limit, meta, setMeta, setPage, setLimit, resetPage, refreshKey } = usePagination();
 
+  // Price Setup, opened per row — an item's selling price is set where the item
+  // is, rather than by finding it again on the Pricing page.
+  const [priceItem, setPriceItem] = useState<Item | null>(null);
+
   const { can } = usePermissions();
   const canCreate = can("Items", "add");
   const canEdit = can("Items", "edit");
   const canDelete = can("Items", "delete");
+  const canPrice = can("Pricing", "add");
 
   const load = () => {
     setLoading(true);
@@ -245,18 +237,40 @@ export default function ItemsPage() {
           { key: "itmCategory", header: "Category" },
           { key: "itmType",     header: "Type", render: (r) => itmTypeLabel(r.itmType) },
           { key: "itmUOM",      header: "UOM" },
+          {
+            key: "price", header: "Price", className: "text-right",
+            render: (r) => (r.price ?? 0) > 0
+              ? (
+                <span>
+                  ৳ {formatCurrency(r.price ?? 0)}
+                  {(r.vatPercentage ?? 0) > 0 && (
+                    <span className="text-[10px] text-orange-500 ml-1">+{r.vatPercentage}% VAT</span>
+                  )}
+                </span>
+              )
+              : <span className="text-amber-600 text-xs">Not priced</span>,
+          },
           { key: "isActive",    header: "Active" },
           {
             key: "actions", header: "",
             render: (row) => (
               <div className="flex gap-2">
+                {canPrice && (
+                  <button
+                    onClick={() => setPriceItem(row)}
+                    title="Price setup"
+                    className="text-green-600 hover:text-green-800"
+                  >
+                    <Tag size={14} />
+                  </button>
+                )}
                 {canEdit && (
                   <button onClick={() => openEdit(row)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button>
                 )}
                 {canDelete && (
                   <button onClick={() => handleDelete(row)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
                 )}
-                {!canEdit && !canDelete && <span className="text-gray-300">—</span>}
+                {!canPrice && !canEdit && !canDelete && <span className="text-gray-300">—</span>}
               </div>
             ),
           },
@@ -399,6 +413,13 @@ export default function ItemsPage() {
           </Button>
         </div>
       </Modal>
+
+      <PriceSetupModal
+        open={!!priceItem}
+        onClose={() => setPriceItem(null)}
+        item={priceItem}
+        onSaved={load}
+      />
     </AppLayout>
   );
 }

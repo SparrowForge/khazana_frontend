@@ -19,9 +19,11 @@ import {
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
 import { getErrorMessage } from "@/lib/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Tag, PauseCircle, Clock, X,
-  Wifi, WifiOff, RefreshCw,
+  Wifi, WifiOff, RefreshCw, PackagePlus,
 } from "lucide-react";
 
 interface CartItem {
@@ -86,6 +88,11 @@ export default function PosPage() {
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  /** Quick-add: put an item on the catalogue without leaving the till. Online
+   *  only — a new item has to reach the server before it can be sold. */
+  const [itemModal, setItemModal] = useState(false);
+  const { can } = usePermissions();
+  const canAddItem = can("Items", "add") && can("Pricing", "add");
 
   // Discount state
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
@@ -137,6 +144,21 @@ export default function PosPage() {
     load();
     return () => { cancelled = true; };
   }, [user]);
+
+  /** Re-pull the catalogue after an item is added at the till, refreshing the
+   *  offline caches the same way the initial load does. */
+  const reloadProducts = async () => {
+    try {
+      const data = await posProductsApi.getAll();
+      setProducts(data);
+      if (user) {
+        await cacheCatalog(user.id, data);
+        await cacheStock(user.id, data.map((p) => ({ itemId: p.id, quantity: p.stock })));
+      }
+    } catch {
+      toast.error("Item saved, but the product list didn't refresh");
+    }
+  };
 
   // Banks for the Card-payment dropdown (best-effort; offline terminals just
   // get an empty list and skip the bank selection).
@@ -613,18 +635,32 @@ export default function PosPage() {
             </div>
           )}
 
-          <div className="mb-3 relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-            />
-            <input
-              type="text"
-              placeholder="Search by name or code…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-sage-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+              <input
+                type="text"
+                placeholder="Search by name or code…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-sage-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            {canAddItem && (
+              <Button
+                variant="secondary"
+                onClick={() => setItemModal(true)}
+                disabled={!isOnline}
+                title={isOnline ? "Add a new item to the catalogue" : "Reconnect to add an item"}
+                className="shrink-0"
+              >
+                <PackagePlus size={15} />
+                New Item
+              </Button>
+            )}
           </div>
 
           {loading ? (
@@ -964,6 +1000,14 @@ export default function PosPage() {
           </div>
         </div>
       </div>
+
+      {/* New item + its opening price, straight from the terminal. The catalogue
+          is re-pulled on success so the card appears without a page reload. */}
+      <ItemQuickAddModal
+        open={itemModal}
+        onClose={() => setItemModal(false)}
+        onCreated={reloadProducts}
+      />
     </AppLayout>
   );
 }

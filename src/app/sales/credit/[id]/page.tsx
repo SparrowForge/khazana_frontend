@@ -232,6 +232,9 @@ export default function CreditSaleEditPage() {
                 )}
               </div>
             </Card>
+            {/* Catalogue only — the billed lines sit in the right column, the
+                same split the create form and the POS terminal use. Both halves
+                share `items`/`setItems`, so they stay in step. */}
             <Card title="Items">
               <SaleItemsTable
                 items={items}
@@ -241,10 +244,24 @@ export default function CreditSaleEditPage() {
                 heldStock={heldStock}
                 vatInclusiveTotal
                 itemPicker="grid"
+                section="picker"
               />
             </Card>
           </div>
-          <div>
+          <div className="space-y-5">
+            <Card title="Cart">
+              <SaleItemsTable
+                items={items}
+                onItemsChange={setItems}
+                availableItems={availableItems}
+                enforceStock
+                heldStock={heldStock}
+                vatInclusiveTotal
+                itemPicker="grid"
+                section="lines"
+                compactLines
+              />
+            </Card>
             <Card title="Invoice Summary">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">

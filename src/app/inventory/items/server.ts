@@ -14,6 +14,10 @@ export interface Item {
   imageId?: string | null;
   image?: import("@/lib/upload").MediaFile | null;
   isActive?: string;
+  /** Current active selling price and its VAT rate, flattened onto the row by
+   *  the list endpoint (0 when the item has never been priced). */
+  price?: number;
+  vatPercentage?: number;
 }
 
 export interface ItemPayload {

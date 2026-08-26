@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import { Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -23,20 +21,21 @@ export interface ProducibleItem {
   stock?: number;
 }
 
-interface Line { itemId: string; qty: string; rate: string }
+/** What the user typed against one item. Absent = untouched, same as qty 0. */
+interface ItemEntry { qty: string; rate: string; }
 
 interface Props {
   open: boolean;
   onClose: () => void;
   items: ProducibleItem[];
-  /** Lines to pre-seed — the invoice's shortfalls, so the dialog opens on
-   *  exactly what is missing rather than an empty sheet. */
+  /** Quantities to pre-fill — the invoice's shortfalls, so the sheet opens with
+   *  what is missing already typed in, on top of the full catalogue. */
   suggested?: { itemId: string; qty: number }[];
   /** Fired after a successful save so the caller can re-pull on-hand stock. */
   onCreated?: () => void | Promise<void>;
 }
 
-const blankLine = (): Line => ({ itemId: "", qty: "", rate: "" });
+const entryAmount = (e: ItemEntry) => (parseFloat(e.qty) || 0) * (parseFloat(e.rate) || 0);
 
 /**
  * Books production without leaving the invoice.
@@ -45,17 +44,23 @@ const blankLine = (): Line => ({ itemId: "", qty: "", rate: "" });
  * hand — so an invoice for goods that were made but never entered is stuck at
  * the save button. This is the way out of that, for the factory session only.
  *
- * The rate here is the VAT-INCLUSIVE unit price (the same convention the
- * Production Entry page records), seeded from the item's list price grossed up
- * by its VAT rate and editable — a production rate is a costing decision, not
- * the sale price. The branch is never asked for: the backend books it against
- * the session's branch.
+ * The sheet is the same one the Production Entry page uses: the whole catalogue
+ * listed with the quantity typed inline, and only rows carrying a qty are sent.
+ * The invoice's shortfalls arrive pre-filled, so the common case is still one
+ * glance and save — but anything else made that day can be booked alongside it.
+ *
+ * The rate is the VAT-INCLUSIVE unit price (the same convention the Production
+ * Entry page records), seeded from the item's list price grossed up by its VAT
+ * rate and editable — a production rate is a costing decision, not the sale
+ * price. The branch is never asked for: the backend books it against the
+ * session's branch.
  */
 export default function ProductionQuickEntryModal({ open, onClose, items, suggested, onCreated }: Props) {
   const branchName = useAuthStore((s) => s.user?.branchName) ?? "Factory";
   const [productionDate, setProductionDate] = useState(new Date().toISOString().split("T")[0]);
   const [remarks, setRemarks] = useState("");
-  const [lines, setLines] = useState<Line[]>([blankLine()]);
+  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
+  const [itemSearch, setItemSearch] = useState("");
   const [saving, setSaving] = useState(false);
 
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
@@ -64,48 +69,63 @@ export default function ProductionQuickEntryModal({ open, onClose, items, sugges
     if (!open) return;
     setProductionDate(new Date().toISOString().split("T")[0]);
     setRemarks("");
-    const seeded = (suggested ?? [])
-      .filter((s) => itemById.has(s.itemId))
-      .map<Line>((s) => ({
-        itemId: s.itemId,
-        qty: String(s.qty),
-        rate: String(vatInclusiveRate(itemById.get(s.itemId))),
-      }));
-    setLines(seeded.length ? seeded : [blankLine()]);
+    setItemSearch("");
+    setEntries(
+      (suggested ?? []).reduce<Record<string, ItemEntry>>((acc, s) => {
+        const item = itemById.get(s.itemId);
+        if (item) acc[s.itemId] = { qty: String(s.qty), rate: String(vatInclusiveRate(item)) };
+        return acc;
+      }, {}),
+    );
     // `suggested` is rebuilt on every render of the caller, so it is read on
     // open rather than tracked — reseeding mid-edit would wipe typed input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const setLine = (i: number, patch: Partial<Line>) =>
-    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  /** An untouched row still shows the item's own VAT-inclusive price, so the
+   *  grid reads as a rate sheet the user only has to type quantities into. */
+  const entryFor = (it: ProducibleItem): ItemEntry =>
+    entries[it.id] ?? { qty: "", rate: String(vatInclusiveRate(it)) };
 
-  /** Picking an item seeds its rate, unless one has already been typed. */
-  const pickItem = (i: number, itemId: string) =>
-    setLines((prev) =>
-      prev.map((l, idx) => {
-        if (idx !== i) return l;
-        const seededRate = String(vatInclusiveRate(itemById.get(itemId)));
-        const untouched = !l.rate || l.rate === String(vatInclusiveRate(itemById.get(l.itemId)));
-        return { ...l, itemId, rate: untouched ? seededRate : l.rate };
-      }),
-    );
+  const setEntry = (it: ProducibleItem, patch: Partial<ItemEntry>) =>
+    setEntries((prev) => ({ ...prev, [it.id]: { ...entryFor(it), ...patch } }));
 
-  const removeLine = (i: number) =>
-    setLines((prev) => (prev.length === 1 ? [blankLine()] : prev.filter((_, idx) => idx !== i)));
-
-  const validLines = lines
-    .map((l) => ({
-      itemId: l.itemId,
-      qty: parseFloat(l.qty) || 0,
-      rate: parseFloat(l.rate) || vatInclusiveRate(itemById.get(l.itemId)),
-    }))
-    .filter((l) => l.itemId && l.qty > 0);
+  /** The lines that will actually be saved: qty > 0, in catalogue order. */
+  const validLines = useMemo(
+    () =>
+      items
+        .filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0)
+        .map((it) => {
+          const entry = entries[it.id];
+          return {
+            itemId: it.id,
+            qty: parseFloat(entry.qty),
+            // A row the user never edited the rate on falls back to the item's
+            // own price rather than saving a zero-value production line.
+            rate: parseFloat(entry.rate || "") || vatInclusiveRate(it),
+          };
+        }),
+    [items, entries],
+  );
 
   const total = validLines.reduce((s, l) => s + l.qty * l.rate, 0);
 
+  /** The grid shows every item; a catalogue of any size needs a filter. Rows
+   *  already carrying a qty stay visible so a search can't hide pending input
+   *  — including the shortfalls the invoice seeded. */
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (it) =>
+        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
+        it.itmCode?.toLowerCase().includes(q) ||
+        it.itmName?.toLowerCase().includes(q),
+    );
+  }, [items, entries, itemSearch]);
+
   const handleSave = async () => {
-    if (!validLines.length) { toast.error("Add at least one item with a quantity"); return; }
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     if (!productionDate) { toast.error("Production date is required"); return; }
     const zeroRate = validLines.find((l) => l.rate <= 0);
     if (zeroRate) {
@@ -129,11 +149,6 @@ export default function ProductionQuickEntryModal({ open, onClose, items, sugges
     }
   };
 
-  const itemOptions = items.map((i) => ({
-    value: i.id,
-    label: `${i.itmCode} — ${i.itmName ?? ""}`,
-  }));
-
   return (
     <Modal open={open} onClose={onClose} title="Production Entry" size="lg">
       <div className="grid grid-cols-3 gap-4 mb-4">
@@ -144,69 +159,90 @@ export default function ProductionQuickEntryModal({ open, onClose, items, sugges
           onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-700">Items Produced</p>
-          <span className="text-xs text-gray-400">Rate is VAT-inclusive</span>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <Input
+          placeholder="Search items by code or name..."
+          value={itemSearch}
+          onChange={(e) => setItemSearch(e.target.value)}
+          className="w-72"
+        />
+        <div className="text-sm text-gray-500">
+          {validLines.length} item{validLines.length === 1 ? "" : "s"} to produce
+          <span className="text-xs text-gray-400 ml-2">Rate is VAT-inclusive</span>
         </div>
-
-        {lines.map((line, i) => {
-          const item = itemById.get(line.itemId);
-          return (
-            <div key={i} className="flex gap-2 items-start">
-              <div className="flex-1 min-w-0">
-                <Select
-                  searchable
-                  value={line.itemId}
-                  onChange={(e) => pickItem(i, e.target.value)}
-                  placeholder="Select item..."
-                  options={itemOptions}
-                />
-                {item && (
-                  <p className="text-[11px] text-gray-400 mt-0.5 pl-0.5">
-                    On hand: {item.stock ?? 0}
-                  </p>
-                )}
-              </div>
-              <input
-                type="number" min="0" step="0.01" placeholder="Qty"
-                value={line.qty}
-                onChange={(e) => setLine(i, { qty: e.target.value })}
-                className="w-24 border border-sage-400 rounded-md px-2 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
-              />
-              <input
-                type="number" min="0" step="0.01" placeholder="Rate"
-                value={line.rate}
-                onChange={(e) => setLine(i, { rate: e.target.value })}
-                className="w-28 border border-sage-400 rounded-md px-2 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
-              />
-              <button
-                type="button"
-                onClick={() => removeLine(i)}
-                title="Remove line"
-                className="text-red-400 hover:text-red-600 pt-2.5"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          );
-        })}
-
-        <Button variant="secondary" size="sm" onClick={() => setLines((prev) => [...prev, blankLine()])}>
-          <Plus size={14} /> Add Item
-        </Button>
       </div>
 
-      <div className="flex items-center justify-between border-t border-sage-300 mt-4 pt-3 text-sm">
-        <span className="text-gray-500">
-          {validLines.length} item{validLines.length === 1 ? "" : "s"} to produce
-        </span>
-        <span className="font-semibold text-gray-800">Total: ৳ {formatCurrency(total)}</span>
+      {/* The whole catalogue, with the quantity typed inline — the same sheet
+          the Production Entry page uses. Scrolls rather than paginates so a
+          part-filled sheet is never split across pages. Only rows carrying a
+          quantity are saved. */}
+      <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
+        <table className="w-full text-sm">
+          <thead className="bg-sage-100 sticky top-0 z-10">
+            <tr className="text-left text-gray-600">
+              <th className="px-3 py-2 font-medium">Item ID</th>
+              <th className="px-3 py-2 font-medium">Item Name</th>
+              <th className="px-3 py-2 font-medium text-right">Current Stock</th>
+              <th className="px-3 py-2 font-medium text-right w-28">Qty</th>
+              <th className="px-3 py-2 font-medium text-right w-32">Rate (incl. VAT)</th>
+              <th className="px-3 py-2 font-medium text-right w-28">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleItems.map((it) => {
+              const entry = entryFor(it);
+              const qty = parseFloat(entry.qty) || 0;
+              return (
+                <tr key={it.id} className={`border-t border-sage-200 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
+                  <td className="px-3 py-1.5">{it.itmName}</td>
+                  {/* Context only — production adds stock, so nothing to cap. */}
+                  <td className="px-3 py-1.5 text-right text-gray-500">{it.stock ?? 0}</td>
+                  <td className="px-3 py-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={entry.qty}
+                      placeholder="0"
+                      onChange={(e) => setEntry(it, { qty: e.target.value })}
+                      className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={entry.rate}
+                      onChange={(e) => setEntry(it, { rate: e.target.value })}
+                      className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-gray-700 whitespace-nowrap">
+                    {formatCurrency(entryAmount(entry))}
+                  </td>
+                </tr>
+              );
+            })}
+            {visibleItems.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-gray-400">
+                  No items match that search.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 flex justify-end text-sm font-medium text-gray-700">
+        Total (incl. VAT): <span className="ml-2 w-28 text-right">{formatCurrency(total)}</span>
       </div>
 
       <div className="flex justify-end gap-3 mt-5">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} loading={saving}>Save Production</Button>
+        <Button onClick={handleSave} loading={saving} disabled={!validLines.length}>Save Production</Button>
       </div>
     </Modal>
   );

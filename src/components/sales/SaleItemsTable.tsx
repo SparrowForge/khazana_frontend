@@ -5,6 +5,7 @@ import { Trash2, Plus, Minus, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCurrency } from "@/lib/utils";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import { SaleItem } from "@/types";
 
 interface AvailableItem {
@@ -402,23 +403,26 @@ export default function SaleItemsTable({
     <div className="flex gap-2 items-end">
       <div className="flex-1">
         <label className="text-xs font-medium text-gray-600 mb-1 block">Item</label>
-        <select
+        {/* Searchable: the catalogue runs to hundreds of items, and the picker
+            is how a line gets added. Out-of-stock rows stay listed but
+            unpickable, so it's clear why an item can't be billed. */}
+        <Select
+          searchable
           value={selectedItemId}
           onChange={(e) => setSelectedItemId(e.target.value)}
-          className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
-        >
-          <option value="">Select item...</option>
-          {availableItems.map((i) => {
+          placeholder="Select item..."
+          options={availableItems.map((i) => {
             const available = enforceStock ? availableFor(i.id) : 0;
-            return (
-              <option key={i.id} value={i.id} disabled={enforceStock && available <= 0}>
-                {i.itmCode} — {i.itmName}
-                {enforceStock &&
-                  (available > 0 ? ` (stock: ${fmtQty(available)})` : " (out of stock)")}
-              </option>
-            );
+            const suffix = enforceStock
+              ? available > 0 ? ` (stock: ${fmtQty(available)})` : " (out of stock)"
+              : "";
+            return {
+              value: i.id,
+              label: `${i.itmCode} — ${i.itmName}${suffix}`,
+              disabled: enforceStock && available <= 0,
+            };
           })}
-        </select>
+        />
       </div>
       <div className="w-24">
         <label className="text-xs font-medium text-gray-600 mb-1 block">Qty</label>

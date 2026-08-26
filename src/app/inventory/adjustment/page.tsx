@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchItems, fetchAdjustments, fetchAdjustment, adjustStock, updateAdjustment, deleteAdjustment,
@@ -247,11 +248,14 @@ export default function StockAdjustmentPage() {
           </div>
           {lines.map((line, i) => (
             <div key={i} className="grid grid-cols-6 gap-2 items-center">
-              <select value={line.itmOId} onChange={(e) => updateLine(i, "itmOId", e.target.value)}
-                className="col-span-2 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
-                <option value="">Select...</option>
-                {availableItems.map((it) => <option key={it.id} value={it.id}>{it.itmCode} — {it.itmName}</option>)}
-              </select>
+              <Select
+                className="col-span-2"
+                searchable
+                value={line.itmOId}
+                onChange={(e) => updateLine(i, "itmOId", e.target.value)}
+                placeholder="Select..."
+                options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
+              />
               {(["reject", "excess", "short", "assort"] as const).map((f) => (
                 <input key={f} type="number" min="0" step="0.01" value={line[f]}
                   onChange={(e) => updateLine(i, f, e.target.value)}

@@ -39,7 +39,9 @@ export function stockShortages(
     .map(([itemId, qty]) => {
       const meta = catalog.find((a) => a.id === itemId);
       const available = r2((meta?.stock ?? 0) + (heldStock?.[itemId] ?? 0));
-      return { name: meta?.itmName || meta?.itmCode || itemId, qty, stock: available };
+      // `itemId` rides along so a caller can act on the shortage (the credit
+      // sale seeds its Production Entry dialog from it), not just report it.
+      return { itemId, name: meta?.itmName || meta?.itmCode || itemId, qty, stock: available };
     })
     .filter((r) => r.qty > r.stock);
 }

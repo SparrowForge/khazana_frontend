@@ -297,11 +297,15 @@ export default function OrdersPage() {
           <p className="text-sm font-medium text-gray-700">Order Items</p>
           {lines.map((l, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <select value={l.itemId} onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                className="flex-1 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800">
-                <option value="">Select item...</option>
-                {availableItems.map((it) => <option key={it.id} value={it.id}>{it.itmCode} — {it.itmName}</option>)}
-              </select>
+              <div className="flex-1 min-w-0">
+                <Select
+                  searchable
+                  value={l.itemId}
+                  onChange={(e) => updateLine(i, "itemId", e.target.value)}
+                  placeholder="Select item..."
+                  options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
+                />
+              </div>
               <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
                 className="w-20 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
               <input type="number" placeholder="Price" value={l.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)}

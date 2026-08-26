@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
+import ProductionQuickEntryModal from "@/components/catalog/ProductionQuickEntryModal";
 import {
   fetchItems,
   fetchCustomers,
@@ -21,6 +22,9 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
+import { isFactoryBranch } from "@/lib/branch";
+import { Factory } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
@@ -33,7 +37,11 @@ export default function CreditSaleEditPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const { can } = usePermissions();
+  const user = useAuthStore((s) => s.user);
   const canEdit = can("CreditSales", "edit");
+  // Same factory-only gate as the create form — an amendment that raises a
+  // quantity runs into the same stock wall.
+  const canProduce = isFactoryBranch(user) && can("ProductionEntry", "add");
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
@@ -57,6 +65,10 @@ export default function CreditSaleEditPage() {
    *  deduction applied, so it is added back when judging what the edit may
    *  commit — the same basis the server checks on. */
   const [heldStock, setHeldStock] = useState<Record<string, number>>({});
+  const [productionModal, setProductionModal] = useState(false);
+
+  /** Re-pulls the catalogue (and with it on-hand stock) after production. */
+  const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
 
   useEffect(() => {
     if (!id) return;
@@ -136,6 +148,13 @@ export default function CreditSaleEditPage() {
       : orderOptions.length
         ? "No order (optional)"
         : "No open orders for this customer";
+
+  /** What this invoice bills beyond what Inventory holds, judged against on-hand
+   *  plus what the saved version already took out — the basis the save uses. */
+  const shortfalls = stockShortages(items, availableItems, heldStock).map((s) => ({
+    itemId: s.itemId,
+    qty: r2(s.qty - s.stock),
+  }));
 
   const subtotal = r2(items.reduce((s, i) => s + i.rate * i.quantity, 0));
   const netAmount = r2(items.reduce((s, i) => s + i.total, 0));
@@ -235,7 +254,26 @@ export default function CreditSaleEditPage() {
             {/* Catalogue only — the billed lines sit in the right column, the
                 same split the create form and the POS terminal use. Both halves
                 share `items`/`setItems`, so they stay in step. */}
-            <Card title="Items">
+            <Card
+              title="Items"
+              action={canProduce ? (
+                <Button
+                  variant="light"
+                  size="sm"
+                  onClick={() => setProductionModal(true)}
+                  title={shortfalls.length
+                    ? "Book production for the items this invoice is short of"
+                    : "Book production against the factory"}
+                >
+                  <Factory size={14} /> Production Entry
+                  {shortfalls.length > 0 && (
+                    <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-700">
+                      {shortfalls.length}
+                    </span>
+                  )}
+                </Button>
+              ) : undefined}
+            >
               <SaleItemsTable
                 items={items}
                 onItemsChange={setItems}
@@ -330,6 +368,16 @@ export default function CreditSaleEditPage() {
           </div>
         </div>
       )}
+
+      {/* Production adds stock, so the catalogue is re-pulled on success and a
+          raised quantity becomes saveable without leaving the invoice. */}
+      <ProductionQuickEntryModal
+        open={productionModal}
+        onClose={() => setProductionModal(false)}
+        items={availableItems}
+        suggested={shortfalls}
+        onCreated={loadItems}
+      />
     </AppLayout>
   );
 }

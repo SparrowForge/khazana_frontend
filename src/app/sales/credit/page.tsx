@@ -8,8 +8,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
-import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
+import ProductionQuickEntryModal from "@/components/catalog/ProductionQuickEntryModal";
 import {
   fetchItems,
   fetchCustomers,
@@ -25,7 +25,9 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { getErrorMessage } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Plus } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
+import { isFactoryBranch } from "@/lib/branch";
+import { Plus, Factory } from "lucide-react";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
 
@@ -49,12 +51,15 @@ export default function CreditSalePage() {
   const [submitting, setSubmitting] = useState(false);
   // Quick-add dialogs — an invoice can be raised for a customer or an item that
   // isn't on file yet without abandoning the half-filled form.
-  const [itemModal, setItemModal] = useState(false);
   const [customerModal, setCustomerModal] = useState(false);
+  const [productionModal, setProductionModal] = useState(false);
 
   const { can } = usePermissions();
-  const canAddItem = can("Items", "add") && can("Pricing", "add");
+  const user = useAuthStore((s) => s.user);
   const canAddCustomer = can("Customers", "add");
+  // Production is factory-only (the page and the backend both enforce it), and
+  // it is what unblocks an invoice for goods that were made but never entered.
+  const canProduce = isFactoryBranch(user) && can("ProductionEntry", "add");
 
   const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
   /** Resolves with the fresh list too, so a just-created customer can be found
@@ -191,6 +196,13 @@ export default function CreditSalePage() {
     }
   };
 
+  /** What this invoice bills beyond what Inventory holds — the Production
+   *  Entry dialog opens pre-filled with exactly that shortfall. */
+  const shortfalls = stockShortages(items, availableItems).map((s) => ({
+    itemId: s.itemId,
+    qty: r2(s.qty - s.stock),
+  }));
+
   const subtotal = r2(items.reduce((s, i) => s + i.rate * i.quantity, 0));
   const netAmount = r2(items.reduce((s, i) => s + i.total, 0));
   const lineDiscount = r2(items.reduce((s, i) => s + i.discount, 0));
@@ -305,9 +317,21 @@ export default function CreditSalePage() {
               `items`/`setItems`, so they stay in step. */}
           <Card
             title="Items"
-            action={canAddItem ? (
-              <Button variant="light" size="sm" onClick={() => setItemModal(true)}>
-                <Plus size={14} /> New Item
+            action={canProduce ? (
+              <Button
+                variant="light"
+                size="sm"
+                onClick={() => setProductionModal(true)}
+                title={shortfalls.length
+                  ? "Book production for the items this invoice is short of"
+                  : "Book production against the factory"}
+              >
+                <Factory size={14} /> Production Entry
+                {shortfalls.length > 0 && (
+                  <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-700">
+                    {shortfalls.length}
+                  </span>
+                )}
               </Button>
             ) : undefined}
           >
@@ -394,17 +418,21 @@ export default function CreditSalePage() {
         </div>
       </div>
 
-      {/* Catalogue / customer file maintenance, raised from the invoice itself.
-          Both refresh the list they feed, so the new record is pickable at once. */}
-      <ItemQuickAddModal
-        open={itemModal}
-        onClose={() => setItemModal(false)}
-        onCreated={loadItems}
-      />
+      {/* A walk-in customer registered from the invoice itself — the list is
+          refreshed and the new record selected, so the form carries on. */}
       <CustomerQuickAddModal
         open={customerModal}
         onClose={() => setCustomerModal(false)}
         onCreated={handleCustomerCreated}
+      />
+      {/* Production adds stock, so the catalogue is re-pulled on success and the
+          lines that were short become billable without reopening the invoice. */}
+      <ProductionQuickEntryModal
+        open={productionModal}
+        onClose={() => setProductionModal(false)}
+        items={availableItems}
+        suggested={shortfalls}
+        onCreated={loadItems}
       />
     </AppLayout>
   );

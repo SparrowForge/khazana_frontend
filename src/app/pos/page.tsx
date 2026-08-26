@@ -231,17 +231,25 @@ export default function PosPage() {
    *  server enforces the same rule again on the online path. */
   const stockOf = (itemId: string) => products.find((p) => p.id === itemId)?.stock ?? 0;
 
+  /** Tapping a card rings up one more of that item.
+   *
+   *  Stock sold by weight rarely lands on a whole number, so when less than a
+   *  full unit is left the tap bills exactly that tail — the last 0.5 kg is real
+   *  stock and has to be sellable. Only an empty balance is refused. */
   const addToCart = (product: PosProduct) => {
     const inCart = cart.find((c) => c.itemId === product.id)?.qty ?? 0;
-    if (r2(inCart + 1) > product.stock) {
+    const remaining = r2(product.stock - inCart);
+    if (remaining <= 0) {
       toast.error(`${product.name} — only ${fmtQty(product.stock)} in stock`);
       return;
     }
+    const add = Math.min(1, remaining);
+    if (add < 1) toast.success(`${product.name} — added the last ${fmtQty(add)}`);
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === product.id);
       if (existing) {
         return prev.map((c) =>
-          c.itemId === product.id ? { ...c, qty: c.qty + 1 } : c
+          c.itemId === product.id ? { ...c, qty: r2(c.qty + add) } : c
         );
       }
       return [
@@ -252,21 +260,27 @@ export default function PosPage() {
           uom: product.uom,
           price: Number(product.price),
           vatPercentage: Number(product.vatPercentage),
-          qty: 1,
+          qty: add,
         },
       ];
     });
   };
 
-  /** +/- stepper. Rounds to 2dp so 0.1 + 0.2 style drift can't creep in. */
+  /** +/- stepper. Rounds to 2dp so 0.1 + 0.2 style drift can't creep in.
+   *
+   *  Raising past a partial tail lands on the tail rather than being refused, so
+   *  "+" on a line holding 1 of an item with 1.5 on hand rings up the 0.5. */
   const changeQty = (itemId: string, delta: number) => {
     const line = cart.find((c) => c.itemId === itemId);
     if (!line) return;
-    const next = r2(line.qty + delta);
+    let next = r2(line.qty + delta);
     const onHand = stockOf(itemId);
     if (delta > 0 && next > onHand) {
-      toast.error(`${line.name} — only ${fmtQty(onHand)} in stock`);
-      return;
+      if (onHand <= line.qty) {
+        toast.error(`${line.name} — only ${fmtQty(onHand)} in stock`);
+        return;
+      }
+      next = r2(onHand);
     }
     setCart((prev) =>
       prev

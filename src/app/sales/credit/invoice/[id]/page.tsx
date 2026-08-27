@@ -12,6 +12,7 @@ import {
 import {
   ThermalInvoice,
   CorporateInvoice,
+  CreditSaleChallan,
   InvoicePrintStyles,
   type InvoiceFormat,
 } from "@/components/sales/CreditInvoiceDocument";
@@ -115,7 +116,9 @@ export default function CreditInvoicePage() {
             ← Back to Sales
           </button>
 
-          <h1 className="font-semibold text-gray-800">Credit Invoice — {inv.invoiceNo}</h1>
+          <h1 className="font-semibold text-gray-800">
+            {format === "challan" ? "Delivery Challan" : "Credit Invoice"} — {inv.invoiceNo}
+          </h1>
 
           <div className="flex items-center gap-3">
             {/* Format switch */}
@@ -136,6 +139,17 @@ export default function CreditInvoicePage() {
               >
                 Corporate (A4)
               </button>
+              {/* Staff-only: the challan travels with the goods, so it is not
+                  offered on the customer's shared link. */}
+              <button
+                onClick={() => setFormat("challan")}
+                title="The corporate sheet with the values removed — what goes with the delivery"
+                className={`px-3 py-1.5 font-medium transition-colors border-l border-sage-300 ${
+                  format === "challan" ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-sage-100"
+                }`}
+              >
+                Challan (A4)
+              </button>
             </div>
 
             <ShareInvoiceButton id={id} invoiceNo={inv.invoiceNo} />
@@ -151,7 +165,13 @@ export default function CreditInvoicePage() {
 
         <div className="flex-1 flex items-start justify-center py-10 overflow-x-auto">
           <div className="shadow-2xl rounded-sm">
-            {format === "thermal" ? <ThermalInvoice inv={inv} /> : <CorporateInvoice inv={inv} />}
+            {format === "thermal" ? (
+              <ThermalInvoice inv={inv} />
+            ) : format === "challan" ? (
+              <CreditSaleChallan inv={inv} />
+            ) : (
+              <CorporateInvoice inv={inv} />
+            )}
           </div>
         </div>
       </div>

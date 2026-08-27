@@ -9,6 +9,9 @@ export interface Branch {
   address?: string;
   vatNo?: string;
   mobileNo?: string;
+  /** Display position on the reports that show one column per branch. Lowest
+   *  first; a branch without one sorts last. */
+  sortingNo?: number | null;
 }
 
 export interface BranchPayload {
@@ -17,6 +20,7 @@ export interface BranchPayload {
   address?: string;
   vatNo?: string;
   mobileNo?: string;
+  sortingNo?: number;
 }
 
 export const fetchBranches = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Branch>> =>

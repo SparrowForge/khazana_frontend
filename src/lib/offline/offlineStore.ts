@@ -61,6 +61,9 @@ export interface OfflineOrder {
   /** Discount authoriser name/contact — captured when a discount is applied. */
   discountRemarks?: string;
   discountContact?: string;
+  /** Walk-in customer's name — optional on every sale, independent of the
+   *  discount authoriser above. Shown in Sales History Summary. */
+  guestName?: string;
   // ── Client-only ──
   display: OfflineDisplay;
 }
@@ -185,5 +188,6 @@ export function toSyncPayload(o: OfflineOrder) {
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),
     ...(o.discountRemarks ? { discountRemarks: o.discountRemarks } : {}),
     ...(o.discountContact ? { discountContact: o.discountContact } : {}),
+    ...(o.guestName ? { guestName: o.guestName } : {}),
   };
 }

@@ -14,7 +14,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
-const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "" };
+const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "", sortingNo: "" };
 
 export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -38,14 +38,18 @@ export default function BranchesPage() {
   useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
-  const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "" }); setModal(true); };
+  const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "", sortingNo: b.sortingNo == null ? "" : String(b.sortingNo) }); setModal(true); };
 
   const handleSave = async () => {
     if (!form.branchCode || !form.branchName) { toast.error("Code and name are required"); return; }
     setSaving(true);
     try {
-      if (editing) await updateBranch(editing.id, form);
-      else await createBranch(form);
+      // Blank means "no position" — send it as omitted rather than 0, which
+      // would sort the branch to the very front of every report.
+      const { sortingNo, ...rest } = form;
+      const payload = { ...rest, ...(sortingNo.trim() ? { sortingNo: Number(sortingNo) } : {}) };
+      if (editing) await updateBranch(editing.id, payload);
+      else await createBranch(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
@@ -56,6 +60,7 @@ export default function BranchesPage() {
       <PageHeader title="Branches" action={canAdd ? { label: "New Branch", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={branches}
         columns={[
+          { key: "sortingNo", header: "Sort No", className: "text-center w-20", render: (r) => r.sortingNo ?? "-" },
           { key: "branchCode", header: "Code" },
           { key: "branchName", header: "Branch Name" },
           { key: "address", header: "Address" },
@@ -78,8 +83,20 @@ export default function BranchesPage() {
           <Input label="Branch Name *" value={form.branchName} onChange={(e) => setForm({ ...form, branchName: e.target.value })} />
           <Input label="VAT No" value={form.vatNo} onChange={(e) => setForm({ ...form, vatNo: e.target.value })} />
           <Input label="Mobile" value={form.mobileNo} onChange={(e) => setForm({ ...form, mobileNo: e.target.value })} />
+          <Input
+            label="Sorting No"
+            type="number"
+            min="0"
+            placeholder="Leave blank to sort last"
+            value={form.sortingNo}
+            onChange={(e) => setForm({ ...form, sortingNo: e.target.value })}
+          />
           <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="col-span-2" />
         </div>
+        <p className="mt-3 text-xs text-gray-500">
+          <span className="font-medium">Sorting No</span> sets the position of this branch on the reports that show one
+          column per branch (Demand Report and the pickers above it). Lowest first; a branch left blank sorts last.
+        </p>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
           <Button onClick={handleSave} loading={saving}>Save</Button>

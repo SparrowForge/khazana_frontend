@@ -49,6 +49,7 @@ interface HeldOrder {
   discountValue: string;
   discountName: string;
   discountContact: string;
+  guestName: string;
 }
 
 const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
@@ -100,6 +101,9 @@ export default function PosPage() {
   // Discount authoriser (mandatory when a discount is applied)
   const [discountName, setDiscountName] = useState("");
   const [discountContact, setDiscountContact] = useState("");
+  /** Walk-in customer's name. Optional on every sale and independent of the
+   *  discount panel above — reports show it in place of "POS". */
+  const [guestName, setGuestName] = useState("");
 
   // ── Order queue (Hold / Resume), persisted to localStorage ───
   const [queue, setQueue] = useState<HeldOrder[]>([]);
@@ -353,6 +357,7 @@ export default function PosPage() {
     setDiscountValue("");
     setDiscountName("");
     setDiscountContact("");
+    setGuestName("");
   };
 
   // ── Hold / Resume ────────────────────────────────────────────
@@ -369,6 +374,7 @@ export default function PosPage() {
       discountValue,
       discountName,
       discountContact,
+      guestName,
     };
     setQueue((q) => [held, ...q]);
     resetWorkspace();
@@ -393,6 +399,7 @@ export default function PosPage() {
           discountValue,
           discountName,
           discountContact,
+          guestName,
         });
       }
       return remaining;
@@ -405,6 +412,7 @@ export default function PosPage() {
     setDiscountValue(held.discountValue);
     setDiscountName(held.discountName ?? "");
     setDiscountContact(held.discountContact ?? "");
+    setGuestName(held.guestName ?? "");
     setPaidAmount("");
     toast.success("Order resumed");
   };
@@ -440,6 +448,7 @@ export default function PosPage() {
       discountValue: discVal > 0 ? discVal : undefined,
       discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
       discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
+      guestName: guestName.trim() || undefined,
       display: {
         dateTime: at.toLocaleString(),
         servedBy: servedBy || user.name || user.userName,
@@ -512,6 +521,7 @@ export default function PosPage() {
         discountValue: discVal > 0 ? discVal : undefined,
         discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
         discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
+        guestName: guestName.trim() || undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
       // Keep local caches in step with the server-side deduction.
@@ -962,6 +972,17 @@ export default function PosPage() {
                 ]}
               />
             )}
+
+            {/* Optional, and nothing to do with the discount authoriser above: a
+                running sale has no customer record, so without this the Sales
+                History Summary can only call the row "POS". Reports only — it
+                does not print on the receipt. */}
+            <Input
+              label="Customer Name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Walk-in name (optional)"
+            />
 
             <Input
               label="Served By"

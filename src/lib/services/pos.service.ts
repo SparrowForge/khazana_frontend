@@ -38,6 +38,7 @@ export interface PosSale {
   salesType: string;
   bankId?: string | null;
   bankName?: string | null;
+  guestName?: string | null;
   discountRemarks?: string | null;
   discountContact?: string | null;
   modifyRemarks?: string | null;
@@ -67,6 +68,10 @@ export interface CreatePosSalePayload {
   /** Discount authoriser name/contact — sent when a discount is applied. */
   discountRemarks?: string;
   discountContact?: string;
+  /** Walk-in customer's name → SoMstr_GuestName. Optional on every sale and
+   *  independent of the discount authoriser above; Sales History Summary shows
+   *  it in place of 'POS'. Not printed on the receipt. */
+  guestName?: string;
   /** Mandatory reason for an edit (update only) → SoMstr_ModifyRemarks. */
   modifyRemarks?: string;
 }
@@ -88,6 +93,8 @@ export interface OfflineSalePayload {
   /** Discount authoriser name/contact — captured when a discount is applied. */
   discountRemarks?: string;
   discountContact?: string;
+  /** Walk-in customer's name → SoMstr_GuestName. */
+  guestName?: string;
 }
 
 export interface SyncOfflinePayload {

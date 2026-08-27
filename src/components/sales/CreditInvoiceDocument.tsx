@@ -3,14 +3,19 @@
 import { amountInWords } from "@/lib/utils";
 import type { CreditInvoice } from "@/lib/invoice/creditInvoice";
 
-// The printed credit-sale invoice, in both formats the business issues.
+// The printed credit-sale documents, in every format the business issues:
+// the 80mm POS receipt, the corporate A4 invoice, and the delivery challan —
+// the same A4 sheet with the money taken out.
 //
 // Lives here rather than on the page because two pages render it: the internal
 // one behind login, and the public link sent to the customer. A customer
 // querying a figure must be looking at the same document the counter printed,
 // so there is exactly one implementation of each format.
 
-export type InvoiceFormat = "thermal" | "corporate";
+export type InvoiceFormat = "thermal" | "corporate" | "challan";
+
+/** Formats that print on an A4 sheet rather than the 80mm roll. */
+const isA4 = (format: InvoiceFormat) => format !== "thermal";
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n: number | string) => Number(n).toFixed(2);
@@ -293,6 +298,133 @@ export function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
   );
 }
 
+// ── Format 3: the delivery challan ───────────────────────────
+//
+// The corporate invoice with every money column taken out: what physically went
+// to the customer, for them to check and sign for. Same A4 sheet, same
+// letterhead, same Bill To / document meta and the same signature footer — only
+// the values are gone (no Rate, Discount, VAT, Amount, no totals block, no
+// amount in words), because a challan travels with the goods and the price is
+// nobody's business along the way.
+//
+// Deliberately a separate component rather than a `hideValues` flag on
+// CorporateInvoice: the two documents are read by different people for
+// different reasons, and a flag threaded through a dozen table cells is how one
+// eventually leaks a figure onto the other.
+export function CreditSaleChallan({ inv }: { inv: CreditInvoice }) {
+  const totalQty = inv.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+  return (
+    <div
+      id="invoice"
+      className="bg-white text-black mx-auto p-10 text-[12px] leading-relaxed flex flex-col"
+      style={{ width: "210mm", minHeight: "297mm" }}
+    >
+      {/* Letterhead */}
+      <div className="text-center border-b-2 border-black pb-3">
+        <div className="text-2xl font-bold tracking-wide">KHAZANA MITHAI</div>
+        <div className="text-[11px] mt-1">
+          {inv.branch?.name ? `${inv.branch.name} Branch — ` : ""}
+          {inv.branch?.address || ""}
+        </div>
+        <div className="text-[11px]">
+          VAT Reg No: {inv.branch?.vatNo || "—"}
+          {inv.branch?.mobileNo ? ` · Tel: ${inv.branch.mobileNo}` : ""}
+        </div>
+      </div>
+
+      <div className="text-center my-4">
+        <span className="inline-block border border-black px-6 py-1 text-sm font-bold tracking-widest">
+          DELIVERY CHALLAN
+        </span>
+      </div>
+
+      {/* Deliver To + document meta */}
+      <div className="flex justify-between gap-8 mb-5">
+        <div className="flex-1">
+          <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Deliver To</div>
+          <div className="font-semibold">{inv.customer?.name ?? "—"}</div>
+          {inv.customer?.address && <div className="text-gray-600">{inv.customer.address}</div>}
+          {inv.customer?.code && <div className="text-gray-600">Customer Code: {inv.customer.code}</div>}
+          <div className="text-gray-600">Contact No: {inv.customer?.mobile || "—"}</div>
+        </div>
+        <div className="w-64">
+          <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Challan Details</div>
+          <div className="flex justify-between"><span className="text-gray-600">Invoice No:</span><span className="font-semibold">{inv.invoiceNo}</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">Date:</span><span>{formatInvoiceDate(inv.invoiceDate)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">PO No:</span><span>{inv.poNo || "—"}</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">Sale Type:</span><span>Credit</span></div>
+        </div>
+      </div>
+
+      {/* Lines — quantity only. The Received Qty and Remarks columns print empty
+          for the customer to fill in as they check the delivery off. */}
+      <table className="w-full border-collapse text-[11px]">
+        <thead>
+          <tr className="bg-sage-200">
+            <th className="border border-gray-400 px-2 py-1.5 text-left w-8">#</th>
+            <th className="border border-gray-400 px-2 py-1.5 text-left">Description</th>
+            <th className="border border-gray-400 px-2 py-1.5 text-right w-24">Qty</th>
+            <th className="border border-gray-400 px-2 py-1.5 text-right w-28">Received Qty</th>
+            <th className="border border-gray-400 px-2 py-1.5 text-left w-40">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {inv.items.map((item, i) => (
+            <tr key={i}>
+              <td className="border border-gray-400 px-2 py-1.5">{i + 1}</td>
+              <td className="border border-gray-400 px-2 py-1.5">
+                {item.itemName || item.itemCode}
+                {item.itemCode && <span className="text-gray-500"> ({item.itemCode})</span>}
+              </td>
+              <td className="border border-gray-400 px-2 py-1.5 text-right">
+                {fmtQty(item.quantity)}{item.uom ? ` ${item.uom}` : ""}
+              </td>
+              <td className="border border-gray-400 px-2 py-1.5" />
+              <td className="border border-gray-400 px-2 py-1.5" />
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="font-bold">
+            <td className="border border-gray-400 px-2 py-1.5" colSpan={2}>Total Quantity</td>
+            <td className="border border-gray-400 px-2 py-1.5 text-right">{fmtQty(totalQty)}</td>
+            <td className="border border-gray-400 px-2 py-1.5" />
+            <td className="border border-gray-400 px-2 py-1.5" />
+          </tr>
+        </tfoot>
+      </table>
+
+      <div className="mt-4 border border-gray-400 px-3 py-2 text-[11px]">
+        Goods once delivered are to be checked on receipt. This challan carries no price —
+        the tax invoice for this delivery is issued separately under the same invoice number.
+      </div>
+
+      {/* Page footer: the same bottom-anchored signature block the invoice uses,
+          so both documents sign on the same line. */}
+      <div className="mt-auto pt-16">
+        <div className="flex justify-between text-[11px]">
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">
+              Prepared By{inv.invoiceBy ? ` — ${inv.invoiceBy}` : ""}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">Received By</div>
+          </div>
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">Authorised Signature</div>
+          </div>
+        </div>
+
+        <div className="text-center text-[10px] text-gray-400 mt-6">
+          This is a computer-generated delivery challan. · Software by www.sprwforge.com
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The print rules and page size for the chosen format, shared by both pages so
  *  "Save as PDF" comes out right (80mm roll vs A4 sheet) wherever it is used. */
 export function InvoicePrintStyles({ format }: { format: InvoiceFormat }) {
@@ -309,7 +441,7 @@ export function InvoicePrintStyles({ format }: { format: InvoiceFormat }) {
           box-shadow: none !important;
         }
         ${
-          format === "corporate"
+          isA4(format)
             ? `/* The sheet IS the page: @page contributes no margin of its own, so
                  the invoice's own p-10 padding is the margin. A 210mm x 297mm
                  sheet inside a 10mm page margin would overflow the 190mm x 277mm
@@ -321,7 +453,7 @@ export function InvoicePrintStyles({ format }: { format: InvoiceFormat }) {
         }
         .no-print { display: none !important; }
       }
-      @page { size: ${format === "corporate" ? "A4 portrait" : "80mm auto"}; margin: 0; }
+      @page { size: ${isA4(format) ? "A4 portrait" : "80mm auto"}; margin: 0; }
     `}</style>
   );
 }

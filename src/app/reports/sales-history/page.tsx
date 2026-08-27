@@ -30,9 +30,11 @@ const fmtQtyUom = (n: number, uom?: string) => `${fmtQty(n)}${uom ? ` (${uom})` 
  *  table and the Print/PDF/Excel exports so the two can't disagree. */
 const priceWithVat = (price: number, vat: number, qty: number) => (price ?? 0) + (qty ? (vat ?? 0) / qty : 0);
 
-/** An invoice contributes one row per item, so its number and date repeat down
- *  the group. Blank the repeats so each invoice reads as one block, the way the
- *  printed sheet does. */
+/** An invoice contributes one row per item, so its date repeats down the group.
+ *  Blank the repeats so each invoice reads as one block on the printed sheet.
+ *
+ *  Only the Date column uses this now — Inv No and Client Name print on every
+ *  line, so a row read on its own is still identified. */
 const dedupe = <T,>(rows: T[], key: (row: T) => string) =>
   rows.map((row, i) => (i > 0 && key(rows[i - 1]) === key(row) ? "" : key(row)));
 
@@ -156,17 +158,16 @@ export default function SalesHistoryPage() {
     let siCounter = 1;
 
     groupedByDate.forEach(([dateStr, dateItems]) => {
-      // Date and Inv No print once per invoice, not on every one of its lines.
+      // Date still prints once per invoice; Inv No and Client Name repeat on
+      // every line. A row lifted out of the sheet — filtered, sorted or pasted
+      // elsewhere — has to say which invoice and which customer it belongs to
+      // on its own, which a blanked continuation row cannot do.
       const invoiceLabels = dedupe(dateItems, (r) => r.invoiceNo ?? "");
       dateItems.forEach((item, idx) => {
         rows.push({
           ...item,
           type: "item",
           si: siCounter++,
-          invoiceNo: invoiceLabels[idx],
-          // The client belongs to the invoice, not the line — it blanks out on
-          // an invoice's continuation rows the same way its number does.
-          clientName: invoiceLabels[idx] ? item.clientName : "",
           dateHeader: invoiceLabels[idx] ? formatDate(dateStr) : "",
         });
       });
@@ -286,18 +287,13 @@ export default function SalesHistoryPage() {
                 <div className="overflow-x-auto">
                   <Table
                     loading={false}
-                    data={(() => {
-                      // Inv No prints once per invoice — its item lines follow blank.
-                      const labels = dedupe(dateItems, (r) => r.invoiceNo ?? "");
-                      return dateItems.map((item, idx) => ({
-                        id: `${dateStr}-${idx}`,
-                        ...item,
-                        invoiceNo: labels[idx],
-                        // Blanked on continuation rows alongside the invoice no.
-                        clientName: labels[idx] ? item.clientName : "",
-                        si: idx + 1,
-                      }));
-                    })()}
+                    // Inv No and Client Name repeat on every line, so any row
+                    // read on its own still says which invoice it came from.
+                    data={dateItems.map((item, idx) => ({
+                      id: `${dateStr}-${idx}`,
+                      ...item,
+                      si: idx + 1,
+                    }))}
                     columns={[
                       { key: "si", header: "SI#", className: "w-12" },
                       { key: "invoiceNo", header: "Inv No" },

@@ -139,24 +139,26 @@ export default function PosAdjustmentReportPage({ kind }: { kind: PosAdjustmentK
 
       {report && (
         <>
-          {/* 80mm roll, like the POS receipt — no @page size, the width is set
-              on the element so the driver's own paper setting is respected. */}
+          {/* The 80mm roll the POS terminal prints on, set the same way the
+              sales receipt sets it (see InvoicePrintStyles): the @page rule has
+              to name the paper, or the browser falls back to A4 and drops this
+              narrow receipt into the corner of a big sheet. `auto` height lets
+              the roll run as long as the report needs. */}
           <style>{`
             @media print {
               body * { visibility: hidden !important; }
               #pos-adjustment, #pos-adjustment * { visibility: visible !important; }
               #pos-adjustment {
-                position: fixed !important;
+                position: absolute !important;
                 top: 0 !important;
                 left: 0 !important;
-                width: 80mm !important;
                 margin: 0 !important;
-                padding: 4mm !important;
                 border: none !important;
                 box-shadow: none !important;
               }
               .no-print { display: none !important; }
             }
+            @page { size: 80mm auto; margin: 0; }
           `}</style>
           <Receipt data={report} labels={labels} />
         </>

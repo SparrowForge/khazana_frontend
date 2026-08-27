@@ -71,12 +71,16 @@ export default function PosSaleEditPage() {
         setBankId(sale.bankId || "");
         setServedBy(sale.servedBy || "");
         setPaidAmount(String(sale.paidAmount ?? ""));
+        // Unconditional: the customer name exists independently of the
+        // discount, and the update writes whatever is in the box — so a sale
+        // with no discount would have its name wiped by an unrelated edit if
+        // this only ran inside the branch below.
+        setGuestName(sale.guestName ?? "");
         if (Number(sale.discountAmount) > 0) {
           setDiscountType("fixed");
           setDiscountValue(String(sale.discountAmount));
           setDiscountName(sale.discountRemarks ?? "");
           setDiscountContact(sale.discountContact ?? "");
-          setGuestName(sale.guestName ?? "");
         }
         const byId = new Map(prods.map((p) => [p.id, p]));
         setCart(
@@ -232,9 +236,9 @@ export default function PosSaleEditPage() {
         <ArrowLeft size={15} /> Back to POS Sales
       </button>
 
-      <div className="flex gap-5 h-[calc(100vh-16rem)]">
+      <div className="flex flex-col lg:flex-row gap-5 lg:h-[calc(100vh-16rem)]">
         {/* ─── Product Grid ─────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <div className="mb-3 relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
@@ -279,8 +283,12 @@ export default function PosSaleEditPage() {
         </div>
 
         {/* ─── Cart + Payment ────────────────────────────────── */}
-        <div className="w-80 flex flex-col gap-3 shrink-0">
-          <div className="bg-white rounded-xl border border-sage-300 flex flex-col overflow-hidden flex-1">
+        {/* The column scrolls as a whole and the cart carries a min-height: it
+            is `overflow-hidden`, which zeroes a flex item's automatic minimum
+            size, so without a floor a payment card taller than the column
+            silently collapses the cart to nothing rather than pushing it. */}
+        <div className="w-full lg:w-80 flex flex-col gap-3 shrink-0 overflow-y-auto">
+          <div className="bg-white rounded-xl border border-sage-300 flex flex-col overflow-hidden flex-1 min-h-[16rem]">
             <div className="px-4 py-3 border-b border-sage-200 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-700 flex items-center gap-2">
                 <ShoppingCart size={16} /> Cart
@@ -328,7 +336,7 @@ export default function PosSaleEditPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-sage-300 p-4 space-y-3">
+          <div className="bg-white rounded-xl border border-sage-300 p-4 space-y-3 shrink-0">
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-500"><span>Sub-total</span><span>৳{fmt(subtotal)}</span></div>
               <div className="flex justify-between text-gray-500"><span>VAT</span><span>৳{fmt(vatAmount)}</span></div>

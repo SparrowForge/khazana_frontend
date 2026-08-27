@@ -9,6 +9,7 @@ import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchDemandReport, type DemandReport, type DemandReportRow } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import { compareBranchesForDisplay } from "@/lib/branch";
 import { formatCurrency } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -52,7 +53,9 @@ export default function DemandReportPage() {
 
   useEffect(() => {
     fetchBranches({ page: 1, limit: 100 })
-      .then(({ items }) => setBranches(items))
+      // Same sequence as the report's own columns, so the picker above the
+      // sheet reads in the order the sheet below it does.
+      .then(({ items }) => setBranches([...items].sort(compareBranchesForDisplay)))
       .catch(() => {});
   }, []);
 

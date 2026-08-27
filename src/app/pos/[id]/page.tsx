@@ -27,6 +27,10 @@ type DiscountType = "fixed" | "percentage";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toFixed(2);
+/** Qty is decimal (2dp) for weight-priced items — show whole numbers cleanly. */
+const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+const QTY_STEP = 0.01;
+const MIN_QTY = 0.01;
 
 export default function PosSaleEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +40,9 @@ export default function PosSaleEditPage() {
 
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  /** What is being typed in a line's qty box, keyed by item. Held apart from the
+   *  cart so a half-typed "1." is not parsed into the line on every keystroke. */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [invoiceNo, setInvoiceNo] = useState("");
   const [salesType, setSalesType] = useState("Cash");
   const [banks, setBanks] = useState<PosBank[]>([]);
@@ -114,7 +121,7 @@ export default function PosSaleEditPage() {
   const addToCart = (product: PosProduct) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === product.id);
-      if (existing) return prev.map((c) => (c.itemId === product.id ? { ...c, qty: c.qty + 1 } : c));
+      if (existing) return prev.map((c) => (c.itemId === product.id ? { ...c, qty: r2(c.qty + 1) } : c));
       return [
         ...prev,
         {
@@ -129,8 +136,32 @@ export default function PosSaleEditPage() {
     });
   };
 
+  /** +/- stepper. Rounds to 2dp so stepping a fractional line (11.60 - 1) cannot
+   *  leave float drift behind. */
   const changeQty = (itemId: string, delta: number) =>
-    setCart((prev) => prev.map((c) => (c.itemId === itemId ? { ...c, qty: c.qty + delta } : c)).filter((c) => c.qty > 0));
+    setCart((prev) =>
+      prev.map((c) => (c.itemId === itemId ? { ...c, qty: r2(c.qty + delta) } : c)).filter((c) => c.qty > 0),
+    );
+
+  /** Commit a typed qty. Blank or <= 0 reverts to the previous value rather than
+   *  silently dropping the line — removal is the trash button, an explicit act.
+   *
+   *  No on-hand clamp here, unlike the terminal: this sale's own quantities are
+   *  already deducted from stock, so the ceiling is "on hand plus what this line
+   *  currently holds". The server works that out for real when it re-prices
+   *  (assertStockAvailable credits the existing lines back); guessing at it here
+   *  would block legitimate edits. */
+  const commitQty = (itemId: string, raw: string) => {
+    setQtyDraft((d) => {
+      const next = { ...d };
+      delete next[itemId];
+      return next;
+    });
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    const wanted = Math.max(MIN_QTY, r2(parsed));
+    setCart((prev) => prev.map((c) => (c.itemId === itemId ? { ...c, qty: wanted } : c)));
+  };
 
   const removeFromCart = (itemId: string) => setCart((prev) => prev.filter((c) => c.itemId !== itemId));
 
@@ -287,48 +318,91 @@ export default function PosSaleEditPage() {
             is `overflow-hidden`, which zeroes a flex item's automatic minimum
             size, so without a floor a payment card taller than the column
             silently collapses the cart to nothing rather than pushing it. */}
-        <div className="w-full lg:w-80 flex flex-col gap-3 shrink-0 overflow-y-auto">
+        <div className="w-full lg:w-[28rem] flex flex-col gap-3 shrink-0 overflow-y-auto">
           <div className="bg-white rounded-xl border border-sage-300 flex flex-col overflow-hidden flex-1 min-h-[16rem]">
+            {/* Same cart as the terminal: total qty in the badge, Clear all, and
+                a typed quantity box per line so weight-priced items can be
+                edited to a fraction instead of only stepped by whole units. */}
             <div className="px-4 py-3 border-b border-sage-200 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-700 flex items-center gap-2">
-                <ShoppingCart size={16} /> Cart
+                <ShoppingCart size={16} />
+                Cart
                 {cart.length > 0 && (
                   <span className="bg-primary-100 text-primary-700 text-xs rounded-full px-2 py-0.5">
-                    {cart.reduce((s, c) => s + c.qty, 0)}
+                    {fmtQty(r2(cart.reduce((s, c) => s + c.qty, 0)))}
                   </span>
                 )}
               </span>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setCart([])}
+                  className="text-red-400 text-xs hover:text-red-600 hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
             </div>
 
             {cart.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-gray-300 text-sm">No items</div>
+              <div className="flex-1 flex items-center justify-center text-gray-300 text-sm">
+                No items added yet
+              </div>
             ) : (
               <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
                 {cart.map((c) => (
                   <div key={c.itemId} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                        <p className="text-xs text-gray-400">
-                          ৳{fmt(c.price)} × {c.qty} {c.uom}
-                          {c.vatPercentage > 0 && <span className="text-orange-400 ml-1">+{c.vatPercentage}% VAT</span>}
-                        </p>
-                      </div>
-                      <button onClick={() => removeFromCart(c.itemId)} className="text-gray-300 hover:text-red-500 transition-colors mt-0.5">
+                      <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
+                      <button
+                        onClick={() => removeFromCart(c.itemId)}
+                        className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => changeQty(c.itemId, -1)} className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center">
-                          <Minus size={12} />
-                        </button>
-                        <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
-                        <button onClick={() => changeQty(c.itemId, 1)} className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center">
-                          <Plus size={12} />
-                        </button>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <p className="text-xs text-gray-400 truncate">
+                        ৳{fmt(c.price)} × {fmtQty(c.qty)} {c.uom}
+                        {c.vatPercentage > 0 && (
+                          <span className="text-orange-400 ml-1">+{c.vatPercentage}% VAT</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => changeQty(c.itemId, -1)}
+                            className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min={MIN_QTY}
+                            step={QTY_STEP}
+                            value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
+                            onChange={(e) =>
+                              setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
+                            }
+                            onBlur={(e) => commitQty(c.itemId, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.select()}
+                            aria-label={`Quantity for ${c.name}`}
+                            className="w-14 text-center text-sm font-semibold border border-sage-300 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          />
+                          <button
+                            onClick={() => changeQty(c.itemId, 1)}
+                            className="w-6 h-6 rounded-md bg-sage-200 hover:bg-gray-200 flex items-center justify-center"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                        <span className="text-sm font-bold text-primary-700 whitespace-nowrap">
+                          ৳{fmt(itemSubtotal(c) + itemVat(c))}
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-primary-700">৳{fmt(itemSubtotal(c) + itemVat(c))}</span>
                     </div>
                   </div>
                 ))}

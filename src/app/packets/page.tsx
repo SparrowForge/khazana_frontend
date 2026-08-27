@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
-import { fetchPackets, createPacket, updatePacket, deletePacket, type Packet } from "./server";
+import { fetchPackets, fetchNextPacketCode, createPacket, updatePacket, deletePacket, type Packet } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
@@ -34,7 +34,17 @@ export default function PacketsPage() {
   };
   useEffect(load, []);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
+  /** Codes are system-generated (P001, P002, ...), so a new packet asks the
+   *  server for the next one instead of letting staff type it. If the lookup
+   *  fails the field stays blank and the server generates the code on save. */
+  const openCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setModal(true);
+    fetchNextPacketCode()
+      .then((code) => setForm((f) => ({ ...f, code })))
+      .catch(() => {});
+  };
   const openEdit = (p: Packet) => {
     setEditing(p);
     setForm({ code: p.code, name: p.name ?? "", uom: p.uom ?? "pcs", weight: String(p.weight ?? ""), rate: String(p.rate ?? ""), isActive: String(p.isActive ?? 1) });
@@ -42,12 +52,19 @@ export default function PacketsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.code) { toast.error("Code is required"); return; }
     setSaving(true);
     try {
-      const payload = { ...form, weight: parseFloat(form.weight) || 0, rate: parseFloat(form.rate) || 0, isActive: parseInt(form.isActive) };
-      if (editing) await updatePacket(editing.code, payload);
-      else await createPacket(payload);
+      // Build the payload field by field: the API runs a whitelist that rejects
+      // unknown properties, and the code is not editable on an existing packet.
+      const fields = {
+        name: form.name,
+        uom: form.uom,
+        weight: parseFloat(form.weight) || 0,
+        rate: parseFloat(form.rate) || 0,
+        isActive: parseInt(form.isActive),
+      };
+      if (editing) await updatePacket(editing.code, fields);
+      else await createPacket({ ...fields, ...(form.code ? { code: form.code } : {}) });
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
@@ -79,7 +96,7 @@ export default function PacketsPage() {
       />
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Packet" : "New Packet"}>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Code *" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={!!editing} />
+          <Input label="Code" value={form.code} placeholder="Auto-generated" disabled readOnly />
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input label="UOM" value={form.uom} onChange={(e) => setForm({ ...form, uom: e.target.value })} />
           <Input label="Weight" type="number" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} />

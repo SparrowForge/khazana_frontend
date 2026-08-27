@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
+import {
+  CorporateInvoice,
+  CreditSaleChallan,
+  InvoicePrintStyles,
+  type InvoiceFormat,
+} from "@/components/sales/CreditInvoiceDocument";
+import { posSaleToInvoice } from "@/lib/invoice/posInvoice";
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n: number | string) => Number(n).toFixed(2);
@@ -154,6 +161,10 @@ export default function InvoicePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [sale, setSale] = useState<PosSale | null>(null);
+  // The terminal opens this page with ?print=1 straight after a sale, so the
+  // 80mm receipt stays the default — the counter must never have to pick a
+  // format before the customer's copy comes out of the printer.
+  const [format, setFormat] = useState<InvoiceFormat>("thermal");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -171,7 +182,7 @@ export default function InvoicePage() {
   useEffect(() => {
     if (!sale) return;
     if (new URLSearchParams(window.location.search).get("print") !== "1") return;
-    const t = setTimeout(() => window.print(), 300); // let the receipt paint first
+    const t = setTimeout(() => window.print(), 300); // let the document paint first
     return () => clearTimeout(t);
   }, [sale]);
 
@@ -201,49 +212,89 @@ export default function InvoicePage() {
     );
   }
 
+  // The A4 documents read a credit-invoice shape; one adapter feeds both, so
+  // the terminal's A4 invoice agrees with the credit-sale one figure for figure.
+  const a4 = format === "thermal" ? null : posSaleToInvoice(sale);
+  const heading = format === "challan" ? "Challan" : "Invoice";
+
   return (
     <>
-      {/* ── Print styles ── */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #receipt, #receipt * { visibility: visible !important; }
-          #receipt {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 80mm !important;
-            margin: 0 !important;
-            padding: 4mm !important;
-            box-shadow: none !important;
+      {/* ── Print styles ── The 80mm receipt is its own document (#receipt, its
+          own rules); the A4 formats share the credit-sale print styles, which
+          target #invoice. Only one is mounted at a time, so the two sets of
+          rules can never both apply to one print. */}
+      {format === "thermal" ? (
+        <style>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            #receipt, #receipt * { visibility: visible !important; }
+            #receipt {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 4mm !important;
+              box-shadow: none !important;
+            }
+            .no-print { display: none !important; }
           }
-          .no-print { display: none !important; }
-        }
-      `}</style>
+        `}</style>
+      ) : (
+        <InvoicePrintStyles format={format} />
+      )}
 
       {/* ── Screen wrapper ── */}
       <div className="min-h-screen bg-sage-200 flex flex-col">
         {/* Top bar (hidden on print) */}
-        <div className="no-print bg-white border-b border-sage-300 px-6 py-3 flex items-center justify-between">
+        <div className="no-print bg-white border-b border-sage-300 px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
           <button
             onClick={() => router.push("/pos")}
             className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5"
           >
             ← New Sale
           </button>
-          <h1 className="font-semibold text-gray-800">Invoice — {sale.invoiceNo}</h1>
-          <button
-            onClick={handlePrint}
-            className="bg-primary-800 hover:bg-primary-700 text-white text-sm px-5 py-2 rounded-lg font-medium transition-colors"
-          >
-            🖨 Print
-          </button>
+          <h1 className="font-semibold text-gray-800">{heading} — {sale.invoiceNo}</h1>
+
+          <div className="flex items-center gap-3">
+            {/* Format switch */}
+            <div className="flex rounded-lg border border-sage-300 overflow-hidden text-sm">
+              {([
+                ["thermal", "POS Receipt"],
+                ["corporate", "Corporate (A4)"],
+                ["challan", "Challan (A4)"],
+              ] as [InvoiceFormat, string][]).map(([value, label], i) => (
+                <button
+                  key={value}
+                  onClick={() => setFormat(value)}
+                  className={`px-3 py-1.5 font-medium transition-colors ${i > 0 ? "border-l border-sage-300" : ""} ${
+                    format === value ? "bg-primary-700 text-white" : "bg-white text-gray-600 hover:bg-sage-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handlePrint}
+              className="bg-primary-800 hover:bg-primary-700 text-white text-sm px-5 py-2 rounded-lg font-medium transition-colors"
+            >
+              🖨 Print
+            </button>
+          </div>
         </div>
 
-        {/* Receipt preview */}
-        <div className="flex-1 flex items-start justify-center py-10">
+        {/* Document preview */}
+        <div className="flex-1 flex items-start justify-center py-10 overflow-x-auto">
           <div className="shadow-2xl rounded-sm">
-            <Receipt sale={sale} />
+            {!a4 ? (
+              <Receipt sale={sale} />
+            ) : format === "challan" ? (
+              <CreditSaleChallan inv={a4} />
+            ) : (
+              <CorporateInvoice inv={a4} />
+            )}
           </div>
         </div>
 

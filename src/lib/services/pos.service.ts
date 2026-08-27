@@ -24,6 +24,10 @@ export interface PosSaleItem {
   id: string;
   itemId: string;
   productName: string;
+  /** Catalogue code — printed beside the name on the A4 invoice. */
+  itemCode?: string;
+  /** Unit of measure — printed beside the quantity on the A4 challan. */
+  uom?: string;
   qty: number;
   rate: number;
   vatPct: number;

@@ -20,6 +20,10 @@ export interface CreditInvoice {
   invoiceDate: string | null;
   poNo: string | null;
   invoiceBy: string | null;
+  /** What the invoice's "Sale Type" row prints. Absent on the credit-sale
+   *  endpoints, which are credit by definition; the POS adapter supplies the
+   *  terminal's actual pay mode (Cash, Card, bKash…). */
+  saleType?: string | null;
   customer: {
     code: string;
     name: string;

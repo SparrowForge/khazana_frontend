@@ -188,7 +188,7 @@ export function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
           <div className="flex justify-between"><span className="text-gray-600">Invoice No:</span><span className="font-semibold">{inv.invoiceNo}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">Invoice Date:</span><span>{formatInvoiceDate(inv.invoiceDate)}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">PO No:</span><span>{inv.poNo || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-600">Sale Type:</span><span>Credit</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">Sale Type:</span><span>{inv.saleType || "Credit"}</span></div>
         </div>
       </div>
 

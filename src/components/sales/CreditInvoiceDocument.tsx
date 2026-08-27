@@ -320,13 +320,11 @@ export function CreditSaleChallan({ inv }: { inv: CreditInvoice }) {
       className="bg-white text-black mx-auto p-10 text-[12px] leading-relaxed flex flex-col"
       style={{ width: "210mm", minHeight: "297mm" }}
     >
-      {/* Letterhead */}
+      {/* Letterhead — address only. The branch name is deliberately absent: the
+          challan goes out under the company, not the despatching branch. */}
       <div className="text-center border-b-2 border-black pb-3">
         <div className="text-2xl font-bold tracking-wide">KHAZANA MITHAI</div>
-        <div className="text-[11px] mt-1">
-          {inv.branch?.name ? `${inv.branch.name} Branch — ` : ""}
-          {inv.branch?.address || ""}
-        </div>
+        <div className="text-[11px] mt-1">{inv.branch?.address || ""}</div>
         <div className="text-[11px]">
           VAT Reg No: {inv.branch?.vatNo || "—"}
           {inv.branch?.mobileNo ? ` · Tel: ${inv.branch.mobileNo}` : ""}
@@ -339,21 +337,24 @@ export function CreditSaleChallan({ inv }: { inv: CreditInvoice }) {
         </span>
       </div>
 
-      {/* Deliver To + document meta */}
+      {/* Deliver To + document meta. Every customer line is labelled and always
+          printed — a labelled block with rows that vanish when empty reads as a
+          different document each time. */}
       <div className="flex justify-between gap-8 mb-5">
         <div className="flex-1">
           <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Deliver To</div>
-          <div className="font-semibold">{inv.customer?.name ?? "—"}</div>
-          {inv.customer?.address && <div className="text-gray-600">{inv.customer.address}</div>}
-          {inv.customer?.code && <div className="text-gray-600">Customer Code: {inv.customer.code}</div>}
-          <div className="text-gray-600">Contact No: {inv.customer?.mobile || "—"}</div>
+          <div><span className="text-gray-600">Customer Name: </span><span className="font-semibold">{inv.customer?.name ?? "—"}</span></div>
+          <div><span className="text-gray-600">Address: </span>{inv.customer?.address || "—"}</div>
+          <div><span className="text-gray-600">Customer Code: </span>{inv.customer?.code || "—"}</div>
+          <div><span className="text-gray-600">Contact No: </span>{inv.customer?.mobile || "—"}</div>
         </div>
         <div className="w-64">
           <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Challan Details</div>
-          <div className="flex justify-between"><span className="text-gray-600">Invoice No:</span><span className="font-semibold">{inv.invoiceNo}</span></div>
+          {/* The number IS the credit invoice number — the two papers have to
+              tie together — but on this sheet it is labelled as the challan. */}
+          <div className="flex justify-between"><span className="text-gray-600">Challan No:</span><span className="font-semibold">{inv.invoiceNo}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">Date:</span><span>{formatInvoiceDate(inv.invoiceDate)}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">PO No:</span><span>{inv.poNo || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-600">Sale Type:</span><span>Credit</span></div>
         </div>
       </div>
 
@@ -394,11 +395,6 @@ export function CreditSaleChallan({ inv }: { inv: CreditInvoice }) {
           </tr>
         </tfoot>
       </table>
-
-      <div className="mt-4 border border-gray-400 px-3 py-2 text-[11px]">
-        Goods once delivered are to be checked on receipt. This challan carries no price —
-        the tax invoice for this delivery is issued separately under the same invoice number.
-      </div>
 
       {/* Page footer: the same bottom-anchored signature block the invoice uses,
           so both documents sign on the same line. */}

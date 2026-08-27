@@ -145,6 +145,11 @@ export default function PosAdjustmentReportPage({ kind }: { kind: PosAdjustmentK
               narrow receipt into the corner of a big sheet. `auto` height lets
               the roll run as long as the report needs. */}
           <style>{`
+            /* The logo is whatever /logo.png happens to be — a wide wordmark at
+               34px tall is wider than the roll and would print cut off down the
+               right edge, taking the Amount column with it. Cap it to the
+               receipt instead of trusting the asset's aspect ratio. */
+            #pos-adjustment img { max-width: 100% !important; height: auto !important; }
             @media print {
               body * { visibility: hidden !important; }
               #pos-adjustment, #pos-adjustment * { visibility: visible !important; }
@@ -152,6 +157,10 @@ export default function PosAdjustmentReportPage({ kind }: { kind: PosAdjustmentK
                 position: absolute !important;
                 top: 0 !important;
                 left: 0 !important;
+                /* 80mm box on an 80mm page, so the 4mm padding is the roll's
+                   own quiet margin and nothing can sit past the paper edge. */
+                width: 80mm !important;
+                padding: 4mm !important;
                 margin: 0 !important;
                 border: none !important;
                 box-shadow: none !important;

@@ -9,27 +9,24 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
-  fetchItems, fetchVehicleChallans, fetchVehicleChallan,
+  searchItems, fetchVehicleChallans, fetchVehicleChallan,
   createVehicleChallan, updateVehicleChallan, deleteVehicleChallan,
   type AvailableItem, type VehicleChallanRecord, type VehicleChallanGroup,
 } from "./server";
 import { fetchSettings, type Settings } from "@/app/admin/settings/server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuthStore } from "@/store/auth.store";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Edit2, Eye, Printer, Truck } from "lucide-react";
 import { type ExportColumn } from "@/lib/export/reportExport";
 import {
-  previewVehicleChallan,
-  printVehicleChallan,
-  challanItemName,
-  sortChallanLines,
-  type DeliveryChallanData,
-  type DeliveryChallanLine,
-} from "@/lib/export/deliveryChallanDocument";
+  previewCustomerChallan,
+  printCustomerChallan,
+  type CustomerChallanData,
+  type CustomerChallanLine,
+} from "@/lib/export/customerChallanDocument";
 
 // Vehicle Challan — the gate pass for a loaded van leaving the factory.
 //
@@ -40,21 +37,21 @@ import {
 // Issue at that point. Showing an "Available" figure would invite the operator
 // to read this as a stock document, so it is deliberately absent.
 
-/** A challan line, numbered. `Received Qty` and `Remarks` stay blank on every
- *  output — the outlet that takes goods off the van writes them in by hand. */
-interface ChallanRow extends DeliveryChallanLine { sl: number; }
+/** One printed row of the challan. */
+interface ChallanRow extends CustomerChallanLine { sl: number; }
 
-/** Sorted and numbered exactly as the printed sheet renders them, so the
+/** Numbered in entry order — the order the sheet prints them in, so the
  *  on-screen table, the print-out and the spreadsheet agree row for row. */
-const challanRows = (lines: DeliveryChallanLine[]): ChallanRow[] =>
-  sortChallanLines(lines).map((l, i) => ({ ...l, sl: i + 1 }));
+const challanRows = (lines: CustomerChallanLine[]): ChallanRow[] =>
+  lines.map((l, i) => ({ ...l, sl: i + 1 }));
 
 const challanColumns: ExportColumn<ChallanRow>[] = [
-  { header: "SL No", value: (r) => r.sl, numeric: true },
-  { header: "Item Of Name", value: (r) => challanItemName(r), width: 34 },
-  { header: "Delivery", value: (r) => r.qty, numeric: true },
-  { header: "Received Qty", value: () => "", width: 14 },
-  { header: "Remarks", value: () => "", width: 22 },
+  { header: "Sl", value: (r) => r.sl, numeric: true },
+  { header: "Description", value: (r) => r.itemName, width: 34 },
+  { header: "UOM", value: (r) => r.uom ?? "", width: 10 },
+  { header: "Qty", value: (r) => r.qty, numeric: true },
+  // Printed empty for the receiving party to complete by hand.
+  { header: "Remarks", value: () => "", width: 24 },
 ];
 
 const getDefaultDateRange = () => {
@@ -66,7 +63,21 @@ const getDefaultDateRange = () => {
   };
 };
 
-const emptyHeader = { route: "", vehicleNo: "", driverName: "", driverMobile: "", voucherNo: "", remarks: "" };
+const emptyHeader = {
+  customerName: "", customerAddress: "", deliveryAddress: "",
+  route: "", vehicleNo: "", driverName: "", driverMobile: "", voucherNo: "", remarks: "",
+};
+
+/** One typed line. `itemId` is set only when the description was matched to a
+ *  catalogue item; a line typed freehand keeps `itemId` empty and travels on the
+ *  challan as text alone — ad-hoc goods are never written to the Item table. */
+interface ChallanLine { itemId: string; itemName: string; uom: string; qty: string; }
+
+const BLANK_LINE: ChallanLine = { itemId: "", itemName: "", uom: "", qty: "" };
+
+/** What the catalogue datalist offers, and what a typed value is matched back
+ *  against — one string, so picking and typing cannot disagree. */
+const catalogueLabel = (it: AvailableItem) => `${it.itmCode} — ${it.itmName ?? ""}`.trim();
 
 export default function VehicleChallanPage() {
   const { can } = usePermissions();
@@ -87,10 +98,11 @@ export default function VehicleChallanPage() {
   const [serialNo, setSerialNo] = useState("");
   const [header, setHeader] = useState(emptyHeader);
   const [challanDate, setChallanDate] = useState(new Date().toISOString().split("T")[0]);
-  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
-  const [entries, setEntries] = useState<Record<string, string>>({});
-  const [itemSearch, setItemSearch] = useState("");
-  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
+  const [lines, setLines] = useState<ChallanLine[]>([{ ...BLANK_LINE }]);
+  /** Catalogue suggestions for whichever description box is being typed in.
+   *  Fetched a handful at a time — the catalogue is never loaded whole. */
+  const [suggestions, setSuggestions] = useState<AvailableItem[]>([]);
+  const [itemQuery, setItemQuery] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,34 +110,43 @@ export default function VehicleChallanPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<VehicleChallanGroup | null>(null);
 
-  // The despatching branch is always the session branch, and the page is
-  // factory-only, so there is nothing to pick.
-  const sessionUser = useAuthStore((st) => st.user);
-
   const setField = (patch: Partial<typeof emptyHeader>) => setHeader((prev) => ({ ...prev, ...patch }));
 
-  /** The lines that will actually be saved: qty > 0, in catalogue order. */
+  /** The lines that will actually be saved: a description and a qty > 0. */
   const validLines = useMemo(
     () =>
-      availableItems
-        .map((it) => ({ item: it, qty: parseFloat(entries[it.id] ?? "") }))
-        .filter(({ qty }) => qty > 0)
-        .map(({ item, qty }) => ({ itemId: item.id, qty })),
-    [availableItems, entries],
+      lines
+        .filter((l) => l.itemName.trim() && parseFloat(l.qty) > 0)
+        .map((l) => ({
+          itemId: l.itemId || undefined,
+          itemName: l.itemName.trim(),
+          uom: l.uom.trim() || undefined,
+          qty: parseFloat(l.qty),
+        })),
+    [lines],
   );
 
-  /** The grid shows every item; a catalogue of any size needs a filter. Rows
-   *  already carrying a qty stay visible so a search can't hide pending input. */
-  const visibleItems = useMemo(() => {
-    const q = itemSearch.trim().toLowerCase();
-    if (!q) return availableItems;
-    return availableItems.filter(
-      (it) =>
-        parseFloat(entries[it.id] ?? "") > 0 ||
-        it.itmCode?.toLowerCase().includes(q) ||
-        it.itmName?.toLowerCase().includes(q),
-    );
-  }, [availableItems, entries, itemSearch]);
+  const setLine = (i: number, patch: Partial<ChallanLine>) =>
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+
+  const addLine = () => setLines((prev) => [...prev, { ...BLANK_LINE }]);
+
+  const totalDraftQty = useMemo(
+    () => Math.round(validLines.reduce((sum, l) => sum + l.qty, 0) * 100) / 100,
+    [validLines],
+  );
+  const removeLine = (i: number) =>
+    setLines((prev) => (prev.length === 1 ? [{ ...BLANK_LINE }] : prev.filter((_, idx) => idx !== i)));
+
+  /** Typing in the description box. An exact match against a catalogue label
+   *  binds the line to that item and fills its unit; anything else stays ad-hoc,
+   *  and the unit is whatever the operator types. */
+  const setLineItem = (i: number, typed: string) => {
+    const match = suggestions.find((it) => catalogueLabel(it) === typed);
+    setLine(i, match
+      ? { itemId: match.id, itemName: match.itmName || match.itmCode, uom: match.itmUOM ?? "" }
+      : { itemId: "", itemName: typed });
+  };
 
   const loadList = () => {
     setListLoading(true);
@@ -136,12 +157,20 @@ export default function VehicleChallanPage() {
   };
 
   useEffect(() => {
-    fetchItems().then(setAvailableItems).catch(() => {});
     // Letterhead only — a failure here still leaves a printable challan, just
     // with the fallback company name.
     fetchSettings().then(setSettings).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Debounced type-ahead. Only the box being typed in drives it, so opening the
+   *  form costs nothing and a long catalogue is never pulled down whole. */
+  useEffect(() => {
+    if (!modal) return;
+    const t = setTimeout(() => {
+      searchItems(itemQuery).then(setSuggestions).catch(() => setSuggestions([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [itemQuery, modal]);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate]);
 
   const openCreate = () => {
@@ -149,8 +178,7 @@ export default function VehicleChallanPage() {
     setSerialNo("");
     setHeader(emptyHeader);
     setChallanDate(new Date().toISOString().split("T")[0]);
-    setEntries({});
-    setItemSearch("");
+    setLines([{ ...BLANK_LINE }]);
     setModal(true);
   };
 
@@ -160,6 +188,9 @@ export default function VehicleChallanPage() {
       setEditingSerial(full.serialNo);
       setSerialNo(full.serialNo);
       setHeader({
+        customerName: full.customerName ?? "",
+        customerAddress: full.customerAddress ?? "",
+        deliveryAddress: full.deliveryAddress ?? "",
         route: full.route ?? "",
         vehicleNo: full.vehicleNo ?? "",
         driverName: full.driverName ?? "",
@@ -168,14 +199,17 @@ export default function VehicleChallanPage() {
         remarks: full.remarks ?? "",
       });
       setChallanDate(full.challanDate ? full.challanDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-      setItemSearch("");
-      // Repeated lines of one item collapse into the grid's single row for it.
-      setEntries(
-        full.items.reduce<Record<string, string>>((acc, it) => {
-          const previous = parseFloat(acc[it.itemId] ?? "0") || 0;
-          acc[it.itemId] = String(previous + Number(it.qty ?? 0));
-          return acc;
-        }, {}),
+      // One row per saved line, in the order it was written — an ad-hoc line has
+      // no id to collapse on, and two lines of the same thing may be deliberate.
+      setLines(
+        full.items.length
+          ? full.items.map((it) => ({
+              itemId: it.itemId ?? "",
+              itemName: it.itemName ?? "",
+              uom: it.uom ?? "",
+              qty: String(Number(it.qty ?? 0)),
+            }))
+          : [{ ...BLANK_LINE }],
       );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load vehicle challan")); }
@@ -206,11 +240,14 @@ export default function VehicleChallanPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
+    if (!validLines.length) { toast.error("Add at least one line with a description and a quantity"); return; }
     setSubmitting(true);
     try {
       const payload = {
         challanDate,
+        customerName: header.customerName || undefined,
+        customerAddress: header.customerAddress || undefined,
+        deliveryAddress: header.deliveryAddress || undefined,
         route: header.route || undefined,
         vehicleNo: header.vehicleNo.trim() || undefined,
         driverName: header.driverName || undefined,
@@ -236,73 +273,68 @@ export default function VehicleChallanPage() {
     } finally { setSubmitting(false); }
   };
 
-  /** The printed challan header. There is no receiving branch: the route heads
-   *  the pad, and the vehicle/driver line identifies the delivery instead. */
+  /** The printed challan — the customer-facing A4 sheet, not the branch-to-branch
+   *  pad. Everything the sheet cannot fill in prints as a blank label for the
+   *  receiving party to complete by hand. */
   const buildChallan = (opts: {
     challanNo: string;
     challanDate: string | Date;
-    branchName?: string;
     branchAddress?: string;
-    route?: string;
-    vehicleNo?: string;
-    driverName?: string;
-    driverMobile?: string;
-    items: DeliveryChallanLine[];
-  }): DeliveryChallanData => ({
-    companyName: settings?.companyName || "Khazana Mithai Limited",
-    companyAddress: settings?.companyAddress || undefined,
-    fromBranchName: opts.branchName,
-    // The challan belongs to the despatching branch, so its address heads it.
-    letterheadAddress: opts.branchAddress,
-    // No outlet to name; the route is what the van is going out to serve. Falls
-    // back to the vehicle so the heading is never blank.
-    toBranchName: opts.route || opts.vehicleNo || "",
-    vehicleNo: opts.vehicleNo,
-    driverName: opts.driverName,
-    driverMobile: opts.driverMobile,
+    vatNo?: string;
+    mobileNo?: string;
+    customerName?: string;
+    customerAddress?: string;
+    deliveryAddress?: string;
+    poNo?: string;
+    items: CustomerChallanLine[];
+  }): CustomerChallanData => ({
+    companyName: settings?.companyName || "Khazana Mithai",
+    // The challan belongs to the despatching branch, so its address heads it;
+    // the company address is the fallback for a branch without one.
+    companyAddress: opts.branchAddress || settings?.companyAddress || undefined,
+    vatNo: opts.vatNo,
+    mobileNo: opts.mobileNo,
     challanNo: opts.challanNo,
-    issueDate: opts.challanDate,
-    preparedBy: sessionUser?.name || sessionUser?.userName || undefined,
+    challanDate: opts.challanDate,
+    customerName: opts.customerName,
+    customerAddress: opts.customerAddress,
+    deliveryAddress: opts.deliveryAddress,
+    poNo: opts.poNo,
     items: opts.items,
   });
 
-  /** Challan lines for the document being typed. Nothing is saved yet, so the
-   *  name and unit come off the catalogue row. */
-  const draftChallanLines = (): DeliveryChallanLine[] =>
-    validLines.map((l) => {
-      const item = availableItems.find((it) => it.id === l.itemId);
-      return { itemName: item?.itmName || item?.itmCode || "-", uom: item?.itmUOM, qty: l.qty };
-    });
+  /** Lines for the document being typed — straight off the form, since an
+   *  ad-hoc line has no catalogue row to read back from. */
+  const draftChallanLines = (): CustomerChallanLine[] =>
+    validLines.map((l) => ({ itemName: l.itemName, uom: l.uom, qty: l.qty }));
 
   const handlePreview = () => {
-    if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
-    previewVehicleChallan(
+    if (!validLines.length) { toast.error("Add at least one line with a description and a quantity to preview"); return; }
+    previewCustomerChallan(
       buildChallan({
         // An unsaved document has no serial, so the field prints blank rather
         // than "New".
         challanNo: header.voucherNo || editingSerial || "",
         challanDate,
-        branchName: sessionUser?.branchName ?? undefined,
-        route: header.route,
-        vehicleNo: header.vehicleNo,
-        driverName: header.driverName,
-        driverMobile: header.driverMobile,
+        customerName: header.customerName,
+        customerAddress: header.customerAddress,
+        deliveryAddress: header.deliveryAddress,
         items: draftChallanLines(),
       }),
     );
   };
 
   /** The saved document's challan — same builder, lines straight off the record. */
-  const savedChallan = (doc: VehicleChallanGroup): DeliveryChallanData =>
+  const savedChallan = (doc: VehicleChallanGroup): CustomerChallanData =>
     buildChallan({
       challanNo: doc.voucherNo || doc.serialNo,
       challanDate: doc.challanDate ?? "",
-      branchName: doc.branchName,
       branchAddress: doc.branchAddress,
-      route: doc.route,
-      vehicleNo: doc.vehicleNo,
-      driverName: doc.driverName,
-      driverMobile: doc.driverMobile,
+      vatNo: doc.branchVatNo,
+      mobileNo: doc.branchMobileNo,
+      customerName: doc.customerName,
+      customerAddress: doc.customerAddress,
+      deliveryAddress: doc.deliveryAddress,
       items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
     });
 
@@ -365,6 +397,27 @@ export default function VehicleChallanPage() {
         <div className="grid grid-cols-2 gap-4 mb-5">
           {editingSerial && <Input label="Challan No" value={serialNo} disabled readOnly />}
           <Input label="Date" type="date" value={challanDate} onChange={(e) => setChallanDate(e.target.value)} />
+          {/* Typed by hand: a challan can be made out to a party that has no
+              Customer record. These three head the printed sheet. */}
+          <Input
+            label="Customer Name"
+            placeholder="Mr. Kabir"
+            value={header.customerName}
+            onChange={(e) => setField({ customerName: e.target.value })}
+          />
+          <Input
+            label="Customer Address"
+            placeholder="Dhaka"
+            value={header.customerAddress}
+            onChange={(e) => setField({ customerAddress: e.target.value })}
+          />
+          <Input
+            label="Delivery Address"
+            placeholder="Gazipur"
+            value={header.deliveryAddress}
+            onChange={(e) => setField({ deliveryAddress: e.target.value })}
+            className="col-span-2"
+          />
           <Input
             label="Vehicle No"
             placeholder="DHAKA METRO-TA-11-2233"
@@ -383,61 +436,59 @@ export default function VehicleChallanPage() {
           <Input label="Remarks" value={header.remarks} onChange={(e) => setField({ remarks: e.target.value })} />
         </div>
 
+        {/* Lines are added one at a time. The description box offers catalogue
+            matches as you type, but it does not require one: anything typed that
+            is not in the catalogue travels on the challan as text and is NOT
+            written to the Item table. */}
         <div className="flex items-center justify-between gap-3 mb-2">
-          <Input
-            placeholder="Search items by code or name..."
-            value={itemSearch}
-            onChange={(e) => setItemSearch(e.target.value)}
-            className="w-72"
-          />
-          <div className="text-sm text-gray-500">
-            {validLines.length} item{validLines.length === 1 ? "" : "s"} on the vehicle
-          </div>
+          <span className="text-sm font-medium text-gray-600">Items</span>
+          <span className="text-sm text-gray-500">
+            {validLines.length} line{validLines.length === 1 ? "" : "s"}
+            {totalDraftQty > 0 ? ` · ${totalDraftQty} total qty` : ""}
+          </span>
         </div>
 
-        {/* The whole catalogue, with the quantity typed inline. No "Available"
-            column and no shortage check: loading a van is not a stock movement,
-            so there is no balance for it to draw down. */}
-        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
-          <table className="w-full text-sm">
-            <thead className="bg-sage-100 sticky top-0 z-10">
-              <tr className="text-left text-gray-600">
-                <th className="px-3 py-2 font-medium">Item ID</th>
-                <th className="px-3 py-2 font-medium">Item Name</th>
-                <th className="px-3 py-2 font-medium text-right w-32">Loaded Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleItems.map((it) => {
-                const value = entries[it.id] ?? "";
-                const qty = parseFloat(value) || 0;
-                return (
-                  <tr key={it.id} className={`border-t border-sage-200 ${qty > 0 ? "bg-primary-50/40" : ""}`}>
-                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
-                    <td className="px-3 py-1.5">{it.itmName}</td>
-                    <td className="px-3 py-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={value}
-                        placeholder="0"
-                        onChange={(e) => setEntries((prev) => ({ ...prev, [it.id]: e.target.value }))}
-                        className="w-full border border-sage-400 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-              {visibleItems.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-3 py-6 text-center text-gray-400">
-                    No items match that search.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <datalist id="challan-item-options">
+          {suggestions.map((it) => (
+            <option key={it.id} value={catalogueLabel(it)} />
+          ))}
+        </datalist>
+
+        <div className="space-y-2">
+          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 text-xs font-semibold text-gray-600 px-1">
+            <span>Description</span><span>UOM</span><span>Qty</span><span className="w-5" />
+          </div>
+          {lines.map((line, i) => (
+            <div key={i} className="grid grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center">
+              <input
+                list="challan-item-options"
+                value={line.itemName}
+                onChange={(e) => setLineItem(i, e.target.value)}
+                onFocus={() => setItemQuery(line.itemName)}
+                placeholder="Pick an item or type a description"
+                className="w-full border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+              />
+              <input
+                value={line.uom}
+                onChange={(e) => setLine(i, { uom: e.target.value })}
+                placeholder="Pcs"
+                className="w-full border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={line.qty}
+                onChange={(e) => setLine(i, { qty: e.target.value })}
+                placeholder="0"
+                className="w-full border border-sage-400 rounded-md px-2 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-800"
+              />
+              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600" title="Remove line">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Line</Button>
         </div>
 
         <p className="mt-2 text-xs text-gray-500">
@@ -472,6 +523,9 @@ export default function VehicleChallanPage() {
                   <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
                   <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.challanDate)}</span></div>
                   <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{report.branchName || "-"}</span></div>
+                  <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{report.customerName || "-"}</span></div>
+                  <div><span className="text-gray-500">Customer Address:</span> <span className="font-medium">{report.customerAddress || "-"}</span></div>
+                  <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>
                   <div className="flex items-center gap-1.5">
                     <Truck size={14} className="text-gray-400" />
                     <span className="text-gray-500">Vehicle:</span> <span className="font-medium">{report.vehicleNo || "-"}</span>
@@ -482,24 +536,25 @@ export default function VehicleChallanPage() {
                 </div>
 
                 <div className="mb-3 flex justify-end gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => previewVehicleChallan(challan)}>
+                  <Button variant="secondary" size="sm" onClick={() => previewCustomerChallan(challan)}>
                     <Eye size={14} /> Preview
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={() => printVehicleChallan(challan)}>
+                  <Button variant="secondary" size="sm" onClick={() => printCustomerChallan(challan)}>
                     <Printer size={14} /> Print
                   </Button>
                   <ReportExportButtons
                     rows={challanRowsData}
                     columns={challanColumns}
                     meta={{
-                      title: "Vehicle Challan",
+                      title: "Challan",
                       subtitle: [
-                        challan.toBranchName,
-                        `Vehicle: ${report.vehicleNo || "-"}`,
+                        report.customerName || "",
                         `Challan No: ${challan.challanNo || "-"}`,
                         `Date: ${formatDate(report.challanDate)}`,
-                      ].join(" · "),
-                      footer: ["", "", totalQty.toFixed(2), "", ""],
+                      ]
+                        .filter(Boolean)
+                        .join(" · "),
+                      footer: ["", "Total", "", totalQty.toFixed(2), ""],
                     }}
                     showPrint={false}
                   />
@@ -508,15 +563,16 @@ export default function VehicleChallanPage() {
                 <Table
                   data={challanRowsData.map((r) => ({ id: r.sl, ...r }))}
                   columns={[
-                    { key: "sl", header: "SL No", className: "text-center w-16" },
-                    { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
-                    { key: "qty", header: "Delivery", className: "text-right", render: (r) => r.qty.toFixed(2) },
-                    { key: "received", header: "Received Qty", render: () => "" },
+                    { key: "sl", header: "Sl", className: "text-center w-16" },
+                    { key: "itemName", header: "Description" },
+                    { key: "uom", header: "UOM", className: "text-center w-24", render: (r) => r.uom ?? "" },
+                    { key: "qty", header: "Qty", className: "text-right", render: (r) => r.qty.toFixed(2) },
+                    // Left empty for the receiving party to write in by hand.
                     { key: "remarks", header: "Remarks", render: () => "" },
                   ]}
                 />
                 <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
-                  Total Delivery: {totalQty.toFixed(2)}
+                  Total Qty: {totalQty.toFixed(2)}
                 </div>
               </>
             );

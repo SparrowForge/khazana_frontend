@@ -33,6 +33,14 @@ const SEARCHABLE_FROM = 8;
 /** Height budget for the popup, so it can be flipped above a low trigger. */
 const PANEL_MAX_H = 320;
 
+/** `className` sizes the WRAPPER, not the control.
+ *
+ *  Callers pass layout classes — `w-48`, `col-span-2`, `flex-1` — and those have
+ *  to land on the element the parent grid or flex row actually positions. Put on
+ *  the control instead, `col-span-2` resolves against no grid at all and is
+ *  dropped, which is how the Stock Adjustment item picker ended up one column
+ *  wide with its headers shifted a column out of step. The control stays
+ *  `w-full`, so it still fills whatever width the wrapper is given. */
 const controlClass =
   "w-full rounded-md border border-sage-400 px-3 py-2 text-sm shadow-sm bg-white transition-colors focus:border-primary-800 focus:outline-none focus:ring-1 focus:ring-primary-800 disabled:bg-sage-100 disabled:cursor-not-allowed";
 
@@ -45,7 +53,7 @@ export default function Select({
   // Short list — the native control, exactly as it always was.
   if (!useSearch) {
     return (
-      <div className="flex flex-col gap-1">
+      <div className={cn("flex flex-col gap-1", className)}>
         {label && (
           <label htmlFor={id} className="text-sm font-medium text-primary-900">{label}</label>
         )}
@@ -58,7 +66,6 @@ export default function Select({
           className={cn(
             controlClass,
             error && "border-red-500 focus:border-red-500 focus:ring-red-500",
-            className,
           )}
           {...props}
         >
@@ -307,7 +314,7 @@ function SearchableSelect({
   );
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-col gap-1", className)}>
       {label && (
         <label htmlFor={id} className="text-sm font-medium text-primary-900">{label}</label>
       )}
@@ -331,7 +338,6 @@ function SearchableSelect({
           controlClass,
           "flex items-center justify-between gap-2 text-left",
           error && "border-red-500 focus:border-red-500 focus:ring-red-500",
-          className,
         )}
       >
         <span className={cn("truncate", selected ? "text-gray-900" : "text-gray-400")}>

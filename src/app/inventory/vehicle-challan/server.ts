@@ -13,15 +13,24 @@ export interface AvailableItem {
   itmUOM?: string;
 }
 
-/** One item line loaded onto the vehicle. No price: this document accounts for
- *  what physically went out, not for its value. */
+/** One line of the challan. No price: this document accounts for what physically
+ *  went out, not for its value.
+ *
+ *  `itemId` is set only when the line was picked from the catalogue. A line typed
+ *  by hand carries just `itemName`/`uom` — ad-hoc goods are NOT added to the Item
+ *  table, they exist only on this challan. */
 export interface VehicleChallanLinePayload {
-  itemId: string;
+  itemId?: string;
+  itemName?: string;
+  uom?: string;
   qty: number;
 }
 
 export interface VehicleChallanPayload {
   challanDate: string;
+  customerName?: string;
+  customerAddress?: string;
+  deliveryAddress?: string;
   route?: string;
   /** Optional — a challan can be raised before a van is assigned. */
   vehicleNo?: string;
@@ -41,6 +50,7 @@ export interface VehicleChallanRecord {
   /** How many item lines the challan carries. */
   lines?: number;
   challanDate?: string;
+  customerName?: string;
   route?: string;
   vehicleNo?: string;
   driverName?: string;
@@ -55,33 +65,38 @@ export interface VehicleChallanGroup {
   branchName?: string;
   /** Despatching branch address — heads the printed challan. */
   branchAddress?: string;
+  branchVatNo?: string;
+  branchMobileNo?: string;
+  customerName?: string;
+  customerAddress?: string;
+  deliveryAddress?: string;
   route?: string;
   vehicleNo?: string;
   driverName?: string;
   driverMobile?: string;
   remarks?: string;
   items: {
-    itemId: string;
+    itemId: string | null;
     itemName?: string;
     uom?: string;
     qty: number;
   }[];
 }
 
-/** The entry grid lists the whole catalogue, but the shared pagination DTO caps
- *  `limit` at 100 — walk the pages until one comes back short. Mirrors the
- *  Stock Issue sheet, including its deliberate lack of an `isActive` filter. */
-export const fetchItems = async (): Promise<AvailableItem[]> => {
-  const PAGE_SIZE = 100;
-  const all: AvailableItem[] = [];
-  for (let page = 1; ; page++) {
-    const batch = await api
-      .get<{ data: AvailableItem[] } | AvailableItem[]>(`/inventory/items?page=${page}&limit=${PAGE_SIZE}`)
-      .then(unwrapList<AvailableItem>);
-    all.push(...batch);
-    if (batch.length < PAGE_SIZE || page >= 50) break;
-  }
-  return all;
+/** Type-ahead lookup against the catalogue.
+ *
+ *  Deliberately NOT a full catalogue load: challan lines are added one at a
+ *  time, and most of them are goods that are not in the Item table at all, so
+ *  walking every page up front would be work done for nothing. The server caps
+ *  the page; a short list is all a picker needs.
+ */
+export const searchItems = (term: string, limit = 20): Promise<AvailableItem[]> => {
+  const params = new URLSearchParams({ page: "1", limit: String(limit) });
+  const q = term.trim();
+  if (q) params.append("search", q);
+  return api
+    .get<{ data: AvailableItem[] } | AvailableItem[]>(`/inventory/items?${params.toString()}`)
+    .then(unwrapList<AvailableItem>);
 };
 
 export const fetchVehicleChallans = ({

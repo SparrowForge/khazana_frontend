@@ -33,6 +33,13 @@ const reportColumns: ExportColumn<AdjReportRow>[] = [
   { header: "Assort", value: (r) => r.assort, numeric: true },
 ];
 
+/** Header and line rows share one column template so a header always sits over
+ *  the field it names: a wide Item column, four equal number columns, then an
+ *  auto column for the delete button. The previous `grid-cols-6` had six header
+ *  cells against seven row items, which pushed every header one column left of
+ *  its input and squeezed the item picker down to a single column. */
+const LINE_GRID = "grid grid-cols-[minmax(0,3fr)_repeat(4,minmax(0,1fr))_auto] gap-2";
+
 const getDefaultDateRange = () => {
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -237,19 +244,21 @@ export default function StockAdjustmentPage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editingInvNo ? "Edit Adjustment" : "New Adjustment"} size="lg">
+      <Modal open={modal} onClose={() => setModal(false)} title={editingInvNo ? "Edit Adjustment" : "New Adjustment"} size="xl">
         <div className="grid grid-cols-2 gap-4 mb-5">
           {editingInvNo && <Input label="Reference No" value={invNo} disabled readOnly />}
           <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-600 px-1">
-            <span className="col-span-2">Item</span><span>Reject</span><span>Excess</span><span>Short</span><span>Assort</span>
+          <div className={`${LINE_GRID} text-xs font-semibold text-gray-600 px-1`}>
+            <span>Item</span><span>Reject</span><span>Excess</span><span>Short</span><span>Assort</span>
+            {/* Empty cell over the delete button, so the five labels above stay
+                aligned with their inputs. */}
+            <span className="w-5" />
           </div>
           {lines.map((line, i) => (
-            <div key={i} className="grid grid-cols-6 gap-2 items-center">
+            <div key={i} className={`${LINE_GRID} items-center`}>
               <Select
-                className="col-span-2"
                 searchable
                 value={line.itmOId}
                 onChange={(e) => updateLine(i, "itmOId", e.target.value)}

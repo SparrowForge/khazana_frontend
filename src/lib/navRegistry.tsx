@@ -76,7 +76,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Stock Transfer", route: "/inventory/transfer", icon: <FileText size={16} />, controlName: "StockTransfer" },
       { label: "Stock Adjustment", route: "/inventory/adjustment", icon: <RefreshCw size={16} />, controlName: "StockAdjustment" },
       { label: "Production Entry", route: "/inventory/production", icon: <Factory size={16} />, controlName: "ProductionEntry", factoryOnly: true },
-      { label: "Vehicle Challan", route: "/inventory/vehicle-challan", icon: <Truck size={16} />, controlName: "VehicleChallan", factoryOnly: true },
+      { label: "Challan Entry", route: "/inventory/vehicle-challan", icon: <Truck size={16} />, controlName: "VehicleChallan", factoryOnly: true },
     ],
   },
 

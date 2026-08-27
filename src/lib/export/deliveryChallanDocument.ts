@@ -90,7 +90,7 @@ const VEHICLE_SPEC: PadSpec = {
   // Same sheet as the Delivery Challan, by request — an outlet taking goods off
   // the van fills in the same two hand-written columns it would on a delivery,
   // and the same four people sign for it.
-  title: "Vehicle Challan",
+  title: "Challan",
   docNoLabel: "Challan No-",
   qtyHeader: "Delivery",
   blankHeaders: ["Received Qty", "Remarks"],
@@ -183,7 +183,7 @@ function sheetHtml(
       ${letterheadAddress ? `<div class="addr">${esc(letterheadAddress)}</div>` : ""}
     </div>
     ${data.fromBranchName ? `<div class="from-branch">From: <span>${esc(data.fromBranchName)}</span></div>` : ""}
-    <div class="branch">To: <span>${esc(data.toBranchName)}</span></div>
+    <div class="branch">To: <span class="${data.toBranchName ? "" : "blank"}">${esc(data.toBranchName)}</span></div>
     ${
       data.vehicleNo || data.driverName
         ? `<div class="vehicle">${[
@@ -283,6 +283,10 @@ function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: b
     .from-branch span { font-weight:600; }
     .branch { text-align:center; margin:2mm 0 2mm; font-size:11pt; font-weight:700; }
     .branch span { border-bottom:1px solid #000; padding:0 2mm 1px; }
+    /* A Vehicle Challan can be raised before the route or van is decided. With
+       nothing to print, the underline would collapse to a 4mm stub; widen it
+       into a rule long enough to write the destination on by hand. */
+    .branch span.blank { display:inline-block; min-width:70mm; }
     /* Vehicle Challan only — the van and who is driving it, since there is no
        receiving branch to identify the delivery by. */
     .vehicle { text-align:center; font-size:10pt; margin-bottom:2mm; }

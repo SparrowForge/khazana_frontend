@@ -206,14 +206,13 @@ export default function VehicleChallanPage() {
   };
 
   const handleSubmit = async () => {
-    if (!header.vehicleNo.trim()) { toast.error("Enter the vehicle number"); return; }
     if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     setSubmitting(true);
     try {
       const payload = {
         challanDate,
         route: header.route || undefined,
-        vehicleNo: header.vehicleNo.trim(),
+        vehicleNo: header.vehicleNo.trim() || undefined,
         driverName: header.driverName || undefined,
         driverMobile: header.driverMobile || undefined,
         voucherNo: header.voucherNo || undefined,
@@ -310,9 +309,9 @@ export default function VehicleChallanPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Vehicle Challan"
+        title="Challan Entry"
         subtitle="Gate pass for a loaded vehicle — records what left the factory, does not move stock"
-        action={canAdd ? { label: "New Vehicle Challan", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
+        action={canAdd ? { label: "New Challan", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
 
       <div className="mb-4 flex gap-4 items-end">
@@ -360,14 +359,14 @@ export default function VehicleChallanPage() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title={editingSerial ? "Edit Vehicle Challan" : "New Vehicle Challan"}
+        title={editingSerial ? "Edit Challan" : "New Challan"}
         size="lg"
       >
         <div className="grid grid-cols-2 gap-4 mb-5">
           {editingSerial && <Input label="Challan No" value={serialNo} disabled readOnly />}
           <Input label="Date" type="date" value={challanDate} onChange={(e) => setChallanDate(e.target.value)} />
           <Input
-            label="Vehicle No *"
+            label="Vehicle No"
             placeholder="DHAKA METRO-TA-11-2233"
             value={header.vehicleNo}
             onChange={(e) => setField({ vehicleNo: e.target.value })}
@@ -452,7 +451,7 @@ export default function VehicleChallanPage() {
           <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>
             <Eye size={14} /> Preview
           </Button>
-          <Button onClick={handleSubmit} loading={submitting} disabled={!validLines.length || !header.vehicleNo.trim()}>
+          <Button onClick={handleSubmit} loading={submitting} disabled={!validLines.length}>
             {editingSerial ? "Update Vehicle Challan" : "Save Vehicle Challan"}
           </Button>
         </div>

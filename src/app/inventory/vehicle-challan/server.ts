@@ -23,7 +23,8 @@ export interface VehicleChallanLinePayload {
 export interface VehicleChallanPayload {
   challanDate: string;
   route?: string;
-  vehicleNo: string;
+  /** Optional — a challan can be raised before a van is assigned. */
+  vehicleNo?: string;
   driverName?: string;
   driverMobile?: string;
   voucherNo?: string;

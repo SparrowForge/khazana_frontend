@@ -47,6 +47,9 @@ export default function PosSaleEditPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [discountName, setDiscountName] = useState("");
   const [discountContact, setDiscountContact] = useState("");
+  /** Walk-in customer's name — prefilled from the sale so an edit that does not
+   *  touch it does not wipe it. */
+  const [guestName, setGuestName] = useState("");
   // Mandatory on every update — audited in the Daily Final Report.
   const [modifyReason, setModifyReason] = useState("");
   const [loading, setLoading] = useState(true);
@@ -73,6 +76,7 @@ export default function PosSaleEditPage() {
           setDiscountValue(String(sale.discountAmount));
           setDiscountName(sale.discountRemarks ?? "");
           setDiscountContact(sale.discountContact ?? "");
+          setGuestName(sale.guestName ?? "");
         }
         const byId = new Map(prods.map((p) => [p.id, p]));
         setCart(
@@ -175,6 +179,7 @@ export default function PosSaleEditPage() {
         discountValue: discVal > 0 ? discVal : undefined,
         discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
         discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
+        guestName: guestName.trim() || undefined,
         modifyRemarks: modifyReason.trim(),
       });
       toast.success(`Invoice ${invoiceNo} updated`);
@@ -417,6 +422,8 @@ export default function PosSaleEditPage() {
                 ]}
               />
             )}
+            <Input label="Customer Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Walk-in name (optional)" />
+
             <Input label="Served By" value={servedBy} onChange={(e) => setServedBy(e.target.value)} placeholder="Staff name (optional)" />
             <Input
               label="Modify Reason *"

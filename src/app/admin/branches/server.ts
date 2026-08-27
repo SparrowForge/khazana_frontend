@@ -2,7 +2,8 @@ import api from "@/lib/api";
 import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Branch {
-  id: number;
+  /** Branch PK is a uuid (Int -> uuid migration), not a number. */
+  id: string;
   branchCode: string;
   branchName: string;
   address?: string;
@@ -24,5 +25,5 @@ export const fetchBranches = ({ page = 1, limit = 10 } = {}): Promise<Paginated<
 export const createBranch = (data: BranchPayload) =>
   api.post<Branch>("/admin/branches", data).then((r) => r.data);
 
-export const updateBranch = (id: number, data: Partial<BranchPayload>) =>
+export const updateBranch = (id: string, data: Partial<BranchPayload>) =>
   api.patch<Branch>(`/admin/branches/${id}`, data).then((r) => r.data);

@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
   Layers, Settings, BarChart2, DollarSign, Warehouse, FileText,
-  UserCog, RefreshCw, Receipt, Landmark, Factory,
+  UserCog, RefreshCw, Receipt, Landmark, Factory, Truck,
 } from "lucide-react";
 
 /**
@@ -76,6 +76,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Stock Transfer", route: "/inventory/transfer", icon: <FileText size={16} />, controlName: "StockTransfer" },
       { label: "Stock Adjustment", route: "/inventory/adjustment", icon: <RefreshCw size={16} />, controlName: "StockAdjustment" },
       { label: "Production Entry", route: "/inventory/production", icon: <Factory size={16} />, controlName: "ProductionEntry", factoryOnly: true },
+      { label: "Vehicle Challan", route: "/inventory/vehicle-challan", icon: <Truck size={16} />, controlName: "VehicleChallan", factoryOnly: true },
     ],
   },
 

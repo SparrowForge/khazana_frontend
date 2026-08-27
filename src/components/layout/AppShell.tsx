@@ -38,6 +38,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/inventory/transfer", "StockTransfer"],
   ["/inventory/adjustment", "StockAdjustment"],
   ["/inventory/production", "ProductionEntry"],
+  ["/inventory/vehicle-challan", "VehicleChallan"],
   ["/inventory", "StockView"],
   ["/packets/receive", "PacketReceive"],
   ["/packets/issue", "PacketIssue"],
@@ -86,7 +87,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
 // Routes that exist only for the factory branch. Permission is necessary but
 // not sufficient — the matching backend endpoints reject a non-factory session
 // branch outright, so bounce rather than render a page that can only 403.
-const FACTORY_ONLY_ROUTES = ["/inventory/production", "/factory"];
+const FACTORY_ONLY_ROUTES = ["/inventory/production", "/inventory/vehicle-challan", "/factory"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);

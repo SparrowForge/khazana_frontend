@@ -67,7 +67,14 @@ export default function BranchesPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Branch" : "New Branch"}>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Branch Code *" value={form.branchCode} onChange={(e) => setForm({ ...form, branchCode: e.target.value })} disabled={!!editing} />
+          <div>
+            <Input label="Branch Code *" value={form.branchCode} onChange={(e) => setForm({ ...form, branchCode: e.target.value })} />
+            {editing && form.branchCode.trim() !== editing.branchCode && (
+              <p className="mt-1 text-xs text-amber-600">
+                Documents already saved keep the old code in their serial numbers ({editing.branchCode}); only new ones use the new code.
+              </p>
+            )}
+          </div>
           <Input label="Branch Name *" value={form.branchName} onChange={(e) => setForm({ ...form, branchName: e.target.value })} />
           <Input label="VAT No" value={form.vatNo} onChange={(e) => setForm({ ...form, vatNo: e.target.value })} />
           <Input label="Mobile" value={form.mobileNo} onChange={(e) => setForm({ ...form, mobileNo: e.target.value })} />

@@ -146,7 +146,7 @@ export function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
   return (
     <div
       id="invoice"
-      className="bg-white text-black mx-auto p-10 text-[12px] leading-relaxed"
+      className="bg-white text-black mx-auto p-10 text-[12px] leading-relaxed flex flex-col"
       style={{ width: "210mm", minHeight: "297mm" }}
     >
       {/* Letterhead */}
@@ -267,23 +267,27 @@ export function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
         {amountInWords(inv.payableAmount)}
       </div>
 
-      {/* Signatures */}
-      <div className="flex justify-between mt-20 text-[11px]">
-        <div className="text-center">
-          <div className="border-t border-black w-48 pt-1">
-            Prepared By{inv.invoiceBy ? ` — ${inv.invoiceBy}` : ""}
+      {/* Page footer: signatures sign on the same line of every invoice, short
+          or long, because mt-auto drops this block to the foot of the sheet
+          rather than letting it float up under the last table row. */}
+      <div className="mt-auto pt-16">
+        <div className="flex justify-between text-[11px]">
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">
+              Prepared By{inv.invoiceBy ? ` — ${inv.invoiceBy}` : ""}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">Received By</div>
+          </div>
+          <div className="text-center">
+            <div className="border-t border-black w-48 pt-1">Authorised Signature</div>
           </div>
         </div>
-        <div className="text-center">
-          <div className="border-t border-black w-48 pt-1">Received By</div>
-        </div>
-        <div className="text-center">
-          <div className="border-t border-black w-48 pt-1">Authorised Signature</div>
-        </div>
-      </div>
 
-      <div className="text-center text-[10px] text-gray-400 mt-10">
-        This is a computer-generated invoice. · Software by www.sprwforge.com
+        <div className="text-center text-[10px] text-gray-400 mt-6">
+          This is a computer-generated invoice. · Software by www.sprwforge.com
+        </div>
       </div>
     </div>
   );
@@ -304,9 +308,20 @@ export function InvoicePrintStyles({ format }: { format: InvoiceFormat }) {
           margin: 0 !important;
           box-shadow: none !important;
         }
+        ${
+          format === "corporate"
+            ? `/* The sheet IS the page: @page contributes no margin of its own, so
+                 the invoice's own p-10 padding is the margin. A 210mm x 297mm
+                 sheet inside a 10mm page margin would overflow the 190mm x 277mm
+                 box and carry the bottom-anchored signatures onto a second page.
+                 296mm, not 297mm: at exactly the page height Chrome's rounding
+                 tips the sheet over and emits a blank page after it. */
+               #invoice { min-height: 296mm !important; }`
+            : ""
+        }
         .no-print { display: none !important; }
       }
-      @page { size: ${format === "corporate" ? "A4 portrait" : "80mm auto"}; margin: ${format === "corporate" ? "10mm" : "0"}; }
+      @page { size: ${format === "corporate" ? "A4 portrait" : "80mm auto"}; margin: 0; }
     `}</style>
   );
 }

@@ -2,12 +2,15 @@
 // letterhead, From/To branches, then SL / Item Of Name / qty with the remaining
 // columns left blank for the receiving shop to fill in by hand.
 //
-// Two documents share this one engine, because they are the same piece of paper
-// read from either end and any drift between them would break the check the
-// outlet performs on arrival:
+// Three documents share this one engine. The first two are the same piece of
+// paper read from either end, and any drift between them would break the check
+// the outlet performs on arrival:
 //
 //   Delivery Challan    — travels WITH a Stock Issue (the sending branch's copy)
 //   Goods Received Note — the Stock Receive pad (the receiving branch's copy)
+//   Vehicle Challan     — the gate pass for a loaded van touring the outlets.
+//                         Same sheet, but no destination branch: the route
+//                         heads the pad and a vehicle/driver line sits under it.
 //
 // Laid out as sheets rather than one full-width flow, so the on-screen preview
 // is the same page the printer produces. A long document is split across
@@ -31,8 +34,14 @@ export interface DeliveryChallanData {
   letterheadAddress?: string;
   /** The issuing branch (factory/warehouse) — shown as "From:" */
   fromBranchName?: string;
-  /** The receiving outlet — the underlined heading under the letterhead. */
+  /** The receiving outlet — the underlined heading under the letterhead. On a
+   *  Vehicle Challan there is no receiving outlet, so the route goes here. */
   toBranchName: string;
+  /** Vehicle Challan only: printed as a line under the From/To block. The
+   *  branch-to-branch pads leave these undefined and the line is omitted. */
+  vehicleNo?: string;
+  driverName?: string;
+  driverMobile?: string;
   /** Printed after the document-number label; the voucher number, falling back
    *  to the serial. */
   challanNo: string;
@@ -77,9 +86,21 @@ const GRN_SPEC: PadSpec = {
   signRoles: ["Received By", "Checked By", "Store Keeper", "Manager"],
 };
 
+const VEHICLE_SPEC: PadSpec = {
+  // Same sheet as the Delivery Challan, by request — an outlet taking goods off
+  // the van fills in the same two hand-written columns it would on a delivery,
+  // and the same four people sign for it.
+  title: "Vehicle Challan",
+  docNoLabel: "Challan No-",
+  qtyHeader: "Delivery",
+  blankHeaders: ["Received Qty", "Remarks"],
+  signRoles: ["Checked By Security", "Delivery Man", "Received By (Sales Man)", "Manager"],
+};
+
 /** Rows per sheet. Deliberately short of what the page could hold — the last
- *  sheet also carries the total and the four signature lines, and a sheet that
- *  overflowed its 297mm would print a near-blank extra page after it. */
+ *  sheet also carries the total and the four signature lines (which are pinned
+ *  to the foot of the sheet), and a sheet that overflowed its 297mm would print
+ *  a near-blank extra page after it. */
 const ROWS_PER_PAGE = 28;
 
 const esc = (s: unknown) =>
@@ -163,6 +184,17 @@ function sheetHtml(
     </div>
     ${data.fromBranchName ? `<div class="from-branch">From: <span>${esc(data.fromBranchName)}</span></div>` : ""}
     <div class="branch">To: <span>${esc(data.toBranchName)}</span></div>
+    ${
+      data.vehicleNo || data.driverName
+        ? `<div class="vehicle">${[
+            data.vehicleNo ? `Vehicle No: <b>${esc(data.vehicleNo)}</b>` : "",
+            data.driverName ? `Driver: <b>${esc(data.driverName)}</b>` : "",
+            data.driverMobile ? `Mobile: <b>${esc(data.driverMobile)}</b>` : "",
+          ]
+            .filter(Boolean)
+            .join(" &nbsp;&nbsp;|&nbsp;&nbsp; ")}</div>`
+        : ""
+    }
     <div class="meta">
       <span class="l">Date- ${esc(formatChallanDate(data.issueDate))}</span>
       <span class="c"></span>
@@ -195,14 +227,16 @@ function sheetHtml(
             : ""
         }
       </table>
-      ${
-        isLast
-          ? `<div class="signs">${spec.signRoles
-              .map((role) => `<div class="sign"><div class="rule"></div><div class="role">${esc(role)}</div></div>`)
-              .join("")}</div>`
-          : ""
-      }
     </div>
+    ${
+      // Outside .fill, so the flex column drops it to the foot of the sheet
+      // whether the sheet carries three rows or twenty-eight.
+      isLast
+        ? `<div class="signs">${spec.signRoles
+            .map((role) => `<div class="sign"><div class="rule"></div><div class="role">${esc(role)}</div></div>`)
+            .join("")}</div>`
+        : ""
+    }
     <div class="foot">
       <span class="rev">${esc(data.revision ?? "REV#0")}</span>
       <span class="by">${data.preparedBy ? `Prepared By ${esc(data.preparedBy)}` : ""}</span>
@@ -249,6 +283,9 @@ function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: b
     .from-branch span { font-weight:600; }
     .branch { text-align:center; margin:2mm 0 2mm; font-size:11pt; font-weight:700; }
     .branch span { border-bottom:1px solid #000; padding:0 2mm 1px; }
+    /* Vehicle Challan only — the van and who is driving it, since there is no
+       receiving branch to identify the delivery by. */
+    .vehicle { text-align:center; font-size:10pt; margin-bottom:2mm; }
 
     .meta { display:flex; align-items:flex-end; font-size:10pt; margin-bottom:1.5mm; }
     .meta .l, .meta .r { flex:1; }
@@ -268,7 +305,10 @@ function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: b
     tfoot td.bare { border:none; }
     tfoot td.total { font-weight:700; }
 
-    .signs { display:flex; gap:8mm; margin-top:40mm; text-align: center;}
+    /* Anchored to the foot of the sheet by .fill's flex:1 above it — the roles
+       sign on the same line of every page, not wherever the table happened to
+       stop. margin-top is the minimum clearance when the table runs long. */
+    .signs { display:flex; gap:8mm; margin-top:14mm; text-align: center; }
     .sign { flex:1; }
     .rule { border-top:1px dotted #000; }
     .role { font-size:9pt; margin-top:1mm; }
@@ -313,3 +353,10 @@ export const previewGoodsReceivedNote = (data: DeliveryChallanData) => openPad(d
 
 /** Opens the Goods Received Note and prints it once it paints. */
 export const printGoodsReceivedNote = (data: DeliveryChallanData) => openPad(data, GRN_SPEC, true);
+
+/** Opens the Vehicle Challan — the gate pass for a loaded van. Same sheet as
+ *  the Delivery Challan; it records what left the factory, not a stock move. */
+export const previewVehicleChallan = (data: DeliveryChallanData) => openPad(data, VEHICLE_SPEC, false);
+
+/** Opens the Vehicle Challan and prints it once it paints. */
+export const printVehicleChallan = (data: DeliveryChallanData) => openPad(data, VEHICLE_SPEC, true);

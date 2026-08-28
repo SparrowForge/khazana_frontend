@@ -65,6 +65,7 @@ const getDefaultDateRange = () => {
 
 const emptyHeader = {
   customerName: "", customerAddress: "", deliveryAddress: "",
+  contactPerson: "", contactNo: "", poNo: "", poDate: "",
   route: "", vehicleNo: "", driverName: "", driverMobile: "", voucherNo: "", remarks: "",
 };
 
@@ -191,6 +192,11 @@ export default function VehicleChallanPage() {
         customerName: full.customerName ?? "",
         customerAddress: full.customerAddress ?? "",
         deliveryAddress: full.deliveryAddress ?? "",
+        contactPerson: full.contactPerson ?? "",
+        contactNo: full.contactNo ?? "",
+        poNo: full.poNo ?? "",
+        // Stored as a timestamp; the date input wants the calendar day alone.
+        poDate: full.poDate ? full.poDate.split("T")[0] : "",
         route: full.route ?? "",
         vehicleNo: full.vehicleNo ?? "",
         driverName: full.driverName ?? "",
@@ -248,6 +254,11 @@ export default function VehicleChallanPage() {
         customerName: header.customerName || undefined,
         customerAddress: header.customerAddress || undefined,
         deliveryAddress: header.deliveryAddress || undefined,
+        contactPerson: header.contactPerson || undefined,
+        contactNo: header.contactNo || undefined,
+        poNo: header.poNo || undefined,
+        // Sent only when filled — an empty string is not a date the API accepts.
+        poDate: header.poDate || undefined,
         route: header.route || undefined,
         vehicleNo: header.vehicleNo.trim() || undefined,
         driverName: header.driverName || undefined,
@@ -285,7 +296,10 @@ export default function VehicleChallanPage() {
     customerName?: string;
     customerAddress?: string;
     deliveryAddress?: string;
+    contactPerson?: string;
+    contactNo?: string;
     poNo?: string;
+    poDate?: string;
     items: CustomerChallanLine[];
   }): CustomerChallanData => ({
     companyName: settings?.companyName || "Khazana Mithai",
@@ -299,7 +313,10 @@ export default function VehicleChallanPage() {
     customerName: opts.customerName,
     customerAddress: opts.customerAddress,
     deliveryAddress: opts.deliveryAddress,
+    contactPerson: opts.contactPerson,
+    contactNo: opts.contactNo,
     poNo: opts.poNo,
+    poDate: opts.poDate,
     items: opts.items,
   });
 
@@ -319,6 +336,10 @@ export default function VehicleChallanPage() {
         customerName: header.customerName,
         customerAddress: header.customerAddress,
         deliveryAddress: header.deliveryAddress,
+        contactPerson: header.contactPerson,
+        contactNo: header.contactNo,
+        poNo: header.poNo,
+        poDate: header.poDate,
         items: draftChallanLines(),
       }),
     );
@@ -335,6 +356,10 @@ export default function VehicleChallanPage() {
       customerName: doc.customerName,
       customerAddress: doc.customerAddress,
       deliveryAddress: doc.deliveryAddress,
+      contactPerson: doc.contactPerson,
+      contactNo: doc.contactNo,
+      poNo: doc.poNo,
+      poDate: doc.poDate,
       items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
     });
 
@@ -417,6 +442,32 @@ export default function VehicleChallanPage() {
             value={header.deliveryAddress}
             onChange={(e) => setField({ deliveryAddress: e.target.value })}
             className="col-span-2"
+          />
+          {/* Contact and purchase-order details: the printed challan has always
+              carried these labels, blank, for the party to fill in by hand. */}
+          <Input
+            label="Contact Person"
+            placeholder="Mr. Rahman"
+            value={header.contactPerson}
+            onChange={(e) => setField({ contactPerson: e.target.value })}
+          />
+          <Input
+            label="Contact No"
+            placeholder="01711-000000"
+            value={header.contactNo}
+            onChange={(e) => setField({ contactNo: e.target.value })}
+          />
+          <Input
+            label="PO No"
+            placeholder="PO-4471"
+            value={header.poNo}
+            onChange={(e) => setField({ poNo: e.target.value })}
+          />
+          <Input
+            label="PO Date"
+            type="date"
+            value={header.poDate}
+            onChange={(e) => setField({ poDate: e.target.value })}
           />
           <Input
             label="Vehicle No"
@@ -526,6 +577,10 @@ export default function VehicleChallanPage() {
                   <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{report.customerName || "-"}</span></div>
                   <div><span className="text-gray-500">Customer Address:</span> <span className="font-medium">{report.customerAddress || "-"}</span></div>
                   <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>
+                  <div><span className="text-gray-500">Contact Person:</span> <span className="font-medium">{report.contactPerson || "-"}</span></div>
+                  <div><span className="text-gray-500">Contact No:</span> <span className="font-medium">{report.contactNo || "-"}</span></div>
+                  <div><span className="text-gray-500">PO No:</span> <span className="font-medium">{report.poNo || "-"}</span></div>
+                  <div><span className="text-gray-500">PO Date:</span> <span className="font-medium">{report.poDate ? formatDate(report.poDate) : "-"}</span></div>
                   <div className="flex items-center gap-1.5">
                     <Truck size={14} className="text-gray-400" />
                     <span className="text-gray-500">Vehicle:</span> <span className="font-medium">{report.vehicleNo || "-"}</span>

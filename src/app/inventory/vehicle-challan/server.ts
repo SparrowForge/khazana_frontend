@@ -31,6 +31,11 @@ export interface VehicleChallanPayload {
   customerName?: string;
   customerAddress?: string;
   deliveryAddress?: string;
+  contactPerson?: string;
+  contactNo?: string;
+  poNo?: string;
+  /** ISO date of the customer's purchase order. */
+  poDate?: string;
   route?: string;
   /** Optional — a challan can be raised before a van is assigned. */
   vehicleNo?: string;
@@ -70,6 +75,10 @@ export interface VehicleChallanGroup {
   customerName?: string;
   customerAddress?: string;
   deliveryAddress?: string;
+  contactPerson?: string;
+  contactNo?: string;
+  poNo?: string;
+  poDate?: string;
   route?: string;
   vehicleNo?: string;
   driverName?: string;

@@ -27,7 +27,6 @@ export interface CustomerChallanData {
    *  nothing to say. */
   customerName?: string | null;
   customerAddress?: string | null;
-  customerCode?: string | null;
   contactPerson?: string | null;
   contactNo?: string | null;
   poNo?: string | null;
@@ -149,7 +148,6 @@ function buildDocument(data: CustomerChallanData, autoPrint: boolean): string {
           <div class="hr"></div>
           <div class="row"><span class="lbl">Customer Name: </span><span class="val">${esc(data.customerName ?? "")}</span></div>
           <div class="row"><span class="lbl">Address : ${esc(data.customerAddress ?? "")}</span></div>
-          <div class="row"><span class="lbl">Customer Code: ${esc(data.customerCode ?? "")}</span></div>
           <div class="row"><span class="lbl">Contact Person: ${esc(data.contactPerson ?? "")}</span></div>
           <div class="row"><span class="lbl">Contact No: ${esc(data.contactNo ?? "")}</span></div>
         </div>

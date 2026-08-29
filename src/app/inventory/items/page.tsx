@@ -23,7 +23,8 @@ import {
 } from "./server";
 import { fetchAllCategories, type Category } from "../categories/server";
 import PriceSetupModal from "@/components/catalog/PriceSetupModal";
-import { ITEM_TYPES, UOM_OPTIONS } from "@/components/catalog/ItemQuickAddModal";
+import { ITEM_TYPES } from "@/components/catalog/ItemQuickAddModal";
+import { useUomOptions } from "@/hooks/useUomOptions";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
@@ -57,6 +58,7 @@ export default function ItemsPage() {
   const [priceItem, setPriceItem] = useState<Item | null>(null);
 
   const { can } = usePermissions();
+  const uomOptions = useUomOptions();
   const canCreate = can("Items", "add");
   const canEdit = can("Items", "edit");
   const canDelete = can("Items", "delete");
@@ -317,7 +319,7 @@ export default function ItemsPage() {
             label="UOM *"
             value={form.itmUOM ?? ""}
             onChange={(e) => setForm({ ...form, itmUOM: e.target.value })}
-            options={[{ value: "", label: "— Select UOM —" }, ...UOM_OPTIONS]}
+            options={[{ value: "", label: "— Select UOM —" }, ...uomOptions]}
           />
           <Select
             label="Active"

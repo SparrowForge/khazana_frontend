@@ -9,21 +9,13 @@ import { getErrorMessage } from "@/lib/api";
 import { createItem, fetchNextItemCode, type Item } from "@/app/inventory/items/server";
 import { fetchAllCategories, type Category } from "@/app/inventory/categories/server";
 import { createPrice } from "@/app/prices/server";
+import { useUomOptions } from "@/hooks/useUomOptions";
 
 export const ITEM_TYPES = [
   { value: "RW",  label: "RW — Raw Material" },
   { value: "FG",  label: "FG — Finished Goods" },
   { value: "SFG", label: "SFG — Semi-Finished Goods" },
   { value: "P",   label: "P — Packaging" },
-];
-
-export const UOM_OPTIONS = [
-  { value: "Pcs", label: "Pcs" },
-  { value: "Cup", label: "Cup" },
-  { value: "gm",  label: "gm" },
-  { value: "KG",  label: "KG" },
-  { value: "LT",  label: "LT" },
-  { value: "ml",  label: "ml" },
 ];
 
 /** Far end of the open-ended price window the Price Setup page also defaults to. */
@@ -59,6 +51,7 @@ interface Props {
 export default function ItemQuickAddModal({ open, onClose, onCreated }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [categories, setCategories] = useState<Category[]>([]);
+  const uomOptions = useUomOptions();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -170,7 +163,7 @@ export default function ItemQuickAddModal({ open, onClose, onCreated }: Props) {
           label="UOM *"
           value={form.itmUOM}
           onChange={(e) => setForm({ ...form, itmUOM: e.target.value })}
-          options={UOM_OPTIONS}
+          options={uomOptions}
         />
         <Input
           label="Selling Price *"

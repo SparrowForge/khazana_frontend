@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ShoppingCart, Package, Users, ClipboardList,
   Layers, Settings, BarChart2, DollarSign, Warehouse, FileText,
-  UserCog, RefreshCw, Receipt, Landmark, Factory, Truck,
+  UserCog, RefreshCw, Receipt, Landmark, Factory, Truck, Ruler,
 } from "lucide-react";
 
 /**
@@ -69,6 +69,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
     icon: <Warehouse size={18} />,
     links: [
       { label: "Categories", route: "/inventory/categories", icon: <Layers size={16} />, controlName: "Categories" },
+      { label: "UOM", route: "/inventory/uom", icon: <Ruler size={16} />, controlName: "UOM" },
       { label: "Items", route: "/inventory/items", icon: <Package size={16} />, controlName: "Items" },
       { label: "Stock View", route: "/inventory", icon: <BarChart2 size={16} />, controlName: "StockView" },
       { label: "Stock Receive", route: "/inventory/receive", icon: <FileText size={16} />, controlName: "StockReceive" },

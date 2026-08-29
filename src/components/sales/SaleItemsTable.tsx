@@ -336,7 +336,10 @@ export default function SaleItemsTable({
         </div>
       ) : (
         <div className="max-h-[26rem] overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          {/* Column counts step back down at lg — the same ladder the POS
+              terminal uses — because the cart takes half the row from lg up,
+              which would otherwise squeeze the product cards. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filteredCatalog.map((p) => {
               const onHand = enforceStock ? availableFor(p.id) : 0;
               const left = remainingFor(p.id);

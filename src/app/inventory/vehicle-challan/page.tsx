@@ -93,6 +93,11 @@ export default function VehicleChallanPage() {
   const defaultDates = getDefaultDateRange();
   const [fromDate, setFromDate] = useState(defaultDates.fromDate);
   const [toDate, setToDate] = useState(defaultDates.toDate);
+  /** What is typed in the Customer Name box, and the debounced value the list is
+   *  actually fetched with — the filter is a server-side match, so a request per
+   *  keystroke would be one per letter of the name. */
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
 
   const [modal, setModal] = useState(false);
   const [editingSerial, setEditingSerial] = useState<string | null>(null);
@@ -151,7 +156,7 @@ export default function VehicleChallanPage() {
 
   const loadList = () => {
     setListLoading(true);
-    fetchVehicleChallans({ page, limit, fromDate, toDate })
+    fetchVehicleChallans({ page, limit, fromDate, toDate, customerName: customerQuery })
       .then(({ items, meta }) => { setChallans(items); setMeta(meta); })
       .catch(() => {})
       .finally(() => setListLoading(false));
@@ -172,7 +177,17 @@ export default function VehicleChallanPage() {
     }, 250);
     return () => clearTimeout(t);
   }, [itemQuery, modal]);
-  useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCustomerQuery(customerFilter);
+      // Narrowing the list can leave the current page past the end of it, which
+      // reads as "no challans" rather than "page 3 of 1".
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [customerFilter, setPage]);
+
+  useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, customerQuery]);
 
   const openCreate = () => {
     setEditingSerial(null);
@@ -371,13 +386,21 @@ export default function VehicleChallanPage() {
         action={canAdd ? { label: "New Challan", onClick: openCreate, icon: <Plus size={16} /> } : undefined}
       />
 
-      <div className="mb-4 flex gap-4 items-end">
+      <div className="mb-4 flex flex-wrap gap-4 items-end">
         <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <Input
+          label="Customer Name"
+          placeholder="Any customer…"
+          value={customerFilter}
+          onChange={(e) => setCustomerFilter(e.target.value)}
+          className="w-64"
+        />
       </div>
 
       <Table loading={listLoading} data={challans}
         columns={[
+          { key: "challanDate", header: "Date", render: (r) => formatDate(r.challanDate) },
           {
             key: "serialNo", header: "Challan No",
             render: (r) => r.serialNo ? (
@@ -386,10 +409,11 @@ export default function VehicleChallanPage() {
               </button>
             ) : "-",
           },
-          { key: "challanDate", header: "Date", render: (r) => formatDate(r.challanDate) },
-          { key: "vehicleNo", header: "Vehicle No", render: (r) => r.vehicleNo || "-" },
-          { key: "route", header: "Route", render: (r) => r.route || "-" },
-          { key: "driverName", header: "Driver", render: (r) => r.driverName || "-" },
+          // Who the challan was made out to, not what carried it: the van's
+          // details belong on the printed gate pass, the list is read to find
+          // a customer's document.
+          { key: "customerName", header: "Customer", render: (r) => r.customerName || "-" },
+          { key: "contactNo", header: "Contact No", render: (r) => r.contactNo || "-" },
           { key: "lines", header: "Items", className: "text-right", render: (r) => r.lines ?? "-" },
           { key: "qty", header: "Total Qty", className: "text-right", render: (r) => Number(r.qty ?? 0).toFixed(2) },
           {

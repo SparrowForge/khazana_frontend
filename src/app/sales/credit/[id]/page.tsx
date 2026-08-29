@@ -210,11 +210,11 @@ export default function CreditSaleEditPage() {
   return (
     <AppLayout>
       <PageHeader title="Edit Credit Sale" subtitle={invoiceNo ? `Invoice ${invoiceNo}` : "Update credit sale invoice"} />
+      {/* 50/50 split at lg, matching the POS terminal and the create form:
+          the picker column and the cart/summary column get equal width. */}
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading…</div>
       ) : (
-        {/* 50/50 split at lg, matching the POS terminal and the create form:
-            the picker column and the cart/summary column get equal width. */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="space-y-5">
             <Card title="Invoice Information">

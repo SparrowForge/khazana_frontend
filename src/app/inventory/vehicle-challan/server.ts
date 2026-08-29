@@ -55,7 +55,9 @@ export interface VehicleChallanRecord {
   /** How many item lines the challan carries. */
   lines?: number;
   challanDate?: string;
+  /** Shown on the list — the party the challan was made out to. */
   customerName?: string;
+  contactNo?: string;
   route?: string;
   vehicleNo?: string;
   driverName?: string;
@@ -113,14 +115,23 @@ export const fetchVehicleChallans = ({
   limit = 10,
   fromDate,
   toDate,
-}: { page?: number; limit?: number; fromDate?: string; toDate?: string } = {}): Promise<
-  Paginated<VehicleChallanRecord>
-> => {
+  customerName,
+}: {
+  page?: number;
+  limit?: number;
+  fromDate?: string;
+  toDate?: string;
+  /** Partial, case-insensitive match on the challan's customer. */
+  customerName?: string;
+} = {}): Promise<Paginated<VehicleChallanRecord>> => {
   const params = new URLSearchParams();
   params.append("page", String(page));
   params.append("limit", String(limit));
   if (fromDate) params.append("fromDate", fromDate);
   if (toDate) params.append("toDate", toDate);
+  // Sent only when non-blank: the API rejects unknown/empty params rather than
+  // ignoring them.
+  if (customerName?.trim()) params.append("customerName", customerName.trim());
   return api.get(`/vehicle-challans?${params.toString()}`).then(unwrapPaginated<VehicleChallanRecord>);
 };
 

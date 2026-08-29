@@ -133,7 +133,7 @@ function Report({ data }: { data: DiscountSummary }) {
     <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-6 overflow-x-auto">
       {/* Letterhead — company, outlet and outlet address, as on the printed sheet. */}
       <div className="text-center">
-        <div className="font-extrabold text-[18px] italic">Khazana Mithai Limited.</div>
+        <div className="font-extrabold text-[18px] italic">Khazana Mithai</div>
         <div className="font-semibold text-[12px] italic">{branchLine(branch.name)}</div>
         {branch.address && <div className="font-semibold text-[11px] italic">{branch.address}</div>}
       </div>

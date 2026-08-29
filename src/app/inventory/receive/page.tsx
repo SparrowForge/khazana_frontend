@@ -125,7 +125,7 @@ export default function StockReceivePage() {
    *  other line for line. The letterhead is the RECEIVING branch, because this
    *  copy of the document belongs to it. */
   const savedNote = (doc: ReceiveGroup): DeliveryChallanData => ({
-    companyName: settings?.companyName || "Khazana Mithai Limited",
+    companyName: settings?.companyName || "Khazana Mithai",
     companyAddress: settings?.companyAddress || undefined,
     letterheadAddress: doc.branchAddress || branchAddress(doc.branchId),
     fromBranchName: branchName(doc.fromBranchId),

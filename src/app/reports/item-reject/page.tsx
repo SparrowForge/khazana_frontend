@@ -148,7 +148,7 @@ function Report({ data, singleMonth }: { data: ItemRejectReport; singleMonth: bo
   return (
     <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       <div className="text-center mb-3">
-        <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
+        <div className="font-extrabold text-[16px] italic">Khazana Mithai</div>
         <div className="font-semibold">Item Reject Report</div>
         <div className="text-[10px]">{branch.name}</div>
         <div className="mt-1 font-semibold">

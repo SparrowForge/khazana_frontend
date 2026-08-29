@@ -151,8 +151,8 @@ export default function DemandOrderPage() {
         toBranchId: full.toBranchId ?? "",
         demandDate: full.demandDate ? full.demandDate.split("T")[0] : new Date().toISOString().split("T")[0],
         requiredDate: full.requiredDate ? full.requiredDate.split("T")[0] : "",
-        // Blank for an order raised before the field existed — left blank rather
-        // than defaulted, so re-saving does not invent a round it never had.
+        // Every order carries a type now (the historical ones were back-filled
+        // as 'First'); the fallback only guards a row cleared by hand.
         orderType: full.orderType ?? "",
         remarks: full.remarks ?? "",
       });

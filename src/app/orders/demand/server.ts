@@ -20,7 +20,8 @@ export interface DemandOrder {
   toBranchId?: string;
   demandDate?: string;
   requiredDate?: string;
-  /** 'First' | 'Second' | 'Special'; absent on orders raised before the field. */
+  /** 'First' | 'Second' | 'Special'. Set on every order — the historical ones
+   *  were back-filled as 'First'. */
   orderType?: string;
   remarks?: string;
   isActive?: number;

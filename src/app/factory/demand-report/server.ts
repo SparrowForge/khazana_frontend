@@ -42,8 +42,8 @@ export const fetchDemandReport = (
   toDate: string,
   fromBranchId?: string,
   toBranchId?: string,
-  /** 'First' | 'Second' | 'Special'. Omitted = every round. Orders raised before
-   *  the field existed carry no type, so they drop out of a filtered run. */
+  /** 'First' | 'Second' | 'Special'. Omitted = every round. Historical orders
+   *  were back-filled as 'First', so a filtered run covers the full history. */
   orderType?: string,
 ) =>
   api

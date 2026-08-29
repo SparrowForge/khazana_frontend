@@ -20,9 +20,9 @@ import { posBanksApi, POS_PAY_MODES, type PosBank } from "@/lib/services/pos.ser
 const emptyForm = { customerId: "", receiveDate: new Date().toISOString().split("T")[0], receiveAmount: "", tType: "Cash", bankName: "" };
 
 const reportColumns: ExportColumn<Payment>[] = [
+  { header: "Date", value: (r) => formatDate(r.receiveDate) },
   { header: "Receipt No", value: (r) => r.moneyReceptNo ?? "-" },
   { header: "Customer", value: (r) => r.customer?.name ?? r.customer?.code ?? "-" },
-  { header: "Date", value: (r) => formatDate(r.receiveDate) },
   { header: "Type", value: (r) => r.tType ?? "-" },
   { header: "Amount", value: (r) => r.receiveAmount ?? 0, numeric: true },
   { header: "Bank", value: (r) => r.bankName ?? "-" },
@@ -68,6 +68,7 @@ export default function CustomerPaymentsPage() {
       <PageHeader title="Customer Money Receipt" action={canAdd ? { label: "New Money Receipt", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={payments}
         columns={[
+          { key: "receiveDate", header: "Date", render: (r) => formatDate(r.receiveDate) },
           {
             key: "moneyReceptNo", header: "Receipt No",
             render: (r) => r.moneyReceptNo ? (
@@ -77,7 +78,6 @@ export default function CustomerPaymentsPage() {
             ) : "-",
           },
           { key: "customer", header: "Customer", render: (r) => r.customer?.name ?? r.customer?.code ?? "" },
-          { key: "receiveDate", header: "Date", render: (r) => formatDate(r.receiveDate) },
           { key: "tType", header: "Type" },
           { key: "receiveAmount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.receiveAmount ?? 0)}`, className: "text-right" },
           { key: "bankName", header: "Bank" },

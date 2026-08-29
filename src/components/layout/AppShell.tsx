@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
 import Logo from "@/components/ui/Logo";
 import Sidebar from "./Sidebar";
+import { useNumberInputGuards } from "@/hooks/useNumberInputGuards";
 
 // `/invoice` is the customer-facing share link — no session, no sidebar, and it
 // must render for someone who has never logged in.
@@ -100,6 +101,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
+
+  // Wheel / arrow-key edits on number fields, blocked app-wide. Installed here
+  // because AppShell mounts once in the root layout — before the public-path
+  // branch below, so the login screens are covered too.
+  useNumberInputGuards();
 
   useEffect(() => {
     setHydrated(true);

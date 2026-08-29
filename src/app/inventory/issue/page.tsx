@@ -427,6 +427,7 @@ export default function StockIssuePage() {
       </div>
       <Table loading={listLoading} data={issues}
         columns={[
+          { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           {
             key: "serialNo", header: "Serial No",
             render: (r) => r.serialNo ? (
@@ -436,7 +437,6 @@ export default function StockIssuePage() {
             ) : "-",
           },
           { key: "qty", header: "Total Qty", className: "text-right" },
-          { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
           { key: "receiveBranchId", header: "To Branch", render: (r) => branchName(r.receiveBranchId) },
           {

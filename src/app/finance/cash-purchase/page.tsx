@@ -51,8 +51,8 @@ export default function CashPurchasePage() {
       <PageHeader title="Cash Purchase" action={canAdd ? { label: "New Purchase", onClick: () => { setForm(emptyForm); setModal(true); }, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={records}
         columns={[
-          { key: "voucherNo", header: "Voucher No" },
           { key: "voucherDate", header: "Date", render: (r) => formatDate(r.voucherDate) },
+          { key: "voucherNo", header: "Voucher No" },
           { key: "supplier", header: "Supplier" },
           { key: "amount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.amount)}`, className: "text-right" },
           { key: "description", header: "Description" },

@@ -372,8 +372,8 @@ export default function StockReceivePage() {
           loading={pendingLoading}
           data={pending.map((p) => ({ id: p.serialNo, ...p }))}
           columns={[
-            { key: "serialNo", header: "Issue ID", render: (r) => <span className="font-medium">{r.serialNo}</span> },
             { key: "issueDate", header: "Issue Date", render: (r) => formatDate(r.issueDate ?? "") },
+            { key: "serialNo", header: "Issue ID", render: (r) => <span className="font-medium">{r.serialNo}</span> },
             { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
             { key: "totalItems", header: "Total Items", className: "text-right" },
             { key: "totalQty", header: "Total Qty", className: "text-right" },
@@ -405,6 +405,7 @@ export default function StockReceivePage() {
       {tab === "history" && (
       <Table loading={listLoading} data={receives}
         columns={[
+          { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
           {
             key: "serialNo", header: "Serial No",
             render: (r) => r.serialNo ? (
@@ -414,7 +415,6 @@ export default function StockReceivePage() {
             ) : "-",
           },
           { key: "qty", header: "Total Qty", className: "text-right" },
-          { key: "purDate", header: "Date", render: (r) => formatDate(r.purDate) },
           // On the raw Item_Receive row `branchId` is the SOURCE and
           // `receiveBranchID` the destination — the same split findOneReceive
           // flips when it builds the document.

@@ -13,18 +13,38 @@ export function formatCurrency(value: number | string | null | undefined): strin
   }).format(num);
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Every date in the system reads DD-MMM-YYYY (04-Aug-2026) — the format the
+ *  printed documents and the legacy sheets have always used, and the one that
+ *  cannot be misread as month-first the way 04/08/2026 can.
+ *
+ *  Rendered in local time, not UTC: the same value is used for plain dates and
+ *  for created/updated timestamps, and pulling a late-evening timestamp back to
+ *  UTC would print it as the day before. */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  return new Date(date).toLocaleDateString("en-BD", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "-";
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
+/** The same date, with a 12-hour clock after it. */
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  return new Date(date).toLocaleString("en-BD");
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "-";
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${formatDate(d)} ${time}`;
+}
+
+/** `YYYY-MM-DD` for an `<input type="date">`, read off the LOCAL clock.
+ *
+ *  Not `toISOString().split("T")[0]`, which is UTC: at 2am in Dhaka that still
+ *  reads as yesterday, so a filter defaulted to "today" would open on the wrong
+ *  day for anyone working an early or a late shift. */
+export function toInputDate(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function generateId(): string {

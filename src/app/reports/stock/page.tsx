@@ -6,7 +6,7 @@ import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchStockReport, type StockRow } from "./server";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
 const exportColumns: ExportColumn<StockRow>[] = [
@@ -38,7 +38,7 @@ export default function StockReportPage() {
           columns={exportColumns}
           meta={{
             title: "Stock Report",
-            subtitle: `As at ${new Date().toLocaleDateString("en-BD")}`,
+            subtitle: `As at ${formatDate(new Date())}`,
           }}
         />
       </div>

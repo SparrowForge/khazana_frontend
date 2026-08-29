@@ -9,7 +9,7 @@ import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchSales, deleteCreditSale, type Sale } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toInputDate } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
@@ -18,19 +18,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const exportColumns: ExportColumn<Sale>[] = [
-  { header: "Invoice No", value: (r) => r.invoiceNo || "-" },
   { header: "Date", value: (r) => formatDate(r.date ?? undefined) },
+  { header: "Invoice No", value: (r) => r.invoiceNo || "-" },
   { header: "Customer", value: (r) => r.customerName || "-" },
   { header: "Amount", value: (r) => Number(r.netAmount ?? 0), numeric: true },
 ];
 
+/** Today, both ends: this list opens on the current day's business and the
+ *  operator widens the range when they want history. */
 const getDefaultDateRange = () => {
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  return {
-    fromDate: firstOfMonth.toISOString().split("T")[0],
-    toDate: today.toISOString().split("T")[0],
-  };
+  const today = toInputDate();
+  return { fromDate: today, toDate: today };
 };
 
 /** Credit sales only — cash / POS billing is listed on the POS Sales screen. */
@@ -110,8 +108,8 @@ export default function SalesListPage() {
         loading={loading}
         data={filtered}
         columns={[
-          { key: "invoiceNo", header: "Invoice No", render: (r) => r.invoiceNo || "-" },
           { key: "date", header: "Date", render: (r) => formatDate(r.date ?? undefined) },
+          { key: "invoiceNo", header: "Invoice No", render: (r) => r.invoiceNo || "-" },
           { key: "customerName", header: "Customer", render: (r) => r.customerName || "-" },
           { key: "netAmount", header: "Amount", render: (r) => `৳ ${formatCurrency(r.netAmount ?? 0)}`, className: "text-right" },
           {

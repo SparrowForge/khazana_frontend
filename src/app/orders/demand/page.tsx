@@ -223,6 +223,8 @@ export default function DemandOrderPage() {
       <PageHeader title="Demand Order" subtitle="Branch stock requisition submitted to the factory" action={canAdd ? { label: "New Demand Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
+          { key: "demandDate", header: "Demand Date", render: (r) => formatDate(r.demandDate) },
+          { key: "requiredDate", header: "Required Date", render: (r) => formatDate(r.requiredDate) },
           {
             key: "serialNo", header: "DO No",
             render: (r) => r.serialNo ? (
@@ -233,8 +235,6 @@ export default function DemandOrderPage() {
           },
           { key: "fromBranchId", header: "From", render: (r) => branchName(r.fromBranchId) },
           { key: "toBranchId", header: "To", render: (r) => branchName(r.toBranchId) },
-          { key: "demandDate", header: "Demand Date", render: (r) => formatDate(r.demandDate) },
-          { key: "requiredDate", header: "Required Date", render: (r) => formatDate(r.requiredDate) },
           {
             key: "actions", header: "",
             render: (r) => (

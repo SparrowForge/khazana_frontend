@@ -16,8 +16,8 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const exportColumns: ExportColumn<Assortment>[] = [
-  { header: "Code", value: (r) => r.code ?? "-" },
   { header: "Date", value: (r) => formatDate(r.date) },
+  { header: "Code", value: (r) => r.code ?? "-" },
   { header: "Type", value: (r) => r.type ?? "-" },
   { header: "Amount", value: (r) => Number(r.netAmt ?? 0), numeric: true },
 ];
@@ -82,8 +82,8 @@ export default function AssortmentListPage() {
       </div>
       <Table loading={loading} data={list}
         columns={[
-          { key: "code", header: "Code" },
           { key: "date", header: "Date", render: (r) => formatDate(r.date) },
+          { key: "code", header: "Code" },
           { key: "type", header: "Type" },
           { key: "netAmt", header: "Amount", render: (r) => `৳ ${formatCurrency(r.netAmt ?? 0)}`, className: "text-right" },
           {

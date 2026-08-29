@@ -19,10 +19,10 @@ export default function VatOrdersPage() {
       <PageHeader title="VAT Orders" subtitle="Pre-orders with VAT" />
       <Table loading={loading} data={orders}
         columns={[
-          { key: "serialNo", header: "Order No" },
-          { key: "clientCode", header: "Customer" },
           { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
           { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
+          { key: "serialNo", header: "Order No" },
+          { key: "clientCode", header: "Customer" },
         ]}
       />
     </AppLayout>

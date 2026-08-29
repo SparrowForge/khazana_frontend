@@ -250,6 +250,7 @@ export default function ProductionEntryPage() {
       </div>
       <Table loading={listLoading} data={records}
         columns={[
+          { key: "productionDate", header: "Date", render: (r) => formatDate(r.productionDate) },
           {
             key: "serialNo", header: "Serial No",
             render: (r) => r.serialNo ? (
@@ -260,7 +261,6 @@ export default function ProductionEntryPage() {
           },
           { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "totalValue", header: "Total Value", className: "text-right", render: (r) => formatCurrency(r.totalValue) },
-          { key: "productionDate", header: "Date", render: (r) => formatDate(r.productionDate) },
           { key: "remarks", header: "Remarks", render: (r) => r.remarks || "-" },
           {
             key: "actions", header: "",

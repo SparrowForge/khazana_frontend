@@ -8,7 +8,7 @@ import Pagination from "@/components/ui/Pagination";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchStock, fetchAllStock, type StockItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
 const tableColumns = [
@@ -71,7 +71,7 @@ export default function InventoryPage() {
         <ReportExportButtons
           rows={exportRows}
           columns={exportColumns}
-          meta={{ title: "Stock View", subtitle: `As at ${new Date().toLocaleDateString("en-BD")}` }}
+          meta={{ title: "Stock View", subtitle: `As at ${formatDate(new Date())}` }}
           showPreview
         />
       </div>

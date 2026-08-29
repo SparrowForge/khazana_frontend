@@ -225,6 +225,7 @@ export default function PacketIssuePage() {
 
       <Table loading={listLoading} data={records} emptyMessage="No packet issues in this date range."
         columns={[
+          { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           {
             key: "serialNo", header: "Serial No",
             render: (r) => (
@@ -235,7 +236,6 @@ export default function PacketIssuePage() {
           },
           { key: "issueType", header: "Type", render: (r) => r.issueType || "-" },
           { key: "invoiceNo", header: "Invoice No", render: (r) => r.invoiceNo || "-" },
-          { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
           { key: "lineCount", header: "Packets", className: "text-right", render: (r) => r.lineCount ?? 0 },
           { key: "qty", header: "Total Qty", className: "text-right", render: (r) => r.qty ?? 0 },
           {

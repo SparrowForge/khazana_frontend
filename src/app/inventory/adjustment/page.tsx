@@ -210,6 +210,7 @@ export default function StockAdjustmentPage() {
       </div>
       <Table loading={listLoading} data={adjustments}
         columns={[
+          { key: "date", header: "Date", render: (r) => formatDate(r.date) },
           {
             key: "invNo", header: "Reference No",
             render: (r) => r.invNo ? (
@@ -222,7 +223,6 @@ export default function StockAdjustmentPage() {
           { key: "excess", header: "Excess", className: "text-right" },
           { key: "short", header: "Short", className: "text-right" },
           { key: "assort", header: "Assort", className: "text-right" },
-          { key: "date", header: "Date", render: (r) => formatDate(r.date) },
           {
             key: "actions", header: "",
             render: (r) => (

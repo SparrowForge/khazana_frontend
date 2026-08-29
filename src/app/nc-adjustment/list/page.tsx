@@ -16,8 +16,8 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const exportColumns: ExportColumn<NC>[] = [
-  { header: "NC Code", value: (r) => r.ncmstrCode ?? "-" },
   { header: "Date", value: (r) => formatDate(r.ncmstrDate) },
+  { header: "NC Code", value: (r) => r.ncmstrCode ?? "-" },
   { header: "Name", value: (r) => r.ncmstrName ?? "-" },
   { header: "Contact", value: (r) => r.ncmstrContactNo ?? "-" },
   { header: "Reference", value: (r) => r.ncmstrReference ?? "-" },
@@ -101,6 +101,7 @@ export default function NCAdjustmentListPage() {
       </div>
       <Table loading={loading} data={list}
         columns={[
+          { key: "ncmstrDate", header: "Date", render: (r) => formatDate(r.ncmstrDate) },
           // The code opens the printable invoice — the same hand-off a sales
           // invoice number gives from the sales list.
           { key: "ncmstrCode", header: "NC Code", render: (r) => (
@@ -108,7 +109,6 @@ export default function NCAdjustmentListPage() {
               {r.ncmstrCode ?? "—"}
             </Link>
           )},
-          { key: "ncmstrDate", header: "Date", render: (r) => formatDate(r.ncmstrDate) },
           { key: "ncmstrName", header: "Name" },
           { key: "ncmstrContactNo", header: "Contact" },
           { key: "ncmstrReference", header: "Reference" },

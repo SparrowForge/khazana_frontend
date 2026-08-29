@@ -183,6 +183,7 @@ export default function PacketReceivePage() {
 
       <Table loading={listLoading} data={records} emptyMessage="No packet receives in this date range."
         columns={[
+          { key: "receiveDate", header: "Date", render: (r) => formatDate(r.receiveDate) },
           {
             key: "serialNo", header: "Serial No",
             render: (r) => (
@@ -192,7 +193,6 @@ export default function PacketReceivePage() {
             ),
           },
           { key: "voucharNo", header: "Voucher No", render: (r) => r.voucharNo || "-" },
-          { key: "receiveDate", header: "Date", render: (r) => formatDate(r.receiveDate) },
           { key: "lineCount", header: "Packets", className: "text-right", render: (r) => r.lineCount ?? 0 },
           { key: "qty", header: "Total Qty", className: "text-right", render: (r) => r.qty ?? 0 },
           {

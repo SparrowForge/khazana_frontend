@@ -13,6 +13,7 @@ import { fetchCustomers, fetchAllCustomers, createCustomer, updateCustomer, dele
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import type { ExportColumn } from "@/lib/export/reportExport";
@@ -95,7 +96,7 @@ export default function CustomersPage() {
         <ReportExportButtons
           rows={exportRows}
           columns={exportColumns}
-          meta={{ title: "Customer List", subtitle: `As at ${new Date().toLocaleDateString("en-BD")}` }}
+          meta={{ title: "Customer List", subtitle: `As at ${formatDate(new Date())}` }}
         />
       </div>
       <Table loading={loading} data={filtered}

@@ -10,7 +10,7 @@ import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toInputDate } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 import toast from "react-hot-toast";
 
@@ -28,8 +28,8 @@ function formatDT(iso: string) {
 }
 
 const exportColumns: ExportColumn<PosSale>[] = [
-  { header: "Invoice No", value: (r) => r.invoiceNo },
   { header: "Date & Time", value: (r) => formatDT(r.dateTime) },
+  { header: "Invoice No", value: (r) => r.invoiceNo },
   { header: "Type", value: (r) => r.salesType },
   { header: "Total", value: (r) => Number(r.totalAmount), numeric: true },
   { header: "VAT", value: (r) => Number(r.vatAmount), numeric: true },
@@ -37,13 +37,11 @@ const exportColumns: ExportColumn<PosSale>[] = [
   { header: "Served By", value: (r) => r.servedBy },
 ];
 
+/** Today, both ends: this list opens on the current day's business and the
+ *  operator widens the range when they want history. */
 const getDefaultDateRange = () => {
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  return {
-    fromDate: firstOfMonth.toISOString().split("T")[0],
-    toDate: today.toISOString().split("T")[0],
-  };
+  const today = toInputDate();
+  return { fromDate: today, toDate: today };
 };
 
 export default function PosSalesListPage() {
@@ -107,8 +105,8 @@ export default function PosSalesListPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-sage-100 text-gray-500 text-xs uppercase tracking-wide">
-                <th className="px-5 py-3 text-left font-medium">Invoice No</th>
                 <th className="px-5 py-3 text-left font-medium">Date & Time</th>
+                <th className="px-5 py-3 text-left font-medium">Invoice No</th>
                 <th className="px-5 py-3 text-left font-medium">Type</th>
                 <th className="px-5 py-3 text-right font-medium">Total</th>
                 <th className="px-5 py-3 text-right font-medium">VAT</th>
@@ -120,8 +118,8 @@ export default function PosSalesListPage() {
             <tbody className="divide-y divide-gray-50">
               {sales.map((s) => (
                 <tr key={s.id} className="hover:bg-sage-100 transition-colors">
-                  <td className="px-5 py-3 font-mono font-bold text-primary-700">{s.invoiceNo}</td>
                   <td className="px-5 py-3 text-gray-600">{formatDT(s.dateTime)}</td>
+                  <td className="px-5 py-3 font-mono font-bold text-primary-700">{s.invoiceNo}</td>
                   <td className="px-5 py-3 text-gray-600">{s.salesType}</td>
                   <td className="px-5 py-3 text-right text-gray-700">৳{Number(s.totalAmount).toFixed(2)}</td>
                   <td className="px-5 py-3 text-right text-gray-500">৳{Number(s.vatAmount).toFixed(2)}</td>

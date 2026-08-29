@@ -237,6 +237,8 @@ export default function OrdersPage() {
       <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
+          { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
+          { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
           {
             key: "serialNo", header: "Order No",
             render: (r) => r.serialNo ? (
@@ -246,8 +248,6 @@ export default function OrdersPage() {
             ) : "-",
           },
           { key: "clientId", header: "Customer", render: (r) => customerName(r.clientId) },
-          { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },
-          { key: "deliveryDate", header: "Delivery Date", render: (r) => formatDate(r.deliveryDate) },
           { key: "totalPrice", header: "Total", render: (r) => `৳ ${formatCurrency(r.totalPrice ?? 0)}`, className: "text-right" },
           {
             key: "deliveryStatus", header: "Status",

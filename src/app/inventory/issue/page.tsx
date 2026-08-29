@@ -436,9 +436,9 @@ export default function StockIssuePage() {
               </button>
             ) : "-",
           },
-          { key: "qty", header: "Total Qty", className: "text-right" },
           { key: "issueBranchId", header: "From Branch", render: (r) => branchName(r.issueBranchId) },
           { key: "receiveBranchId", header: "To Branch", render: (r) => branchName(r.receiveBranchId) },
+          { key: "qty", header: "Total Qty", className: "text-right" },
           {
             key: "actions", header: "",
             render: (r) => (

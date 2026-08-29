@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit2 } from "lucide-react";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchDemandOrders, fetchDemandOrder, createDemandOrder, updateDemandOrder, deleteDemandOrder,
+  DEMAND_ORDER_TYPES, demandTypeLabel,
   type DemandOrder, type DemandOrderRecord, type DemandOrderDetail,
 } from "./server";
 import { fetchAllItems, fetchBranches, type AvailableItem, type BranchInfo } from "../server";
@@ -58,6 +59,9 @@ export default function DemandOrderPage() {
     toBranchId: "",
     demandDate: dateFromToday(0),
     requiredDate: dateFromToday(DEFAULT_REQUIRED_OFFSET),
+    // Which round this demand is. Defaults to the first — the common case — but
+    // it is a real choice, not a hidden default: the report filters on it.
+    orderType: "First",
     remarks: "",
   });
   const [saving, setSaving] = useState(false);
@@ -131,6 +135,7 @@ export default function DemandOrderPage() {
       toBranchId: factoryBranch?.id ?? "",
       demandDate: dateFromToday(0),
       requiredDate: dateFromToday(DEFAULT_REQUIRED_OFFSET),
+      orderType: "First",
       remarks: "",
     });
     setEntries({});
@@ -146,6 +151,9 @@ export default function DemandOrderPage() {
         toBranchId: full.toBranchId ?? "",
         demandDate: full.demandDate ? full.demandDate.split("T")[0] : new Date().toISOString().split("T")[0],
         requiredDate: full.requiredDate ? full.requiredDate.split("T")[0] : "",
+        // Blank for an order raised before the field existed — left blank rather
+        // than defaulted, so re-saving does not invent a round it never had.
+        orderType: full.orderType ?? "",
         remarks: full.remarks ?? "",
       });
       setItemSearch("");
@@ -174,6 +182,7 @@ export default function DemandOrderPage() {
         toBranchId: form.toBranchId,
         demandDate: form.demandDate,
         requiredDate: form.requiredDate || undefined,
+        orderType: form.orderType || undefined,
         remarks: form.remarks || undefined,
         items: validLines,
       };
@@ -225,6 +234,7 @@ export default function DemandOrderPage() {
         columns={[
           { key: "demandDate", header: "Demand Date", render: (r) => formatDate(r.demandDate) },
           { key: "requiredDate", header: "Required Date", render: (r) => formatDate(r.requiredDate) },
+          { key: "orderType", header: "Type", render: (r) => demandTypeLabel(r.orderType) },
           {
             key: "serialNo", header: "DO No",
             render: (r) => r.serialNo ? (
@@ -263,7 +273,9 @@ export default function DemandOrderPage() {
             placeholder="Select receiving branch..." options={branches.map((b) => ({ value: b.id, label: b.branchName ?? b.id }))} />
           <Input label="Demand Date" type="date" value={form.demandDate} onChange={(e) => setForm({ ...form, demandDate: e.target.value })} />
           <Input label="Required Date" type="date" value={form.requiredDate} onChange={(e) => setForm({ ...form, requiredDate: e.target.value })} />
-          <Input label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="col-span-2" />
+          <Select label="Order Type" value={form.orderType} onChange={(e) => setForm({ ...form, orderType: e.target.value })}
+            placeholder="Select type..." options={DEMAND_ORDER_TYPES} />
+          <Input label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
         </div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <Input

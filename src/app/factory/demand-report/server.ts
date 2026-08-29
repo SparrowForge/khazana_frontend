@@ -42,11 +42,15 @@ export const fetchDemandReport = (
   toDate: string,
   fromBranchId?: string,
   toBranchId?: string,
+  /** 'First' | 'Second' | 'Special'. Omitted = every round. Orders raised before
+   *  the field existed carry no type, so they drop out of a filtered run. */
+  orderType?: string,
 ) =>
   api
     .get<DemandReport>(
       `/reports/demand?fromDate=${fromDate}&toDate=${toDate}` +
         `${fromBranchId ? `&fromBranchId=${fromBranchId}` : ""}` +
-        `${toBranchId ? `&toBranchId=${toBranchId}` : ""}`,
+        `${toBranchId ? `&toBranchId=${toBranchId}` : ""}` +
+        `${orderType ? `&orderType=${orderType}` : ""}`,
     )
     .then((r) => r.data);

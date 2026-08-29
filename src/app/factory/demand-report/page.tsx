@@ -9,6 +9,7 @@ import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchDemandReport, type DemandReport, type DemandReportRow } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import { DEMAND_ORDER_TYPES } from "@/app/orders/demand/server";
 import { formatCurrency } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -47,6 +48,8 @@ export default function DemandReportPage() {
   const [fromBranchId, setFromBranchId] = useState("");
   // Who it was raised on — the factory, i.e. the branch the user is logged in at.
   const [toBranchId, setToBranchId] = useState("");
+  /** Demand round; blank = every round. */
+  const [orderType, setOrderType] = useState("");
   const [report, setReport] = useState<DemandReport | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,7 +67,7 @@ export default function DemandReportPage() {
 
   const runReport = () => {
     setLoading(true);
-    fetchDemandReport(fromDate, toDate, fromBranchId || undefined, toBranchId || undefined)
+    fetchDemandReport(fromDate, toDate, fromBranchId || undefined, toBranchId || undefined, orderType || undefined)
       .then(setReport)
       .catch((err) => {
         setReport(null);
@@ -120,6 +123,14 @@ export default function DemandReportPage() {
           onChange={(e) => setToBranchId(e.target.value)}
           options={branches.map((b) => ({ value: String(b.id), label: b.branchName }))}
           className="w-48"
+        />
+        <Select
+          label="Order Type"
+          value={orderType}
+          onChange={(e) => setOrderType(e.target.value)}
+          placeholder="All Types"
+          options={DEMAND_ORDER_TYPES}
+          className="w-40"
         />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}

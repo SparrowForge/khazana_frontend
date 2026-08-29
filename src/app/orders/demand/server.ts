@@ -1,6 +1,18 @@
 import api from "@/lib/api";
 import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
+/** Which round of demand an order is. Stored as these exact strings; the Demand
+ *  Report filters on them. Mirrors DEMAND_ORDER_TYPES on the backend. */
+export const DEMAND_ORDER_TYPES = [
+  { value: "First", label: "First Order" },
+  { value: "Second", label: "Second Order" },
+  { value: "Special", label: "Special Order" },
+];
+
+/** Label for a stored value — "-" for an order raised before the field existed. */
+export const demandTypeLabel = (value?: string | null): string =>
+  DEMAND_ORDER_TYPES.find((t) => t.value === value)?.label ?? "-";
+
 export interface DemandOrder {
   id: string;
   serialNo?: string;
@@ -8,6 +20,8 @@ export interface DemandOrder {
   toBranchId?: string;
   demandDate?: string;
   requiredDate?: string;
+  /** 'First' | 'Second' | 'Special'; absent on orders raised before the field. */
+  orderType?: string;
   remarks?: string;
   isActive?: number;
   createBy?: string;
@@ -29,6 +43,7 @@ export interface DemandOrderPayload {
   toBranchId: string;
   demandDate: string;
   requiredDate?: string;
+  orderType?: string;
   remarks?: string;
   items: { itemId: string; qty: number; remarks?: string }[];
 }

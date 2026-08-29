@@ -352,7 +352,7 @@ export default function StockIssuePage() {
     receiveBranchId?: string;
     items: DeliveryChallanLine[];
   }): DeliveryChallanData => ({
-    companyName: settings?.companyName || "Khazana Mithai Limited",
+    companyName: settings?.companyName || "Khazana Mithai",
     companyAddress: settings?.companyAddress || undefined,
     fromBranchName: branchName(opts.issueBranchId),
     // The challan is the ISSUING branch's document, so its address heads it.

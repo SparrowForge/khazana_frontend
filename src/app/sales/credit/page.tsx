@@ -265,8 +265,10 @@ export default function CreditSalePage() {
   return (
     <AppLayout>
       <PageHeader title="Credit Sale" subtitle="Create a new credit sale invoice" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 space-y-5">
+      {/* 50/50 split at lg, matching the POS terminal: the picker column and the
+          cart/summary column get equal width. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="space-y-5">
           <Card title="Invoice Information">
             <div className="grid grid-cols-2 gap-4">
               <Input label="Invoice No" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Auto-generated" />

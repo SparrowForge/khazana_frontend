@@ -162,7 +162,7 @@ function Report({ data, singleMonth }: { data: ItemReceiveReport; singleMonth: b
   return (
     <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       <div className="text-center mb-3">
-        <div className="font-extrabold text-[16px] italic">Khazana Mithai Limited</div>
+        <div className="font-extrabold text-[16px] italic">Khazana Mithai</div>
         <div className="font-semibold">Item Receive Report</div>
         <div className="text-[10px]">
           {receiveBranch.name}

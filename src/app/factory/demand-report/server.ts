@@ -54,3 +54,37 @@ export const fetchDemandReport = (
         `${orderType ? `&orderType=${orderType}` : ""}`,
     )
     .then((r) => r.data);
+
+/** Params a Demand Report run is generated from — what a share link stores and
+ *  replays, so the link always shows current data rather than a snapshot. */
+export interface DemandReportParams {
+  fromDate: string;
+  toDate: string;
+  fromBranchId?: string;
+  toBranchId?: string;
+  orderType?: string;
+}
+
+/**
+ * Creates the public link for a generated report.
+ *
+ * Anyone holding it can read the sheet — no login, no expiry, no revocation.
+ * The token is a UUID: 122 bits, so it cannot be guessed or walked, but it
+ * cannot be taken back once sent either. Treat the URL itself as the secret.
+ *
+ * The server re-runs the report when the link is opened, and refuses to mint a
+ * token for a query it cannot run — so a broken link is caught here, by the
+ * person sharing, rather than by whoever they sent it to.
+ */
+export const createDemandReportShare = (params: DemandReportParams): Promise<{ token: string }> =>
+  api.post<{ token: string }>("/report-shares", { reportKey: "demand", params }).then((r) => r.data);
+
+/** The report behind a share token. No login required. */
+export const fetchSharedDemandReport = (token: string): Promise<DemandReport> =>
+  api
+    .get<{ reportKey: string; data: DemandReport }>(`/report-shares/public/${token}`)
+    .then((r) => r.data.data);
+
+/** The link to hand out. See `createDemandReportShare` for what it exposes. */
+export const demandReportShareUrl = (token: string) =>
+  typeof window === "undefined" ? "" : `${window.location.origin}/report/demand/${token}`;

@@ -19,7 +19,7 @@ import {
   type CreditCustomer,
   type OrderOption,
 } from "./server";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, roundPayable } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
@@ -171,7 +171,11 @@ export default function CreditSaleEditPage() {
   const discPct = Math.min(Math.max(parseFloat(discountPercent || "0") || 0, 0), 100);
   const invoiceDiscount = r2((grossAmount * discPct) / 100);
   const totalDiscount = r2(lineDiscount + invoiceDiscount);
-  const grandTotal = r2(grossAmount - invoiceDiscount);
+  // Charged to the whole taka, the same as a POS bill — the invoice, the customer
+  // ledger and the statement all round this figure, so they agree on what is owed.
+  const exactTotal = r2(grossAmount - invoiceDiscount);
+  const grandTotal = roundPayable(exactTotal);
+  const rounding = r2(grandTotal - exactTotal);
 
   const handleSubmit = async () => {
     if (!id) return;
@@ -355,6 +359,12 @@ export default function CreditSaleEditPage() {
                     </div>
                   )}
                 </div>
+                {rounding !== 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Rounding</span>
+                    <span>{rounding > 0 ? "+" : "−"}৳ {formatCurrency(Math.abs(rounding))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-semibold border-t pt-2">
                   <span>Total Payable</span>
                   <span>৳ {formatCurrency(grandTotal)}</span>

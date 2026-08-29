@@ -47,6 +47,20 @@ export function toInputDate(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * A bill is settled in notes and coins, not in paisa, so the amount a customer
+ * is asked for is rounded to the whole taka: ৳4949.99 is charged, printed and
+ * recorded as ৳4950.
+ *
+ * Mirrors `roundPayable` in the backend's common/helpers — the server rounds the
+ * figure it stores, this rounds the figure on screen, and they must agree or the
+ * checkout would refuse a payment the customer had already handed over. Lines,
+ * VAT and the discount keep their exact values.
+ */
+export function roundPayable(amount: number): number {
+  return Math.round(amount);
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }

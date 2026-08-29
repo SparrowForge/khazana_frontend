@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
+import { roundPayable } from "@/lib/utils";
 import { ShoppingCart, Plus, Minus, Trash2, Search, Tag, ArrowLeft } from "lucide-react";
 
 interface CartItem {
@@ -175,7 +176,11 @@ export default function PosSaleEditPage() {
   const discVal = parseFloat(discountValue) || 0;
   const rawDiscount = discountType === "percentage" ? r2((grossAmount * discVal) / 100) : r2(discVal);
   const discountAmount = Math.min(rawDiscount, grossAmount);
-  const payableAmount = r2(grossAmount - discountAmount);
+  // Rounded to the whole taka, exactly as the new-sale screen and the server do
+  // — an edit must not re-price the bill just by being reopened.
+  const exactPayable = r2(grossAmount - discountAmount);
+  const payableAmount = roundPayable(exactPayable);
+  const rounding = r2(payableAmount - exactPayable);
   const paid = parseFloat(paidAmount) || 0;
   const change = r2(paid - payableAmount);
 
@@ -474,6 +479,13 @@ export default function PosSaleEditPage() {
                   </div>
                 )}
               </div>
+
+              {rounding !== 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Rounding</span>
+                  <span>{rounding > 0 ? "+" : "−"}৳{fmt(Math.abs(rounding))}</span>
+                </div>
+              )}
 
               <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-sage-200 text-base">
                 <span>Payable</span><span>৳{fmt(payableAmount)}</span>

@@ -19,6 +19,7 @@ import {
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
 import { getErrorMessage } from "@/lib/api";
+import { roundPayable } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
 import {
@@ -336,7 +337,13 @@ export default function PosPage() {
   // Clamp: never exceed gross
   const discountAmount = Math.min(rawDiscount, grossAmount);
 
-  const payableAmount = r2(grossAmount - discountAmount);
+  // Charged to the whole taka — the server rounds the figure it stores the same
+  // way, so what is shown here, what is taken at the counter and what lands on
+  // the bill are one number. `rounding` is the difference the summary shows so
+  // the column still adds up on screen.
+  const exactPayable = r2(grossAmount - discountAmount);
+  const payableAmount = roundPayable(exactPayable);
+  const rounding = r2(payableAmount - exactPayable);
   const paid = parseFloat(paidAmount) || 0;
   const change = r2(paid - payableAmount);
 
@@ -943,6 +950,13 @@ export default function PosPage() {
                   </div>
                 )}
               </div>
+
+              {rounding !== 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Rounding</span>
+                  <span>{rounding > 0 ? "+" : "−"}৳{fmt(Math.abs(rounding))}</span>
+                </div>
+              )}
 
               <div className="flex justify-between font-bold text-gray-800 pt-1.5 border-t border-sage-200 text-base">
                 <span>Payable</span>

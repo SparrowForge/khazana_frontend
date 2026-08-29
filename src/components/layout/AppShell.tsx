@@ -8,8 +8,6 @@ import Logo from "@/components/ui/Logo";
 import Sidebar from "./Sidebar";
 import { useNumberInputGuards } from "@/hooks/useNumberInputGuards";
 
-// `/invoice` is the customer-facing share link — no session, no sidebar, and it
-// must render for someone who has never logged in.
 // `/invoice` and `/report` are the customer / partner-facing share links — no
 // session, no sidebar, and they must render for someone who has never logged in.
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/verify", "/verify-code", "/invoice", "/report"];

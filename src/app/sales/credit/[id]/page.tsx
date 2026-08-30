@@ -168,8 +168,21 @@ export default function CreditSaleEditPage() {
   // Same two-tier discount as the create form: per-line amounts (already inside
   // each line total) plus an invoice-level percent on the VAT-inclusive gross.
   const grossAmount = r2(netAmount + totalVat);
+  // Same exclusion as the create form: an item flagged not discountable is
+  // billed in full and its value is left out of the base the percent is charged
+  // on, so reopening an invoice cannot re-price it against a different base
+  // than the one it was saved with.
+  const nonDiscountable = new Set(
+    availableItems.filter((a) => a.isDiscountApplicable === false).map((a) => a.id),
+  );
+  const hasNonDiscountable = items.some((i) => nonDiscountable.has(i.itemId));
+  const discountableGross = r2(
+    items
+      .filter((i) => !nonDiscountable.has(i.itemId))
+      .reduce((s, i) => s + i.total + i.vat, 0),
+  );
   const discPct = Math.min(Math.max(parseFloat(discountPercent || "0") || 0, 0), 100);
-  const invoiceDiscount = r2((grossAmount * discPct) / 100);
+  const invoiceDiscount = r2((discountableGross * discPct) / 100);
   const totalDiscount = r2(lineDiscount + invoiceDiscount);
   // Charged to the whole taka, the same as a POS bill — the invoice, the customer
   // ledger and the statement all round this figure, so they agree on what is owed.
@@ -357,6 +370,11 @@ export default function CreditSaleEditPage() {
                       <span className="text-gray-500">Discount ({discPct}%)</span>
                       <span className="font-medium text-red-600">- ৳ {formatCurrency(invoiceDiscount)}</span>
                     </div>
+                  )}
+                  {hasNonDiscountable && (
+                    <p className="text-xs text-amber-600 text-right">
+                      Charged on ৳ {formatCurrency(discountableGross)} — this invoice has items that are not discountable.
+                    </p>
                   )}
                 </div>
                 {rounding !== 0 && (

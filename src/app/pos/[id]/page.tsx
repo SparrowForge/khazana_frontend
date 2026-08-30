@@ -22,6 +22,9 @@ interface CartItem {
   price: number;
   vatPercentage: number;
   qty: number;
+  /** False for an item that is never discounted — billed in full, and its value
+   *  left out of the base the discount is charged on. */
+  isDiscountApplicable?: boolean;
 }
 
 type DiscountType = "fixed" | "percentage";
@@ -49,6 +52,8 @@ export default function PosSaleEditPage() {
   const [banks, setBanks] = useState<PosBank[]>([]);
   const [bankId, setBankId] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  /** Read-only: who served the sale is stamped from the session at the till and
+   *  an edit never reassigns it, so this is shown but not editable. */
   const [servedBy, setServedBy] = useState("");
   const [search, setSearch] = useState("");
   const [discountType, setDiscountType] = useState<DiscountType>("fixed");
@@ -101,6 +106,7 @@ export default function PosSaleEditPage() {
               price: Number(p?.price ?? it.rate),
               vatPercentage: Number(p?.vatPercentage ?? it.vatPct),
               qty: Number(it.qty),
+              isDiscountApplicable: p?.isDiscountApplicable !== false,
             };
           }),
         );
@@ -132,6 +138,7 @@ export default function PosSaleEditPage() {
           price: Number(product.price),
           vatPercentage: Number(product.vatPercentage),
           qty: 1,
+          isDiscountApplicable: product.isDiscountApplicable !== false,
         },
       ];
     });
@@ -173,9 +180,18 @@ export default function PosSaleEditPage() {
   const vatAmount = r2(cart.reduce((s, c) => s + itemVat(c), 0));
   const grossAmount = r2(subtotal + vatAmount);
 
+  // Same exclusion the till and the server apply: items flagged not
+  // discountable are outside the discount, so a percentage is charged on the
+  // rest of the bill and a fixed amount is capped by it.
+  const discountableGross = r2(
+    cart
+      .filter((c) => c.isDiscountApplicable !== false)
+      .reduce((s, c) => s + itemSubtotal(c) + itemVat(c), 0),
+  );
+  const hasNonDiscountable = cart.some((c) => c.isDiscountApplicable === false);
   const discVal = parseFloat(discountValue) || 0;
-  const rawDiscount = discountType === "percentage" ? r2((grossAmount * discVal) / 100) : r2(discVal);
-  const discountAmount = Math.min(rawDiscount, grossAmount);
+  const rawDiscount = discountType === "percentage" ? r2((discountableGross * discVal) / 100) : r2(discVal);
+  const discountAmount = Math.min(rawDiscount, discountableGross);
   // Rounded to the whole taka, exactly as the new-sale screen and the server do
   // — an edit must not re-price the bill just by being reopened.
   const exactPayable = r2(grossAmount - discountAmount);
@@ -185,7 +201,7 @@ export default function PosSaleEditPage() {
   const change = r2(paid - payableAmount);
 
   const discountExceedsTotal =
-    discountType === "fixed" ? discVal > grossAmount && grossAmount > 0 : discVal > 100;
+    discountType === "fixed" ? discVal > discountableGross && discountableGross > 0 : discVal > 100;
 
   const filtered = useMemo(
     () =>
@@ -212,7 +228,6 @@ export default function PosSaleEditPage() {
       await posSalesApi.update(id, {
         items: cart.map((c) => ({ itemId: c.itemId, qty: c.qty })),
         paidAmount: paid,
-        servedBy: servedBy || undefined,
         salesType: salesType || undefined,
         bankId: salesType === "Card" ? (bankId || undefined) : undefined,
         discountType: discVal > 0 ? discountType : undefined,
@@ -458,6 +473,11 @@ export default function PosSaleEditPage() {
                 {discountAmount > 0 && !discountExceedsTotal && (
                   <p className="text-xs text-green-600 mt-1">−৳{fmt(discountAmount)} applied</p>
                 )}
+                {hasNonDiscountable && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Charged on ৳{fmt(discountableGross)} — this bill has items that are not discountable.
+                  </p>
+                )}
 
                 {/* Discount authoriser — mandatory once a discount is applied. */}
                 {discountAmount > 0 && (
@@ -518,7 +538,9 @@ export default function PosSaleEditPage() {
             )}
             <Input label="Customer Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Walk-in name (optional)" />
 
-            <Input label="Served By" value={servedBy} onChange={(e) => setServedBy(e.target.value)} placeholder="Staff name (optional)" />
+            {/* The cashier who rang the sale, stamped from their session at the
+                till. An edit corrects the sale, never who served it. */}
+            <Input label="Served By" value={servedBy} disabled readOnly />
             <Input
               label="Modify Reason *"
               value={modifyReason}

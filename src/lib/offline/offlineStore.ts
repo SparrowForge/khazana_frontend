@@ -50,6 +50,8 @@ export interface OfflineOrder {
   items: { itemId: string; qty: number }[];
   paidAmount: number;
   clientSavedAt: string;
+  /** @deprecated Only present on orders queued before the Served By field was
+   *  removed. Not sent any more — the server stamps the syncing user. */
   servedBy?: string;
   salesType?: string;
   /** Bank UUID — set when salesType is 'Card'. */
@@ -180,7 +182,9 @@ export function toSyncPayload(o: OfflineOrder) {
     items: o.items,
     paidAmount: o.paidAmount,
     clientSavedAt: o.clientSavedAt,
-    ...(o.servedBy ? { servedBy: o.servedBy } : {}),
+    // servedBy is deliberately NOT sent, even by an order queued before the
+    // field was removed: the server stamps the syncing user, who is the only
+    // person able to upload this queue.
     ...(o.salesType ? { salesType: o.salesType } : {}),
     ...(o.bankId ? { bankId: o.bankId } : {}),
     ...(o.branchId != null ? { branchId: o.branchId } : {}),

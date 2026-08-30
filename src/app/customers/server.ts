@@ -8,6 +8,10 @@ export interface Customer {
   mobile?: string;
   address?: string;
   email?: string;
+  /** Standing discount % agreed with this customer. Seeds — but does not fix —
+   *  the invoice-level discount of a credit sale raised for them. Decimal
+   *  columns can arrive as strings. */
+  defaultDiscount?: number | string | null;
 }
 
 export interface CustomerPayload {
@@ -17,6 +21,7 @@ export interface CustomerPayload {
   mobile?: string;
   address?: string;
   email?: string;
+  defaultDiscount?: number;
 }
 
 export const fetchCustomers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Customer>> =>

@@ -19,7 +19,7 @@ import {
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
 import { getErrorMessage } from "@/lib/api";
-import { roundPayable } from "@/lib/utils";
+import { roundPayable, formatDateTime } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
 import {
@@ -34,6 +34,10 @@ interface CartItem {
   price: number;
   vatPercentage: number;
   qty: number;
+  /** False for an item that is never discounted. Carried on the line so the
+   *  running total matches what the server will charge — and so an offline
+   *  sale, priced entirely here, applies the same rule. */
+  isDiscountApplicable?: boolean;
 }
 
 type DiscountType = "fixed" | "percentage";
@@ -43,7 +47,6 @@ interface HeldOrder {
   id: string;
   heldAt: string;
   cart: CartItem[];
-  servedBy: string;
   payMode: string;
   bankId: string;
   discountType: DiscountType;
@@ -78,7 +81,6 @@ export default function PosPage() {
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paidAmount, setPaidAmount] = useState("");
-  const [servedBy, setServedBy] = useState("");
   const [payMode, setPayMode] = useState<string>("Cash");
   const [banks, setBanks] = useState<PosBank[]>([]);
   const [bankId, setBankId] = useState("");
@@ -266,6 +268,7 @@ export default function PosPage() {
           price: Number(product.price),
           vatPercentage: Number(product.vatPercentage),
           qty: add,
+          isDiscountApplicable: product.isDiscountApplicable !== false,
         },
       ];
     });
@@ -329,13 +332,26 @@ export default function PosPage() {
   const vatAmount = r2(cart.reduce((s, c) => s + itemVat(c), 0));
   const grossAmount = r2(subtotal + vatAmount);
 
+  // The part of the bill a discount may be taken off. Items flagged not
+  // discountable stand outside it entirely: a percentage is charged on this
+  // figure, not on the gross, and a fixed amount is capped by it — so a 10%
+  // discount on ৳1000 discountable plus ৳500 that is not comes to ৳100.
+  // PosSalesService applies the identical rule, so the counter's figure and the
+  // one the server stores are the same number.
+  const discountableGross = r2(
+    cart
+      .filter((c) => c.isDiscountApplicable !== false)
+      .reduce((s, c) => s + itemSubtotal(c) + itemVat(c), 0),
+  );
+  const hasNonDiscountable = cart.some((c) => c.isDiscountApplicable === false);
+
   const discVal = parseFloat(discountValue) || 0;
   const rawDiscount =
     discountType === "percentage"
-      ? r2(grossAmount * discVal / 100)
+      ? r2(discountableGross * discVal / 100)
       : r2(discVal);
-  // Clamp: never exceed gross
-  const discountAmount = Math.min(rawDiscount, grossAmount);
+  // Clamp: never exceed what may be discounted.
+  const discountAmount = Math.min(rawDiscount, discountableGross);
 
   // Charged to the whole taka — the server rounds the figure it stores the same
   // way, so what is shown here, what is taken at the counter and what lands on
@@ -350,14 +366,13 @@ export default function PosPage() {
   // Discount input validation hint
   const discountExceedsTotal =
     discountType === "fixed"
-      ? discVal > grossAmount && grossAmount > 0
+      ? discVal > discountableGross && discountableGross > 0
       : discVal > 100;
 
   // Clear the active billing terminal back to a blank, ready state.
   const resetWorkspace = () => {
     setCart([]);
     setPaidAmount("");
-    setServedBy("");
     setPayMode("Cash");
     setBankId("");
     setDiscountType("fixed");
@@ -374,7 +389,6 @@ export default function PosPage() {
       id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       heldAt: new Date().toISOString(),
       cart,
-      servedBy,
       payMode,
       bankId,
       discountType,
@@ -399,7 +413,6 @@ export default function PosPage() {
           id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
           heldAt: new Date().toISOString(),
           cart,
-          servedBy,
           payMode,
           bankId,
           discountType,
@@ -412,7 +425,6 @@ export default function PosPage() {
       return remaining;
     });
     setCart(held.cart);
-    setServedBy(held.servedBy);
     setPayMode(held.payMode ?? "Cash");
     setBankId(held.bankId ?? "");
     setDiscountType(held.discountType);
@@ -447,7 +459,6 @@ export default function PosPage() {
       items,
       paidAmount: paid,
       clientSavedAt: at.toISOString(),
-      servedBy: servedBy || undefined,
       salesType: payMode,
       bankId: payMode === "Card" ? (bankId || undefined) : undefined,
       branchId: user.branchId || undefined,
@@ -457,8 +468,11 @@ export default function PosPage() {
       discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
       guestName: guestName.trim() || undefined,
       display: {
-        dateTime: at.toLocaleString(),
-        servedBy: servedBy || user.name || user.userName,
+        // DD-MMM-YYYY h:mm AM, never the terminal's own locale format.
+        dateTime: formatDateTime(at),
+        // Whoever is signed in served the sale — the same name the server will
+        // stamp on it when this order syncs.
+        servedBy: user.name || user.userName,
         branch: branch
           ? {
               name: branch.branchName,
@@ -520,7 +534,6 @@ export default function PosPage() {
       const sale = await posSalesApi.create({
         items: cart.map((c) => ({ itemId: c.itemId, qty: c.qty })),
         paidAmount: paid,
-        servedBy: servedBy || undefined,
         salesType: payMode,
         bankId: payMode === "Card" ? (bankId || undefined) : undefined,
         branchId: user?.branchId || undefined,
@@ -645,9 +658,6 @@ export default function PosPage() {
                       <div className="text-sm font-bold text-gray-800 mt-0.5">
                         ৳{fmt(heldOrderGross(h))}
                       </div>
-                      {h.servedBy && (
-                        <div className="text-[10px] text-gray-500 truncate">{h.servedBy}</div>
-                      )}
                       <div className="text-[10px] text-primary-700 mt-1 font-medium">
                         Tap to resume →
                       </div>
@@ -798,7 +808,19 @@ export default function PosPage() {
                 {cart.map((c) => (
                   <div key={c.itemId} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {c.name}
+                        {/* Called out on the line itself: a customer asking why
+                            the discount looks short is pointing at this row. */}
+                        {c.isDiscountApplicable === false && (
+                          <span
+                            title="No discount applies to this item"
+                            className="ml-1.5 align-middle text-[10px] font-medium text-amber-700 bg-amber-50 rounded px-1.5 py-0.5"
+                          >
+                            NO DISC
+                          </span>
+                        )}
+                      </p>
                       <button
                         onClick={() => removeFromCart(c.itemId)}
                         className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
@@ -921,12 +943,21 @@ export default function PosPage() {
                   <p className="text-xs text-red-500 mt-1">
                     {discountType === "percentage"
                       ? "Percentage cannot exceed 100%"
-                      : "Discount cannot exceed total"}
+                      : hasNonDiscountable
+                        ? `Discount cannot exceed the discountable total (৳${fmt(discountableGross)})`
+                        : "Discount cannot exceed total"}
                   </p>
                 )}
                 {discountAmount > 0 && !discountExceedsTotal && (
                   <p className="text-xs text-green-600 mt-1">
                     −৳{fmt(discountAmount)} applied
+                  </p>
+                )}
+                {/* Says why the figure is smaller than the bill would suggest,
+                    at the moment the cashier is looking at the discount. */}
+                {hasNonDiscountable && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Charged on ৳{fmt(discountableGross)} — this bill has items that are not discountable.
                   </p>
                 )}
 
@@ -996,13 +1027,6 @@ export default function PosPage() {
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Walk-in name (optional)"
-            />
-
-            <Input
-              label="Served By"
-              value={servedBy}
-              onChange={(e) => setServedBy(e.target.value)}
-              placeholder="Staff name (optional)"
             />
 
             <Input

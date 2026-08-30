@@ -21,10 +21,17 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
  *
  *  Rendered in local time, not UTC: the same value is used for plain dates and
  *  for created/updated timestamps, and pulling a late-evening timestamp back to
- *  UTC would print it as the day before. */
+ *  UTC would print it as the day before.
+ *
+ *  A bare `YYYY-MM-DD` — what every date input and date filter holds — is read
+ *  as the calendar date it says, NOT as UTC midnight. `new Date("2026-08-29")`
+ *  is UTC, so anywhere west of Greenwich it would print 28-Aug-2026. */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = new Date(date);
+  const plain = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const d = plain
+    ? new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)))
+    : new Date(date);
   if (isNaN(d.getTime())) return "-";
   return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }

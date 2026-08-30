@@ -98,8 +98,12 @@ export default function CreditSalePage() {
   // customer's order number or terms.
   useEffect(() => {
     setPoNo("");
-    // The discount rate came off that dropped order, so it goes with it.
-    setDiscountPercent("0");
+    // The discount rate came off that dropped order, so it goes with it — and
+    // is replaced by the new customer's standing rate, agreed when they were
+    // registered. It is only a starting point: the operator can type over it,
+    // and picking a PO below replaces it with that order's agreed rate.
+    const customer = customers.find((c) => c.id === customerId);
+    setDiscountPercent(String(Number(customer?.defaultDiscount ?? 0) || 0));
     if (!customerId) {
       setOrders([]);
       return;
@@ -116,9 +120,16 @@ export default function CreditSalePage() {
       .finally(() => { if (!stale) setOrdersLoading(false); });
     // A slow response for the previous customer must not land on the new one.
     return () => { stale = true; };
+    // Deliberately keyed on the customer alone: `customers` is only read to look
+    // up the standing discount, and re-running when that list refreshes would
+    // overwrite a rate the operator had already typed over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
+  /** The picked customer's standing discount rate — what the field above opens
+   *  at, and what the note under it compares the current rate against. */
+  const customerDefaultDiscount = Number(selectedCustomer?.defaultDiscount ?? 0) || 0;
 
   const orderOptions = orders
     .filter((o) => !!o.serialNo)
@@ -218,8 +229,22 @@ export default function CreditSalePage() {
   // same basis the order form uses, so billing an order at its rate lands on
   // exactly the order's total. `totalDiscount` stored on the invoice is both.
   const grossAmount = r2(netAmount + totalVat);
+  // The part of the invoice the percent may be charged on. An item flagged not
+  // discountable in Item Entry stands outside the invoice discount entirely: it
+  // is billed in full and its value is left out of this base, so 10% on ৳1000
+  // discountable plus ৳500 that is not comes to ৳100. SalesService apportions
+  // the same way, giving those lines a zero share.
+  const nonDiscountable = new Set(
+    availableItems.filter((a) => a.isDiscountApplicable === false).map((a) => a.id),
+  );
+  const hasNonDiscountable = items.some((i) => nonDiscountable.has(i.itemId));
+  const discountableGross = r2(
+    items
+      .filter((i) => !nonDiscountable.has(i.itemId))
+      .reduce((s, i) => s + i.total + i.vat, 0),
+  );
   const discPct = Math.min(Math.max(parseFloat(discountPercent || "0") || 0, 0), 100);
-  const invoiceDiscount = r2((grossAmount * discPct) / 100);
+  const invoiceDiscount = r2((discountableGross * discPct) / 100);
   const totalDiscount = r2(lineDiscount + invoiceDiscount);
   // Charged to the whole taka, the same as a POS bill — the invoice, the customer
   // ledger and the statement all round this figure, so they agree on what is owed.
@@ -393,7 +418,8 @@ export default function CreditSalePage() {
               </div>
               {/* Whole-invoice discount, taken off the VAT-inclusive gross so an
                   invoice raised against an order at that order's rate totals the
-                  same as the order. Picking a PO seeds this; it stays editable. */}
+                  same as the order. The customer's standing rate seeds this, a
+                  picked PO replaces it — either way it stays editable. */}
               <div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Gross Amount</span>
@@ -411,11 +437,27 @@ export default function CreditSalePage() {
                     className="w-24 text-right border border-sage-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
                   />
                 </div>
+                {/* Says where the rate on screen came from, so an operator can
+                    tell a standing customer rate from one typed for this bill. */}
+                {customerDefaultDiscount > 0 && (
+                  <p className="text-xs text-gray-400 text-right">
+                    {discPct === customerDefaultDiscount
+                      ? `${selectedCustomer?.name ?? "Customer"}'s default rate`
+                      : `Default for this customer: ${customerDefaultDiscount}%`}
+                  </p>
+                )}
                 {invoiceDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Discount ({discPct}%)</span>
                     <span className="font-medium text-red-600">- ৳ {formatCurrency(invoiceDiscount)}</span>
                   </div>
+                )}
+                {/* Says why the figure is smaller than the gross would suggest,
+                    beside the rate it is charged at. */}
+                {hasNonDiscountable && (
+                  <p className="text-xs text-amber-600 text-right">
+                    Charged on ৳ {formatCurrency(discountableGross)} — this invoice has items that are not discountable.
+                  </p>
                 )}
               </div>
               {rounding !== 0 && (

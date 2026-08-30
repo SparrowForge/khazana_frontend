@@ -36,6 +36,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/inventory/uom", "UOM"],
   ["/inventory/items", "Items"],
   ["/inventory/receive", "StockReceive"],
+  ["/inventory/item-issue", "ItemIssue"],
   ["/inventory/issue", "StockIssue"],
   ["/inventory/transfer", "StockTransfer"],
   ["/inventory/adjustment", "StockAdjustment"],

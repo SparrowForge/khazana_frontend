@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/api";
 import { createCustomer, type Customer } from "@/app/customers/server";
 
-const emptyForm = { name: "", mobile: "", email: "", address: "" };
+const emptyForm = { name: "", mobile: "", email: "", address: "", defaultDiscount: "0" };
 
 interface Props {
   open: boolean;
@@ -38,6 +38,9 @@ export default function CustomerQuickAddModal({ open, onClose, onCreated }: Prop
         mobile: form.mobile.trim(),
         email: form.email.trim() || undefined,
         address: form.address.trim() || undefined,
+        // Standing discount for this customer — the invoice this modal was
+        // opened from picks it up as soon as the new customer is selected.
+        defaultDiscount: Math.min(Math.max(parseFloat(form.defaultDiscount || "0") || 0, 0), 100),
       });
       toast.success(`${form.name.trim()} added`);
       onClose();
@@ -61,6 +64,9 @@ export default function CustomerQuickAddModal({ open, onClose, onCreated }: Prop
           onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Input label="Address" value={form.address} className="col-span-2"
           onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        <Input label="Default Discount (%)" type="number" min={0} max={100} step="0.01"
+          value={form.defaultDiscount}
+          onChange={(e) => setForm({ ...form, defaultDiscount: e.target.value })} />
       </div>
       <div className="flex justify-end gap-3 mt-6">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>

@@ -14,6 +14,9 @@ export interface Item {
   imageId?: string | null;
   image?: import("@/lib/upload").MediaFile | null;
   isActive?: string;
+  /** Whether a document discount may be taken off this item. False bills it in
+   *  full AND removes its value from the base the discount is charged on. */
+  isDiscountApplicable?: boolean;
   /** Current active selling price and its VAT rate, flattened onto the row by
    *  the list endpoint (0 when the item has never been priced). */
   price?: number;
@@ -29,6 +32,7 @@ export interface ItemPayload {
   itmRemarks?: string;
   imageId?: string;
   isActive?: string;
+  isDiscountApplicable?: boolean;
 }
 
 export const fetchItems = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Item>> =>

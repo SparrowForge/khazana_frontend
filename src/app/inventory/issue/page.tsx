@@ -1,62 +1,25 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
-import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import StockIssueForm from "@/components/inventory/StockIssueForm";
+import StockIssueChallanReport from "@/components/inventory/StockIssueChallanReport";
+import { useIssueChallan } from "@/components/inventory/useIssueChallan";
 import {
-  fetchItems, fetchBranches, fetchIssues, fetchIssue, issueStock, updateIssue, deleteIssue,
-  type AvailableItem, type BranchOption, type IssueRecord, type IssueGroup,
+  fetchIssues, fetchIssue, deleteIssue,
+  type IssueRecord, type IssueGroup,
 } from "./server";
-import { fetchSettings, type Settings } from "@/app/admin/settings/server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuthStore } from "@/store/auth.store";
-import { isFactoryBranch } from "@/lib/branch";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Plus, Trash2, Edit2, Eye, Printer } from "lucide-react";
-import { type ExportColumn } from "@/lib/export/reportExport";
-import {
-  previewDeliveryChallan,
-  printDeliveryChallan,
-  challanItemName,
-  sortChallanLines,
-  type DeliveryChallanData,
-  type DeliveryChallanLine,
-} from "@/lib/export/deliveryChallanDocument";
-
-/** What the user typed against one item in the entry grid. The grid lists the
- *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
- *  only rows with qty > 0 are ever sent. */
-interface ItemEntry { qty: string; isProduction: boolean; }
-
-const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false };
-
-/** A challan line, numbered. `Received Qty` and `Remarks` stay blank on every
- *  output — they are there for the receiving outlet to write in by hand. */
-interface ChallanRow extends DeliveryChallanLine { sl: number; }
-
-/** Sorted and numbered exactly as {@link previewDeliveryChallan} renders them,
- *  so the on-screen table, the printed sheet and the spreadsheet agree row for row. */
-const challanRows = (lines: DeliveryChallanLine[]): ChallanRow[] =>
-  sortChallanLines(lines).map((l, i) => ({ ...l, sl: i + 1 }));
-
-// One spec behind the PDF and Excel exports; the printed/preview challan is
-// rendered by deliveryChallanDocument from the same rows.
-const challanColumns: ExportColumn<ChallanRow>[] = [
-  { header: "SL No", value: (r) => r.sl, numeric: true },
-  { header: "Item Of Name", value: (r) => challanItemName(r), width: 34 },
-  { header: "Delivery", value: (r) => r.qty, numeric: true },
-  { header: "Received Qty", value: () => "", width: 14 },
-  { header: "Remarks", value: () => "", width: 22 },
-];
+import { Plus, Trash2, Edit2 } from "lucide-react";
 
 const getDefaultDateRange = () => {
   const today = new Date();
@@ -83,52 +46,15 @@ export default function StockIssuePage() {
   const [filterBranchId, setFilterBranchId] = useState("");
 
   const [modal, setModal] = useState(false);
-  const [editingSerial, setEditingSerial] = useState<string | null>(null);
+  /** The document the dialog is editing; null while writing a new one. */
+  const [editing, setEditing] = useState<IssueGroup | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<IssueGroup | null>(null);
-  const [serialNo, setSerialNo] = useState("");
-  const [voucherNo, setVoucherNo] = useState("");
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
-  // Issuing branch is always the session branch and is not editable — an issue
-  // can only send stock out of the branch the user is logged in at.
-  const sessionUser = useAuthStore((st) => st.user);
-  const issueBranchId = sessionUser?.branchId ?? "";
-  const isFactorySession = isFactoryBranch(sessionUser);
-  const [receiveBranchId, setReceiveBranchId] = useState("");
-  /** Keyed by item id. Absent = untouched, which is the same as qty 0. */
-  const [entries, setEntries] = useState<Record<string, ItemEntry>>({});
-  const [itemSearch, setItemSearch] = useState("");
-  const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
-  const [branches, setBranches] = useState<BranchOption[]>([]);
-  /** Letterhead for the printed challan — company name and address. */
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  /** Qty per item as the document being edited was saved. Editing is
-   *  purge-and-replace — the stock it already took out comes back to it — so
-   *  current on-hand plus this is what the form may commit. Empty when creating. */
-  const [heldStock, setHeldStock] = useState<Record<string, number>>({});
 
-  const branchName = (id?: string) => branches.find((b) => b.id === id)?.branchName ?? "-";
-  const branchAddress = (id?: string) => branches.find((b) => b.id === id)?.address || undefined;
-
-  /** On-hand qty an issue may still draw on for an item. An issue can't drive
-   *  Inventory negative, so this is the ceiling — the server enforces it again. */
-  const availableFor = (itemId: string) =>
-    (availableItems.find((it) => it.id === itemId)?.stock ?? 0) + (heldStock[itemId] ?? 0);
-
-  /** Lines asking for more than is available, summed per item so the same item
-   *  entered on two lines is measured against one balance. */
-  const stockShortages = (rows: { itemId: string; qty: number }[]) => {
-    const wanted: Record<string, number> = {};
-    for (const r of rows) wanted[r.itemId] = (wanted[r.itemId] ?? 0) + r.qty;
-    return Object.entries(wanted)
-      .map(([itemId, qty]) => {
-        const meta = availableItems.find((it) => it.id === itemId);
-        return { name: meta?.itmName || meta?.itmCode || itemId, qty, available: availableFor(itemId) };
-      })
-      .filter((r) => r.qty > r.available);
-  };
+  // Branch names, the letterhead and the challan builder — shared with the
+  // entry form and the full-page Item Issue screen.
+  const { branches, branchName, savedChallan } = useIssueChallan();
 
   const loadList = () => {
     setListLoading(true);
@@ -138,147 +64,24 @@ export default function StockIssuePage() {
       .finally(() => setListLoading(false));
   };
 
-  useEffect(() => {
-    fetchItems().then(setAvailableItems).catch(() => {});
-    fetchBranches().then(setBranches).catch(() => {});
-    // Letterhead only — a failure here still leaves a printable challan, just
-    // with the fallback company name.
-    fetchSettings().then(setSettings).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   useEffect(loadList, [page, limit, refreshKey, setMeta, fromDate, toDate, filterBranchId]);
 
-  const entryFor = (itemId: string) => entries[itemId] ?? BLANK_ENTRY;
-
-  const setEntry = (itemId: string, patch: Partial<ItemEntry>) =>
-    setEntries((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] ?? BLANK_ENTRY), ...patch } }));
-
-  /** The lines that will actually be saved: qty > 0, in catalogue order. A
-   *  production tick on a zero-qty row is ignored rather than rejected — the
-   *  user simply hasn't filled that row in. */
-  const validLines = useMemo(
-    () =>
-      availableItems
-        .map((it) => ({ item: it, entry: entries[it.id] }))
-        .filter(({ entry }) => parseFloat(entry?.qty ?? "") > 0)
-        .map(({ item, entry }) => ({
-          itemId: item.id,
-          qty: parseFloat(entry!.qty),
-          unitPrice: Number(item.price ?? 0),
-          // Only the factory may produce, so the flag can never leave a shop
-          // session even if a stale checkbox state survived a branch switch.
-          isProduction: isFactorySession && entry!.isProduction,
-        })),
-    [availableItems, entries, isFactorySession],
-  );
-
-  /** Every branch except the one issuing — a document that sends stock to the
-   *  branch it came from is meaningless. A legacy record whose receiving branch
-   *  IS the issuing branch keeps its value listed, so opening it for edit shows
-   *  what was saved instead of silently blanking the field. */
-  const receiveBranchOptions = useMemo(
-    () =>
-      branches
-        .filter((b) => b.id !== issueBranchId || b.id === receiveBranchId)
-        .map((b) => ({ value: b.id, label: b.branchName })),
-    [branches, issueBranchId, receiveBranchId],
-  );
-
-  /** Items the production flag can apply to at all: a tick on a zero-qty row is
-   *  never sent, so those rows are neither counted nor toggled by Check All. */
-  const productionEligible = useMemo(
-    () => availableItems.filter((it) => parseFloat(entries[it.id]?.qty ?? "") > 0),
-    [availableItems, entries],
-  );
-  const checkedCount = productionEligible.filter((it) => entries[it.id]?.isProduction).length;
-  const allChecked = productionEligible.length > 0 && checkedCount === productionEligible.length;
-
-  /** Tick every item that has a quantity, or clear them all when they already
-   *  are. Rows with no quantity are left alone — checking them would set a flag
-   *  the save then silently drops. */
-  const toggleAllProduction = () => {
-    const next = !allChecked;
-    setEntries((prev) => {
-      const draft = { ...prev };
-      for (const it of productionEligible) {
-        draft[it.id] = { ...(draft[it.id] ?? BLANK_ENTRY), isProduction: next };
-      }
-      return draft;
-    });
-  };
-
-  /** Part-ticked reads as a dash rather than a misleading empty box; the DOM
-   *  property has no JSX attribute, so it has to be set on the node. */
-  const checkAllRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (checkAllRef.current) {
-      checkAllRef.current.indeterminate = checkedCount > 0 && !allChecked;
-    }
-  }, [checkedCount, allChecked]);
-
-  /** The grid shows every item; a catalogue of any size needs a filter. Rows
-   *  already carrying a qty stay visible so a search can't hide pending input. */
-  const visibleItems = useMemo(() => {
-    const q = itemSearch.trim().toLowerCase();
-    if (!q) return availableItems;
-    return availableItems.filter(
-      (it) =>
-        parseFloat(entries[it.id]?.qty ?? "") > 0 ||
-        it.itmCode?.toLowerCase().includes(q) ||
-        it.itmName?.toLowerCase().includes(q),
-    );
-  }, [availableItems, entries, itemSearch]);
-
-  const openCreate = () => {
-    setEditingSerial(null);
-    setHeldStock({});
-    setSerialNo("");
-    setVoucherNo("");
-    setIssueDate(new Date().toISOString().split("T")[0]);
-    setReceiveBranchId("");
-    setEntries({});
-    setItemSearch("");
-    setModal(true);
-  };
+  const openCreate = () => { setEditing(null); setModal(true); };
 
   const openEdit = async (record: IssueRecord) => {
     try {
-      const full = await fetchIssue(record.serialNo);
-      setEditingSerial(full.serialNo);
-      setSerialNo(full.serialNo);
-      setVoucherNo(full.voucherNo ?? "");
-      setIssueDate(full.issueDate ? full.issueDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-      setReceiveBranchId(full.receiveBranchId ?? "");
-      setItemSearch("");
-      // Repeated lines of one item collapse into the grid's single row for it,
-      // the same way the server sums them against one balance.
-      setEntries(
-        full.items.reduce<Record<string, ItemEntry>>((acc, it) => {
-          const previous = parseFloat(acc[it.itemId]?.qty ?? "0") || 0;
-          acc[it.itemId] = {
-            qty: String(previous + Number(it.qty ?? 0)),
-            isProduction: acc[it.itemId]?.isProduction || !!it.isProduction,
-          };
-          return acc;
-        }, {}),
-      );
-      setHeldStock(
-        full.items.reduce<Record<string, number>>((acc, it) => {
-          acc[it.itemId] = (acc[it.itemId] ?? 0) + Number(it.qty ?? 0);
-          return acc;
-        }, {}),
-      );
+      setEditing(await fetchIssue(record.serialNo));
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load issue record")); }
   };
 
-  const openReport = async (record: IssueRecord) => {
+  const openReport = async (serialNo: string) => {
+    if (!serialNo) return;
     setReport(null);
     setReportOpen(true);
     setReportLoading(true);
     try {
-      const full = await fetchIssue(record.serialNo);
-      setReport(full);
+      setReport(await fetchIssue(serialNo));
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load issue report"));
       setReportOpen(false);
@@ -296,106 +99,13 @@ export default function StockIssuePage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
   };
 
-  const handleSubmit = async () => {
-    if (!issueBranchId) { toast.error("No branch on this session — sign in again"); return; }
-    if (!receiveBranchId) { toast.error("Select the receiving branch"); return; }
-    // Every quantity zero or blank is the same as an empty submission: nothing
-    // to issue, so there is no document to write.
-    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
-    // Production lines are exempt: the same quantity is added to stock before
-    // the issue takes it out, so they can never come up short. The server
-    // applies the identical rule in InventoryService#stockCheckedLines.
-    const short = stockShortages(validLines.filter((l) => !l.isProduction));
-    if (short.length) {
-      toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const payload = { voucherNo, issueDate, issueBranchId, receiveBranchId, items: validLines };
-      let serial = editingSerial ?? "";
-      if (editingSerial) {
-        await updateIssue(editingSerial, payload);
-        toast.success("Stock issue updated");
-      } else {
-        // The create endpoint returns the written Item_Issue rows; every line of
-        // one document shares the serial, so the first row carries it.
-        const rows = (await issueStock(payload)) as { serialNo?: string }[] | undefined;
-        toast.success("Stock issue saved");
-        serial = rows?.[0]?.serialNo ?? "";
-      }
-      setModal(false);
-      loadList();
-      // Straight to the Delivery Challan the outlet has to be sent with.
-      if (serial) {
-        setReport(null);
-        setReportOpen(true);
-        setReportLoading(true);
-        try {
-          setReport(await fetchIssue(serial));
-        } catch (err) {
-          toast.error(getErrorMessage(err, "Failed to load the challan"));
-          setReportOpen(false);
-        } finally {
-          setReportLoading(false);
-        }
-      }
-    } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingSerial ? "update" : "save"}`)); } finally { setSubmitting(false); }
+  /** Saved from the dialog: close it, refresh the list and go straight to the
+   *  Delivery Challan the outlet has to be sent with. */
+  const handleSaved = (serialNo: string) => {
+    setModal(false);
+    loadList();
+    openReport(serialNo);
   };
-
-  /** The Delivery Challan header, from whichever document is on screen. The
-   *  challan shows both the issuing branch (From) and receiving outlet (To). */
-  const buildChallan = (opts: {
-    challanNo: string;
-    issueDate: string | Date;
-    issueBranchId?: string;
-    receiveBranchId?: string;
-    items: DeliveryChallanLine[];
-  }): DeliveryChallanData => ({
-    companyName: settings?.companyName || "Khazana Mithai",
-    companyAddress: settings?.companyAddress || undefined,
-    fromBranchName: branchName(opts.issueBranchId),
-    // The challan is the ISSUING branch's document, so its address heads it.
-    letterheadAddress: branchAddress(opts.issueBranchId),
-    toBranchName: branchName(opts.receiveBranchId),
-    challanNo: opts.challanNo,
-    issueDate: opts.issueDate,
-    preparedBy: sessionUser?.name || sessionUser?.userName || undefined,
-    items: opts.items,
-  });
-
-  /** Challan lines for the document being typed. Nothing is saved yet, so the
-   *  name and unit come off the catalogue row rather than the issue record. */
-  const draftChallanLines = (): DeliveryChallanLine[] =>
-    validLines.map((l) => {
-      const item = availableItems.find((it) => it.id === l.itemId);
-      return { itemName: item?.itmName || item?.itmCode || "-", uom: item?.itmUOM, qty: l.qty };
-    });
-
-  const handlePreview = () => {
-    if (!validLines.length) { toast.error("Enter a quantity on at least one item to preview"); return; }
-    previewDeliveryChallan(
-      buildChallan({
-        // A challan number is the voucher the outlet quotes back; an unsaved
-        // document has neither, so the field prints blank rather than "New".
-        challanNo: voucherNo || editingSerial || "",
-        issueDate,
-        issueBranchId,
-        receiveBranchId,
-        items: draftChallanLines(),
-      }),
-    );
-  };
-
-  /** The saved document's challan — same builder, lines straight off the record. */
-  const savedChallan = (doc: IssueGroup): DeliveryChallanData =>
-    buildChallan({
-      challanNo: doc.voucherNo || doc.serialNo,
-      issueDate: doc.issueDate ?? "",
-      issueBranchId: doc.issueBranchId,
-      receiveBranchId: doc.receiveBranchId,
-      items: doc.items.map((it) => ({ itemName: it.itemName ?? "-", uom: it.uom, qty: Number(it.qty ?? 0) })),
-    });
 
   return (
     <AppLayout>
@@ -431,7 +141,7 @@ export default function StockIssuePage() {
           {
             key: "serialNo", header: "Serial No",
             render: (r) => r.serialNo ? (
-              <button onClick={() => openReport(r)} className="text-primary-800 hover:underline font-medium">
+              <button onClick={() => openReport(r.serialNo)} className="text-primary-800 hover:underline font-medium">
                 {r.serialNo}
               </button>
             ) : "-",
@@ -460,199 +170,22 @@ export default function StockIssuePage() {
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editingSerial ? "Edit Stock Issue" : "New Issue"} size="lg">
-        <div className="grid grid-cols-2 gap-4 mb-5">
-          {editingSerial && <Input label="Serial No" value={serialNo} disabled readOnly />}
-          <Input label="Voucher No" value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
-          <Input label="Date" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
-          {/* Fixed to the session branch: an issue can only send stock out of
-              the branch the user is logged in at, so there is nothing to pick. */}
-          <Input label="Issuing Branch" value={branchName(issueBranchId)} disabled readOnly />
-          {/* The issuing branch is dropped from the list — stock cannot be
-              issued to the branch it is leaving. */}
-          <Select label="Issued To Branch" value={receiveBranchId} onChange={(e) => setReceiveBranchId(e.target.value)}
-            placeholder="Select branch..." options={receiveBranchOptions} />
-        </div>
-
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <Input
-            placeholder="Search items by code or name..."
-            value={itemSearch}
-            onChange={(e) => setItemSearch(e.target.value)}
-            className="w-72"
-          />
-          <div className="text-sm text-gray-500">
-            {validLines.length} item{validLines.length === 1 ? "" : "s"} to issue
-            {isFactorySession && validLines.some((l) => l.isProduction)
-              ? ` · ${validLines.filter((l) => l.isProduction).length} to production`
-              : ""}
-          </div>
-        </div>
-
-        {/* The whole catalogue, with the quantity typed inline. Scrolls rather
-            than paginates so a part-filled sheet is never split across pages. */}
-        <div className="border border-sage-300 rounded-lg overflow-auto max-h-[45vh]">
-          <table className="w-full text-sm">
-            <thead className="bg-sage-100 sticky top-0 z-10">
-              <tr className="text-left text-gray-600">
-                <th className="px-3 py-2 font-medium">Item ID</th>
-                <th className="px-3 py-2 font-medium">Item Name</th>
-                <th className="px-3 py-2 font-medium text-right">Available</th>
-                <th className="px-3 py-2 font-medium text-right w-32">Issue Qty</th>
-                {isFactorySession && (
-                  <th className="px-3 py-2 font-medium text-center w-32">
-                    <label className="flex items-center justify-center gap-1.5 cursor-pointer select-none">
-                      <input
-                        ref={checkAllRef}
-                        type="checkbox"
-                        checked={allChecked}
-                        // Nothing to check until at least one quantity is typed.
-                        disabled={productionEligible.length === 0}
-                        onChange={toggleAllProduction}
-                        className="h-4 w-4 accent-amber-600 disabled:opacity-30"
-                        title="Check every item that has an issue quantity"
-                      />
-                      <span>Is Production</span>
-                    </label>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleItems.map((it) => {
-                const entry = entryFor(it.id);
-                const qty = parseFloat(entry.qty) || 0;
-                const available = availableFor(it.id);
-                // Only a plain line can over-issue; a production line supplies
-                // its own quantity, so it is never flagged red.
-                const over = qty > available && !entry.isProduction;
-                return (
-                  <tr
-                    key={it.id}
-                    className={`border-t border-sage-200 ${
-                      // Production-selected rows are called out; an over-issue
-                      // outranks that, since it blocks the save.
-                      over ? "bg-red-50" : entry.isProduction && qty > 0 ? "bg-amber-50" : qty > 0 ? "bg-primary-50/40" : ""
-                    }`}
-                  >
-                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
-                    <td className="px-3 py-1.5">{it.itmName}</td>
-                    <td className={`px-3 py-1.5 text-right ${available <= 0 ? "text-gray-400" : ""}`}>{available}</td>
-                    <td className="px-3 py-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={entry.qty}
-                        placeholder="0"
-                        onChange={(e) => setEntry(it.id, { qty: e.target.value })}
-                        className={`w-full border rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 ${
-                          over ? "border-red-400 focus:ring-red-400" : "border-sage-400 focus:ring-primary-800"
-                        }`}
-                      />
-                    </td>
-                    {isFactorySession && (
-                      <td className="px-3 py-1.5 text-center">
-                        {/* Disabled without a quantity: the line would not be
-                            sent at all, so do not invite the tick. */}
-                        <input
-                          type="checkbox"
-                          checked={entry.isProduction}
-                          disabled={qty <= 0}
-                          onChange={(e) => setEntry(it.id, { isProduction: e.target.checked })}
-                          className="h-4 w-4 accent-amber-600 disabled:opacity-30"
-                        />
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {visibleItems.length === 0 && (
-                <tr>
-                  <td colSpan={isFactorySession ? 5 : 4} className="px-3 py-6 text-center text-gray-400">
-                    No items match that search.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {isFactorySession && (
-          <p className="mt-2 text-xs text-gray-500">
-            Ticking <span className="font-medium text-amber-700">Is Production</span> also records the line in Production
-            Entry, which adds that quantity back to stock - use it for goods this document both manufactured and shipped.
-          </p>
-        )}
-
-        <div className="flex justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-          <Button variant="secondary" onClick={handlePreview} disabled={!validLines.length}>
-            <Eye size={14} /> Preview
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            loading={submitting}
-            disabled={!validLines.length || !receiveBranchId}
-          >
-            {editingSerial ? "Update Stock Issue" : "Save Stock Issue"}
-          </Button>
-        </div>
+      {/* The same entry form the full-page Item Issue screen runs, laid out for
+          a dialog. Rendered only while open, so it reads current stock each time. */}
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Stock Issue" : "New Issue"} size="lg">
+        <StockIssueForm
+          variant="modal"
+          document={editing}
+          onCancel={() => setModal(false)}
+          onSaved={handleSaved}
+        />
       </Modal>
 
       <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Stock Issue Report" size="lg">
         {reportLoading || !report ? (
           <div className="text-sm text-gray-400 py-6 text-center">Loading...</div>
         ) : (
-          (() => {
-            const challan = savedChallan(report);
-            const challanRowsData = challanRows(challan.items);
-            const totalQty = challanRowsData.reduce((sum, r) => sum + r.qty, 0);
-            return (
-              <>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
-                  <div><span className="text-gray-500">Serial No:</span> <span className="font-medium">{report.serialNo}</span></div>
-                  <div><span className="text-gray-500">Challan No:</span> <span className="font-medium">{challan.challanNo || "-"}</span></div>
-                  <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.issueDate)}</span></div>
-                  <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{branchName(report.issueBranchId)}</span></div>
-                  <div><span className="text-gray-500">To Branch:</span> <span className="font-medium">{branchName(report.receiveBranchId)}</span></div>
-                </div>
-
-                <div className="mb-3 flex justify-end gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => previewDeliveryChallan(challan)}>
-                    <Eye size={14} /> Preview
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => printDeliveryChallan(challan)}>
-                    <Printer size={14} /> Print
-                  </Button>
-                  <ReportExportButtons
-                    rows={challanRowsData}
-                    columns={challanColumns}
-                    meta={{
-                      title: "Delivery Challan",
-                      subtitle: [challan.toBranchName, `Challan No: ${challan.challanNo || "-"}`, `Date: ${formatDate(report.issueDate)}`].join(" · "),
-                      footer: ["", "", totalQty.toFixed(2), "", ""],
-                    }}
-                    showPrint={false}
-                  />
-                </div>
-
-                <Table
-                  data={challanRowsData.map((r) => ({ id: r.sl, ...r }))}
-                  columns={[
-                    { key: "sl", header: "SL No", className: "text-center w-16" },
-                    { key: "itemName", header: "Item Of Name", render: (r) => challanItemName(r) },
-                    { key: "qty", header: "Delivery", className: "text-right", render: (r) => r.qty.toFixed(2) },
-                    { key: "received", header: "Received Qty", render: () => "" },
-                    { key: "remarks", header: "Remarks", render: () => "" },
-                  ]}
-                />
-                <div className="mt-2 pr-4 text-right text-sm font-semibold text-gray-700">
-                  Total Delivery: {totalQty.toFixed(2)}
-                </div>
-              </>
-            );
-          })()
+          <StockIssueChallanReport challan={savedChallan(report)} serialNo={report.serialNo} />
         )}
       </Modal>
     </AppLayout>

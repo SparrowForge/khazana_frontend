@@ -18,13 +18,16 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
-const emptyForm = { code: "", name: "", mobile: "", address: "", email: "" };
+// `defaultDiscount` is held as the raw input string so the field can be cleared
+// while typing; it is parsed to a number on save.
+const emptyForm = { code: "", name: "", mobile: "", address: "", email: "", defaultDiscount: "0" };
 
 const exportColumns: ExportColumn<Customer>[] = [
   { header: "Code", value: (r) => r.code },
   { header: "Name", value: (r) => r.name },
   { header: "Mobile", value: (r) => r.mobile ?? "-" },
   { header: "Address", value: (r) => r.address ?? "-" },
+  { header: "Default Discount (%)", value: (r) => String(Number(r.defaultDiscount ?? 0) || 0) },
 ];
 
 export default function CustomersPage() {
@@ -58,15 +61,18 @@ export default function CustomersPage() {
   }, [refreshKey]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
-  const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "" }); setModal(true); };
+  const openEdit = (c: Customer) => { setEditing(c); setForm({ code: c.code, name: c.name, mobile: c.mobile ?? "", address: c.address ?? "", email: c.email ?? "", defaultDiscount: String(Number(c.defaultDiscount ?? 0) || 0) }); setModal(true); };
 
   const handleSave = async () => {
     // Code is allocated by the backend on create, so it is not asked for here.
     if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
+    // A percent, so it has to be one — the backend rejects anything outside 0-100.
+    const defaultDiscount = Math.min(Math.max(parseFloat(form.defaultDiscount || "0") || 0, 0), 100);
     setSaving(true);
     try {
-      if (editing) await updateCustomer(editing.code, form);
-      else await createCustomer(form);
+      const payload = { ...form, defaultDiscount };
+      if (editing) await updateCustomer(editing.code, payload);
+      else await createCustomer(payload);
       toast.success(editing ? "Updated" : "Created");
       setModal(false); load();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
@@ -105,6 +111,7 @@ export default function CustomersPage() {
           { key: "name", header: "Name" },
           { key: "mobile", header: "Mobile" },
           { key: "address", header: "Address" },
+          { key: "defaultDiscount", header: "Discount %", render: (r) => String(Number(r.defaultDiscount ?? 0) || 0) },
           { key: "actions", header: "", render: (r) => (
             <div className="flex gap-2">
               <Link href={`/customers/${r.id}/ledger`} className="text-green-600 hover:text-green-800"><Eye size={14} /></Link>
@@ -124,6 +131,11 @@ export default function CustomersPage() {
           <Input label="Mobile *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="col-span-2" />
+          {/* Standing discount for this customer. A credit sale raised for them
+              opens at this rate; the operator can still change it per invoice. */}
+          <Input label="Default Discount (%)" type="number" min={0} max={100} step="0.01"
+            value={form.defaultDiscount}
+            onChange={(e) => setForm({ ...form, defaultDiscount: e.target.value })} />
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>

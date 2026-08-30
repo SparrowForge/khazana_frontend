@@ -74,10 +74,12 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Stock View", route: "/inventory", icon: <BarChart2 size={16} />, controlName: "StockView" },
       { label: "Stock Receive", route: "/inventory/receive", icon: <FileText size={16} />, controlName: "StockReceive" },
       { label: "Stock Issue", route: "/inventory/issue", icon: <FileText size={16} />, controlName: "StockIssue" },
+      // The same entry form on a screen of its own, for operators who do nothing
+      // but write issues; Stock Issue above keeps the list, edit and delete.
+      { label: "Item Issue", route: "/inventory/item-issue", icon: <Truck size={16} />, controlName: "ItemIssue" },
       { label: "Stock Transfer", route: "/inventory/transfer", icon: <FileText size={16} />, controlName: "StockTransfer" },
       { label: "Stock Adjustment", route: "/inventory/adjustment", icon: <RefreshCw size={16} />, controlName: "StockAdjustment" },
       { label: "Production Entry", route: "/inventory/production", icon: <Factory size={16} />, controlName: "ProductionEntry", factoryOnly: true },
-      { label: "Challan Entry", route: "/inventory/vehicle-challan", icon: <Truck size={16} />, controlName: "VehicleChallan", factoryOnly: true },
     ],
   },
 
@@ -159,6 +161,10 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       // Same report as Reports > Sales History Summary, under the factory's own
       // menu and permission. The page is a re-export, not a copy.
       { label: "Sales History Report", route: "/factory/sales-history", icon: <BarChart2 size={16} />, controlName: "SalesHistoryReport", factoryOnly: true },
+      // Lives under Factory Report rather than Inventory: it is a despatch
+      // document, not a stock movement — a challan never touches Inventory. The
+      // route is unchanged, so existing links and bookmarks still resolve.
+      { label: "Challan Entry", route: "/inventory/vehicle-challan", icon: <Truck size={16} />, controlName: "VehicleChallan", factoryOnly: true },
     ],
   },
 

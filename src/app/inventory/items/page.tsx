@@ -34,6 +34,9 @@ import toast from "react-hot-toast";
 const emptyForm: ItemPayload = {
   itmCode: "", itmName: "", itmCategory: "", itmType: "",
   itmUOM: "", itmRemarks: "", imageId: "", isActive: "Y",
+  // New items are discountable — that is how every item behaved before the
+  // flag existed, so the default changes nothing for anyone not using it.
+  isDiscountApplicable: true,
 };
 
 export default function ItemsPage() {
@@ -92,6 +95,7 @@ export default function ItemsPage() {
       itmRemarks:  item.itmRemarks  ?? "",
       imageId:     item.imageId     ?? "",
       isActive:    item.isActive    ?? "Y",
+      isDiscountApplicable: item.isDiscountApplicable ?? true,
     });
     // Show existing image from the joined media_files record
     setPreviewUrl(item.image?.fileUrl ?? "");
@@ -254,6 +258,10 @@ export default function ItemsPage() {
           },
           { key: "isActive",    header: "Active" },
           {
+            key: "isDiscountApplicable", header: "Discount",
+            render: (r) => (r.isDiscountApplicable === false ? "No" : "Yes"),
+          },
+          {
             key: "actions", header: "",
             render: (row) => (
               <div className="flex gap-2">
@@ -327,6 +335,25 @@ export default function ItemsPage() {
             onChange={(e) => setForm({ ...form, isActive: e.target.value })}
             options={[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }]}
           />
+
+          {/* Unticked puts the item outside every document discount: it is
+              billed at full price AND its value is left out of the total the
+              discount is charged on. */}
+          <label className="col-span-2 flex items-start gap-2.5 cursor-pointer select-none rounded-md border border-sage-400 bg-white px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={form.isDiscountApplicable ?? true}
+              onChange={(e) => setForm({ ...form, isDiscountApplicable: e.target.checked })}
+              className="mt-0.5 h-4 w-4 accent-primary-700"
+            />
+            <span>
+              <span className="block text-sm font-medium text-primary-900">Discount Applicable</span>
+              <span className="block text-xs text-gray-500">
+                Untick for an item that is never discounted — it is billed in full, and a
+                sale&apos;s discount is charged only on the rest of the bill.
+              </span>
+            </span>
+          </label>
 
           <div className="col-span-2">
             <Textarea

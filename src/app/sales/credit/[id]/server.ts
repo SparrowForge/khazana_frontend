@@ -15,6 +15,9 @@ export interface AvailableItem {
   itmUOM?: string | null;
   /** Joined MediaFile row (the item's picture), for the grid's thumbnails. */
   image?: { fileUrl?: string | null } | null;
+  /** False for an item that is never discounted — billed in full, and its value
+   *  left out of the base the invoice discount is charged on. */
+  isDiscountApplicable?: boolean;
 }
 
 export interface CreditCustomer {

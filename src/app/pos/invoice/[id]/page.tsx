@@ -10,6 +10,8 @@ import {
   type InvoiceFormat,
 } from "@/components/sales/CreditInvoiceDocument";
 import { posSaleToInvoice } from "@/lib/invoice/posInvoice";
+import { useAuthStore } from "@/store/auth.store";
+import { isFactoryBranch } from "@/lib/branch";
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n: number | string) => Number(n).toFixed(2);
@@ -161,12 +163,26 @@ export default function InvoicePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [sale, setSale] = useState<PosSale | null>(null);
-  // The terminal opens this page with ?print=1 straight after a sale, so the
-  // 80mm receipt stays the default — the counter must never have to pick a
-  // format before the customer's copy comes out of the printer.
-  const [format, setFormat] = useState<InvoiceFormat>("thermal");
+  const user = useAuthStore((s) => s.user);
+  /**
+   * The terminal opens this page with ?print=1 straight after a sale, so the
+   * format has to be right before anyone can touch it — the counter must never
+   * have to pick one before the customer's copy comes out of the printer.
+   *
+   * The factory bills on the A4 corporate invoice; a shop till prints the 80mm
+   * receipt. Null until the session is known, because the wrong default would
+   * be printed, not merely displayed.
+   */
+  const [format, setFormat] = useState<InvoiceFormat | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    // Only ever seeds the default: once it is set, a manual switch stands and
+    // a later store update must not pull the format back from under the user.
+    setFormat((chosen) => chosen ?? (isFactoryBranch(user) ? "corporate" : "thermal"));
+  }, [user]);
 
   useEffect(() => {
     posSalesApi
@@ -180,15 +196,17 @@ export default function InvoicePage() {
   // (window.open(`/pos/invoice/${id}?print=1`, "_blank")). Reading from
   // window.location avoids needing a Suspense boundary for useSearchParams.
   useEffect(() => {
-    if (!sale) return;
+    if (!sale || !format) return;
     if (new URLSearchParams(window.location.search).get("print") !== "1") return;
     const t = setTimeout(() => window.print(), 300); // let the document paint first
     return () => clearTimeout(t);
-  }, [sale]);
+  }, [sale, format]);
 
   const handlePrint = () => window.print();
 
-  if (loading) {
+  // Error first: a failed fetch must reach the message below even if the
+  // session never resolved a format.
+  if (!error && (loading || !format)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-gray-400 text-sm">Loading invoice...</div>
@@ -196,7 +214,7 @@ export default function InvoicePage() {
     );
   }
 
-  if (error || !sale) {
+  if (error || !sale || !format) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-sage-100">
         <div className="text-center">

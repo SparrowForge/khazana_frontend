@@ -4,6 +4,7 @@
 // online <Receipt> layout closely enough for a thermal print.
 
 import type { OfflineOrder } from "./offlineStore";
+import { formatDateTime } from "@/lib/utils";
 
 const fmt = (n: number) => Number(n).toFixed(2);
 
@@ -13,6 +14,9 @@ const esc = (s: string) =>
 export function printOfflineReceipt(order: OfflineOrder, win?: Window | null): void {
   if (typeof window === "undefined") return;
   const d = order.display;
+  // The date is formatted here from the ISO `clientSavedAt` rather than printed
+  // out of the display snapshot, so a sale queued before this fix still prints
+  // DD-MMM-YYYY rather than whatever the terminal's own locale produced.
   // Reuse a window pre-opened inside the click gesture (avoids popup blocking);
   // otherwise try to open one now.
   const w = win ?? window.open("", "_blank", "width=360,height=640");
@@ -68,7 +72,7 @@ export function printOfflineReceipt(order: OfflineOrder, win?: Window | null): v
     </div>
     <div class="hr"></div>
     <div class="meta">
-      <div class="kv"><span>Date:</span><span>${esc(d.dateTime)}</span></div>
+      <div class="kv"><span>Date:</span><span>${esc(formatDateTime(order.clientSavedAt))}</span></div>
       <div class="kv"><span>Invoice:</span><span class="bold">${esc(order.invoiceNo)}</span></div>
       <div class="kv"><span>Type:</span><span>${esc(order.salesType ?? "Cash")}</span></div>
     </div>

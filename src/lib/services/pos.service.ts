@@ -18,6 +18,10 @@ export interface PosProduct {
   vatPercentage: number; // t_Price.priceVatPercent
   stock: number;       // on-hand quantity (summed Inventory rows)
   imageUrl?: string | null;
+  /** Item_Information.IsDiscountApplicable — false puts the item outside the
+   *  sale's discount: billed in full, and its value left out of the base the
+   *  discount is charged on. The server applies the same rule. */
+  isDiscountApplicable?: boolean;
 }
 
 export interface PosSaleItem {
@@ -52,6 +56,8 @@ export interface PosSale {
   payableAmount: number;
   paidAmount: number;
   changeAmount: number;
+  /** The cashier who rang the sale — stamped server-side from their session,
+   *  never sent by the terminal. */
   servedBy: string;
   items: PosSaleItem[];
   /** Branch header for the printed invoice (present on GET /pos/sales/:id). */
@@ -61,7 +67,6 @@ export interface PosSale {
 export interface CreatePosSalePayload {
   items: { itemId: string; qty: number }[];
   paidAmount: number;
-  servedBy?: string;
   salesType?: string;
   /** Bank UUID — set when salesType is 'Card'. */
   bankId?: string;
@@ -86,7 +91,6 @@ export interface OfflineSalePayload {
   items: { itemId: string; qty: number }[];
   paidAmount: number;
   clientSavedAt: string;
-  servedBy?: string;
   salesType?: string;
   /** Bank UUID — set when salesType is 'Card'. */
   bankId?: string;

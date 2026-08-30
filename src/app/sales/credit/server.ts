@@ -15,6 +15,9 @@ export interface AvailableItem {
   itmUOM?: string | null;
   /** Joined MediaFile row (the item's picture), for the grid's thumbnails. */
   image?: { fileUrl?: string | null } | null;
+  /** False for an item that is never discounted — billed in full, and its value
+   *  left out of the base the invoice discount is charged on. */
+  isDiscountApplicable?: boolean;
 }
 
 /** Customer options for the invoice header. `mobile`/`address` back the contact
@@ -25,6 +28,11 @@ export interface CreditCustomer {
   name: string;
   mobile?: string;
   address?: string;
+  /** The customer's standing discount %, agreed when they were registered. It
+   *  seeds this invoice's discount % as soon as they are picked — a default the
+   *  operator can type over, and which a picked PO overrides with the order's
+   *  own agreed rate. Decimal columns arrive as strings. */
+  defaultDiscount?: number | string | null;
 }
 
 /** Order options for the PO No picker — a credit sale is raised against an

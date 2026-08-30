@@ -19,7 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Plus, Trash2, Edit2, Eye, Printer, Truck } from "lucide-react";
+import { Plus, Trash2, Edit2, Eye, Printer } from "lucide-react";
 import { type ExportColumn } from "@/lib/export/reportExport";
 import {
   previewCustomerChallan,
@@ -63,10 +63,13 @@ const getDefaultDateRange = () => {
   };
 };
 
+// Vehicle No, Route, Driver Name, Driver Mobile and Voucher No are no longer
+// entered: none of them appear on the printed customer challan, and the challan
+// number is the document's own serial. The columns still exist on the API and
+// keep whatever earlier records put there.
 const emptyHeader = {
   customerName: "", customerAddress: "", deliveryAddress: "",
-  contactPerson: "", contactNo: "", poNo: "", poDate: "",
-  route: "", vehicleNo: "", driverName: "", driverMobile: "", voucherNo: "", remarks: "",
+  contactPerson: "", contactNo: "", poNo: "", poDate: "", remarks: "",
 };
 
 /** One typed line. `itemId` is set only when the description was matched to a
@@ -212,11 +215,6 @@ export default function VehicleChallanPage() {
         poNo: full.poNo ?? "",
         // Stored as a timestamp; the date input wants the calendar day alone.
         poDate: full.poDate ? full.poDate.split("T")[0] : "",
-        route: full.route ?? "",
-        vehicleNo: full.vehicleNo ?? "",
-        driverName: full.driverName ?? "",
-        driverMobile: full.driverMobile ?? "",
-        voucherNo: full.voucherNo ?? "",
         remarks: full.remarks ?? "",
       });
       setChallanDate(full.challanDate ? full.challanDate.split("T")[0] : new Date().toISOString().split("T")[0]);
@@ -274,11 +272,6 @@ export default function VehicleChallanPage() {
         poNo: header.poNo || undefined,
         // Sent only when filled — an empty string is not a date the API accepts.
         poDate: header.poDate || undefined,
-        route: header.route || undefined,
-        vehicleNo: header.vehicleNo.trim() || undefined,
-        driverName: header.driverName || undefined,
-        driverMobile: header.driverMobile || undefined,
-        voucherNo: header.voucherNo || undefined,
         remarks: header.remarks || undefined,
         items: validLines,
       };
@@ -346,7 +339,7 @@ export default function VehicleChallanPage() {
       buildChallan({
         // An unsaved document has no serial, so the field prints blank rather
         // than "New".
-        challanNo: header.voucherNo || editingSerial || "",
+        challanNo: editingSerial || "",
         challanDate,
         customerName: header.customerName,
         customerAddress: header.customerAddress,
@@ -363,7 +356,9 @@ export default function VehicleChallanPage() {
   /** The saved document's challan — same builder, lines straight off the record. */
   const savedChallan = (doc: VehicleChallanGroup): CustomerChallanData =>
     buildChallan({
-      challanNo: doc.voucherNo || doc.serialNo,
+      // The document's own serial IS the challan number — there is no longer a
+      // Voucher No to override it with.
+      challanNo: doc.serialNo,
       challanDate: doc.challanDate ?? "",
       branchAddress: doc.branchAddress,
       vatNo: doc.branchVatNo,
@@ -493,21 +488,6 @@ export default function VehicleChallanPage() {
             value={header.poDate}
             onChange={(e) => setField({ poDate: e.target.value })}
           />
-          <Input
-            label="Vehicle No"
-            placeholder="DHAKA METRO-TA-11-2233"
-            value={header.vehicleNo}
-            onChange={(e) => setField({ vehicleNo: e.target.value })}
-          />
-          <Input
-            label="Route / Destination"
-            placeholder="Mirpur - Uttara"
-            value={header.route}
-            onChange={(e) => setField({ route: e.target.value })}
-          />
-          <Input label="Driver Name" value={header.driverName} onChange={(e) => setField({ driverName: e.target.value })} />
-          <Input label="Driver Mobile" value={header.driverMobile} onChange={(e) => setField({ driverMobile: e.target.value })} />
-          <Input label="Voucher No" value={header.voucherNo} onChange={(e) => setField({ voucherNo: e.target.value })} />
           <Input label="Remarks" value={header.remarks} onChange={(e) => setField({ remarks: e.target.value })} />
         </div>
 
@@ -595,7 +575,6 @@ export default function VehicleChallanPage() {
               <>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-sm">
                   <div><span className="text-gray-500">Challan No:</span> <span className="font-medium">{report.serialNo}</span></div>
-                  <div><span className="text-gray-500">Voucher No:</span> <span className="font-medium">{report.voucherNo || "-"}</span></div>
                   <div><span className="text-gray-500">Date:</span> <span className="font-medium">{formatDate(report.challanDate)}</span></div>
                   <div><span className="text-gray-500">From Branch:</span> <span className="font-medium">{report.branchName || "-"}</span></div>
                   <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{report.customerName || "-"}</span></div>
@@ -605,13 +584,6 @@ export default function VehicleChallanPage() {
                   <div><span className="text-gray-500">Contact No:</span> <span className="font-medium">{report.contactNo || "-"}</span></div>
                   <div><span className="text-gray-500">PO No:</span> <span className="font-medium">{report.poNo || "-"}</span></div>
                   <div><span className="text-gray-500">PO Date:</span> <span className="font-medium">{report.poDate ? formatDate(report.poDate) : "-"}</span></div>
-                  <div className="flex items-center gap-1.5">
-                    <Truck size={14} className="text-gray-400" />
-                    <span className="text-gray-500">Vehicle:</span> <span className="font-medium">{report.vehicleNo || "-"}</span>
-                  </div>
-                  <div><span className="text-gray-500">Route:</span> <span className="font-medium">{report.route || "-"}</span></div>
-                  <div><span className="text-gray-500">Driver:</span> <span className="font-medium">{report.driverName || "-"}</span></div>
-                  <div><span className="text-gray-500">Driver Mobile:</span> <span className="font-medium">{report.driverMobile || "-"}</span></div>
                 </div>
 
                 <div className="mb-3 flex justify-end gap-2">

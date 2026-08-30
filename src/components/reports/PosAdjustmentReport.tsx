@@ -30,15 +30,16 @@ import type { ExportColumn } from "@/lib/export/reportExport";
  *  and it has to be reachable again after the default branch is replaced. */
 const ALL = "ALL";
 
-/** The legacy sheet's date style: "23-Dec-20". Read in UTC so a date stored at
- *  midnight doesn't slip a day west of Greenwich. */
+/** DD-MMM-YYYY ("23-Dec-2020"), the one date style used across every screen and
+ *  report. Read in UTC so a date stored at midnight doesn't slip a day west of
+ *  Greenwich. */
 const formatDate = (iso: string) => {
   if (!iso) return "";
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   if (isNaN(d.getTime())) return "";
   const day = String(d.getUTCDate()).padStart(2, "0");
   const mon = d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
-  return `${day}-${mon}-${String(d.getUTCFullYear()).slice(-2)}`;
+  return `${day}-${mon}-${d.getUTCFullYear()}`;
 };
 
 const n2 = (n: number) => (Number(n) || 0).toFixed(2);

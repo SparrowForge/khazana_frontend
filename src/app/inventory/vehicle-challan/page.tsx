@@ -382,7 +382,7 @@ export default function VehicleChallanPage() {
       />
 
       <div className="mb-4 flex flex-wrap gap-4 items-end">
-        <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <Input label="From Date" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setToDate(e.target.value); }} />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         <Input
           label="Customer Name"

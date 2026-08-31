@@ -67,7 +67,7 @@ export default function AssortmentListPage() {
       <PageHeader title="Assortment List" action={{ label: "New Assortment", onClick: () => router.push("/assortment") }} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-3">
-          <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <Input label="From Date" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setToDate(e.target.value); }} />
           <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <ReportExportButtons

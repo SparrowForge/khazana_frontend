@@ -65,7 +65,7 @@ export default function SalesListPage() {
   useEffect(load, [page, limit, fromDate, toDate, refreshKey, setMeta]);
 
   const handleSearch = (val: string) => { setSearch(val); resetPage(); };
-  const handleFromDate = (val: string) => { setFromDate(val); resetPage(); };
+  const handleFromDate = (val: string) => { setFromDate(val); setToDate(val); resetPage(); };
   const handleToDate = (val: string) => { setToDate(val); resetPage(); };
 
   const filtered = sales.filter((s) => {

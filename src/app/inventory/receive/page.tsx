@@ -351,7 +351,7 @@ export default function StockReceivePage() {
           label="From Date"
           type="date"
           value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
+          onChange={(e) => { setFromDate(e.target.value); setToDate(e.target.value); }}
         />
         <Input
           label="To Date"

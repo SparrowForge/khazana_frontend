@@ -83,7 +83,7 @@ export default function PosSalesListPage() {
       <PageHeader title="POS Sales" subtitle="All billing transactions" />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-4">
-          <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <Input label="From Date" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setToDate(e.target.value); }} />
           <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <ReportExportButtons

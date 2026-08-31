@@ -15,7 +15,7 @@ interface ReportFilterProps {
 export default function ReportFilter({ fromDate, toDate, onFromDate, onToDate, onRun, loading, extra }: ReportFilterProps) {
   return (
     <div className="flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
-      <Input label="From Date" type="date" value={fromDate} onChange={(e) => onFromDate(e.target.value)} className="w-40" />
+      <Input label="From Date" type="date" value={fromDate} onChange={(e) => { onFromDate(e.target.value); onToDate(e.target.value); }} className="w-40" />
       <Input label="To Date" type="date" value={toDate} onChange={(e) => onToDate(e.target.value)} className="w-40" />
       {extra}
       <Button onClick={onRun} loading={loading} className="mb-0.5">Run Report</Button>

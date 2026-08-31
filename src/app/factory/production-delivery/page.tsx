@@ -111,7 +111,7 @@ export default function ProductionDeliveryReportPage() {
       <PageHeader title="Production & Delivery Report" subtitle={`${branchName} — production, sales and delivery movement`} />
 
       <div className="no-print flex flex-wrap items-end gap-3 mb-5 p-4 bg-white rounded-lg border border-sage-300">
-        <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
+        <Input label="From Date" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setToDate(e.target.value); }} className="w-40" />
         <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}

@@ -10,9 +10,11 @@ import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet } from "lucide-react";
 import {
-  fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchItems, fetchBranches,
+  fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchCustomerBalance,
+  fetchItems, fetchBranches,
   type Order, type OrderRecord, type Customer, type AvailableItem, type BranchInfo,
 } from "./server";
+import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -37,12 +39,18 @@ export default function OrdersPage() {
   const [lines, setLines] = useState<OrderLine[]>([{ itemId: "", qty: "1", unitPrice: "0" }]);
   const [form, setForm] = useState({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
+  const [customerModal, setCustomerModal] = useState(false);
+  /** The picked customer's outstanding balance as it stands now, before this
+   *  order. `null` while it is being read or when no customer is picked. */
+  const [previousDue, setPreviousDue] = useState<number | null>(null);
+  const [dueLoading, setDueLoading] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<OrderRecord | null>(null);
   const { page, limit, meta, setMeta, setPage, setLimit, refreshKey } = usePagination();
   const { can } = usePermissions();
   const canAdd = can("Orders", "add");
+  const canAddCustomer = can("Customers", "add");
   const canEdit = can("Orders", "edit");
   const canDelete = can("Orders", "delete");
 
@@ -53,14 +61,54 @@ export default function OrdersPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   };
+  const loadCustomers = () =>
+    fetchCustomers().then((list) => { setCustomers(list); return list; });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     load();
-    fetchCustomers().then(setCustomers).catch(() => {});
+    loadCustomers().catch(() => {});
     fetchItems().then(setAvailableItems).catch(() => {});
     fetchBranches().then(setBranches).catch(() => {});
   }, []);
   useEffect(load, [page, limit, refreshKey, setMeta]);
+
+  /** A customer registered from this form is selected straight away, so the
+   *  order carries on where it left off. The refreshed list is only the first
+   *  page of customers, so a new name that sorts past it is folded in by hand
+   *  rather than leaving the picker unable to show who was just created. */
+  const handleCustomerCreated = async (created: { id: string | number; code?: string; name?: string; address?: string }) => {
+    const id = String(created.id);
+    try {
+      const list = await loadCustomers();
+      const match =
+        list.find((c) => String(c.id) === id) ??
+        (created.code ? list.find((c) => c.code === created.code) : undefined);
+      if (match) {
+        setForm((f) => ({ ...f, clientId: match.id, deliveryAddress: match.address ?? "" }));
+        return;
+      }
+      const fallback: Customer = { id, code: created.code ?? "", name: created.name ?? "", address: created.address };
+      setCustomers([fallback, ...list]);
+      setForm((f) => ({ ...f, clientId: id, deliveryAddress: created.address ?? "" }));
+    } catch {
+      toast.error("Customer saved, but the list didn't refresh — reload to pick them");
+    }
+  };
+
+  // The standing due is read per customer, not held on the list: it moves with
+  // every invoice, receipt and advance taken anywhere, so the form asks for it
+  // when the customer is picked. A slow answer for the customer who was just
+  // dropped must never land on the one picked after them.
+  useEffect(() => {
+    if (!modal || !form.clientId) { setPreviousDue(null); setDueLoading(false); return; }
+    let stale = false;
+    setDueLoading(true);
+    fetchCustomerBalance(form.clientId)
+      .then((b) => { if (!stale) setPreviousDue(Number(b?.balance ?? 0) || 0); })
+      .catch(() => { if (!stale) setPreviousDue(null); })
+      .finally(() => { if (!stale) setDueLoading(false); });
+    return () => { stale = true; };
+  }, [form.clientId, modal]);
 
   const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -88,6 +136,17 @@ export default function OrdersPage() {
   const discountPercent = parseFloat(form.discount || "0") || 0;
   const discountAmount = Math.min(r2(grossAmount * (discountPercent / 100)), grossAmount);
   const netAmount = r2(grossAmount - discountAmount);
+
+  /** Reads as a figure only once one is known: blank with no customer picked,
+   *  "Loading..." while it is fetched, and "-" when the read failed, so a
+   *  stale or missing balance is never shown as a confident 0.00. */
+  const dueText = !form.clientId
+    ? ""
+    : dueLoading
+      ? "Loading..."
+      : previousDue === null
+        ? "-"
+        : `${formatCurrency(Math.abs(previousDue))}${previousDue < 0 ? " (advance in hand)" : ""}`;
 
   const itemName = (itemId?: string) => availableItems.find((it) => it.id === itemId)?.itmName ?? itemId ?? "-";
   const customerName = (clientId?: string) => customers.find((c) => c.id === clientId)?.name ?? clientId ?? "-";
@@ -282,16 +341,41 @@ export default function OrdersPage() {
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Order" : "New Order"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <Select label="Customer *" value={form.clientId} onChange={(e) => {
-            const clientId = e.target.value;
-            const customer = customers.find((c) => c.id === clientId);
-            setForm({ ...form, clientId, deliveryAddress: customer?.address ?? "" });
-          }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
+          <div className="flex flex-col gap-1">
+            <Select label="Customer *" value={form.clientId} onChange={(e) => {
+              const clientId = e.target.value;
+              const customer = customers.find((c) => c.id === clientId);
+              setForm({ ...form, clientId, deliveryAddress: customer?.address ?? "" });
+            }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
+            {canAddCustomer && (
+              <button
+                type="button"
+                onClick={() => setCustomerModal(true)}
+                className="self-start inline-flex items-center gap-1 text-xs text-primary-700 hover:underline"
+              >
+                <Plus size={12} /> New customer
+              </button>
+            )}
+          </div>
           <Input label="Order Date" type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} />
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
           <Input label="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />
           <Input label="Advance" type="number" value={form.advance} onChange={(e) => setForm({ ...form, advance: e.target.value })} />
           <Input label="Discount (%)" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
+          {/* What this customer already owes on everything raised before this
+              order — read-only, and never posted with the order: it is their
+              running ledger balance, not a figure of this document. Spanned by
+              a wrapper, not `className`: on Input that prop lands on the
+              control itself, so a col-span-* there never reaches the grid. */}
+          <div className="col-span-2">
+            <Input
+              label="Last Due Balance (৳)"
+              value={dueText}
+              placeholder="Select a customer"
+              disabled
+              readOnly
+            />
+          </div>
         </div>
         <div className="space-y-2 mb-4">
           <p className="text-sm font-medium text-gray-700">Order Items</p>
@@ -335,6 +419,14 @@ export default function OrdersPage() {
           </div>
         </div>
       </Modal>
+
+      {/* A walk-in registered from the order itself — the picker is refreshed
+          and the new record selected, so the order carries on. */}
+      <CustomerQuickAddModal
+        open={customerModal}
+        onClose={() => setCustomerModal(false)}
+        onCreated={handleCustomerCreated}
+      />
 
       <Modal open={reportOpen} onClose={() => setReportOpen(false)} title="Order Invoice" size="lg">
         {reportLoading || !report ? (

@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { unwrap, unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Order {
   id: number;
@@ -43,6 +43,15 @@ export interface Customer {
   code: string;
   name: string;
   address?: string;
+  mobile?: string;
+}
+
+export interface CustomerBalance {
+  totalSales: number;
+  totalPaid: number;
+  totalAdvance: number;
+  /** totalSales - totalPaid - totalAdvance: positive means the customer owes. */
+  balance: number;
 }
 
 export interface AvailableItem {
@@ -81,6 +90,13 @@ export const deleteOrder = (id: number | string) =>
 
 export const fetchCustomers = (): Promise<Customer[]> =>
   api.get("/customers?limit=100").then(unwrapList<Customer>);
+
+/** What the customer already owes, before this order — invoiced sales less
+ *  every receipt and every advance already taken from them. Shown on the entry
+ *  form so the operator knows the standing exposure before adding another
+ *  order to it. Accepts the customer uuid or their code. */
+export const fetchCustomerBalance = (idOrCode: string): Promise<CustomerBalance> =>
+  api.get(`/customers/${idOrCode}/balance`).then((r) => unwrap<CustomerBalance>(r));
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
   api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);

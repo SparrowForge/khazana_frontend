@@ -1,6 +1,7 @@
 ﻿import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -46,4 +47,4 @@ export const createAssortment = (data: AssortmentPayload) =>
         netAmount: it.total,
       })),
     })
-    .then((r) => r.data);
+    .then((r) => { emitStockChanged("assortment:create"); return r.data; });

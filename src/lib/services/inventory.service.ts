@@ -45,6 +45,27 @@ export interface AdjustmentPayload {
 }
 
 
+/** One item's on-hand quantity, as returned by GET /inventory/stock-levels. */
+export interface StockLevel {
+  itemId: string;
+  itemCode: string;
+  quantity: number;
+}
+
+/** On-hand quantity of every item, keyed by item UUID.
+ *
+ *  The compact companion to the priced catalogue: screens that gate lines on
+ *  stock (the POS terminal, the credit-sale forms) re-read this on a timer so a
+ *  sale rung on another till, or a factory issue/receive/adjustment, lands on
+ *  screen without a reload. An item with no Inventory row is absent from the
+ *  map, which callers read as zero — the same thing the catalogue reports. */
+export const fetchStockLevels = (): Promise<Record<string, number>> =>
+  api.get<StockLevel[]>("/inventory/stock-levels").then((r) => {
+    const levels: Record<string, number> = {};
+    for (const row of r.data ?? []) levels[row.itemId] = Number(row.quantity ?? 0);
+    return levels;
+  });
+
 export const inventoryService = {
   listStock: () =>
     api.get<{ data: StockItem[] } | StockItem[]>("/inventory").then(unwrapList<StockItem>),

@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface Assortment {
   id: string;
@@ -19,4 +20,4 @@ export const fetchAssortments = ({ fromDate, toDate, limit = 100 }: { fromDate?:
 };
 
 export const deleteAssortment = (id: string) =>
-  api.delete(`/assortment/${id}`).then((r) => r.data);
+  api.delete(`/assortment/${id}`).then((r) => { emitStockChanged("assortment:delete"); return r.data; });

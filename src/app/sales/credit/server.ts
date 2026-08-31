@@ -1,6 +1,7 @@
 ﻿import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -151,5 +152,6 @@ export const createCreditSale = (data: CreditSalePayload) => {
       total: it.total,
     })),
   };
-  return api.post<CreatedCreditSale>("/sales/credit", payload).then((r) => r.data);
+  return api.post<CreatedCreditSale>("/sales/credit", payload)
+    .then((r) => { emitStockChanged("credit-sale:create"); return r.data; });
 };

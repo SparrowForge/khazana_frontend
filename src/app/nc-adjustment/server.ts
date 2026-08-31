@@ -1,6 +1,7 @@
 ﻿import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -69,10 +70,10 @@ const toPayload = (data: NcPayload) => ({
 });
 
 export const createNcAdjustment = (data: NcPayload) =>
-  api.post("/nc-adjustment", toPayload(data)).then((r) => r.data);
+  api.post("/nc-adjustment", toPayload(data)).then((r) => { emitStockChanged("nc:create"); return r.data; });
 
 export const fetchNcAdjustment = (id: string) =>
   api.get<NcRecord>(`/nc-adjustment/${id}`).then((r) => r.data);
 
 export const updateNcAdjustment = (id: string, data: NcPayload) =>
-  api.patch(`/nc-adjustment/${id}`, toPayload(data)).then((r) => r.data);
+  api.patch(`/nc-adjustment/${id}`, toPayload(data)).then((r) => { emitStockChanged("nc:update"); return r.data; });

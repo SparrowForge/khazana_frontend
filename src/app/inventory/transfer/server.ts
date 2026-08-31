@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -60,7 +61,7 @@ export const fetchBranches = () =>
   api.get<{ data: BranchOption[] } | BranchOption[]>("/admin/branches").then(unwrapList<BranchOption>);
 
 export const transferStock = (data: TransferPayload) =>
-  api.post("/inventory/transfer", data).then((r) => r.data);
+  api.post("/inventory/transfer", data).then((r) => { emitStockChanged("transfer:create"); return r.data; });
 
 export const fetchTransfers = ({ page = 1, limit = 10, fromDate, toDate, branchId }: { page?: number; limit?: number; fromDate?: string; toDate?: string; branchId?: string } = {}): Promise<Paginated<TransferRecord>> => {
   const params = new URLSearchParams();
@@ -76,7 +77,7 @@ export const fetchTransfer = (serialNo: string): Promise<TransferGroup> =>
   api.get(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
 export const updateTransfer = (serialNo: string, data: UpdateTransferPayload) =>
-  api.patch(`/inventory/transfer/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
+  api.patch(`/inventory/transfer/${encodeURIComponent(serialNo)}`, data).then((r) => { emitStockChanged("transfer:update"); return r.data; });
 
 export const deleteTransfer = (serialNo: string) =>
-  api.delete(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => r.data);
+  api.delete(`/inventory/transfer/${encodeURIComponent(serialNo)}`).then((r) => { emitStockChanged("transfer:delete"); return r.data; });

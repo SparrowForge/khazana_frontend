@@ -24,7 +24,7 @@ import { SaleItem } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
-import { useStockChanged } from "@/lib/stockEvents";
+import { useLiveStock } from "@/hooks/useLiveStock";
 import { Factory } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
@@ -68,12 +68,17 @@ export default function CreditSaleEditPage() {
   const [heldStock, setHeldStock] = useState<Record<string, number>>({});
   const [productionModal, setProductionModal] = useState(false);
 
-  /** Re-pulls the catalogue (and with it on-hand stock) after production. */
+  /** The priced catalogue the item picker works from (its `stock` field is
+   *  kept current by `useLiveStock` below). */
   const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
-  // Fires for the quick Production dialog on this page and for a Production
-  // Entry booked in another tab alike, so the edit form's on-hand figures move
-  // the moment the stock does.
-  useStockChanged(loadItems);
+  // On-hand moves under an open edit — a till sale, a factory issue or receive,
+  // an NC, an adjustment, the quick Production dialog on this page — and it is
+  // what the edit is judged against (on top of `heldStock`, this invoice's own
+  // deduction). So the levels are re-read on a timer and whenever the operator
+  // comes back to the tab.
+  useLiveStock((levels) =>
+    setAvailableItems((prev) => prev.map((i) => ({ ...i, stock: levels[i.id] ?? 0 }))),
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -82,7 +87,7 @@ export default function CreditSaleEditPage() {
       router.replace("/sales");
       return;
     }
-    fetchItems().then(setAvailableItems).catch(() => {});
+    loadItems();
     fetchCustomers().then(setCustomers).catch(() => {});
     fetchCreditSale(id)
       .then((sale) => {

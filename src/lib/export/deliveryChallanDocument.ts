@@ -301,6 +301,10 @@ function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: b
     th, td { border:1px solid #000; padding:1px 2mm; height:5.2mm; }
     th { font-weight:700; text-align:center; }
     tbody td { border-top:1px dotted #9a9a9a; border-bottom:1px dotted #9a9a9a; }
+    /* The grid closes on a solid rule: the dotted lines separate one written
+       line from the next, but the bottom of the last row is the edge of the
+       box, not another divider. */
+    tbody tr:last-child td { border-bottom:1px solid #000; }
     td.sl { text-align:center; }
     td.num, th.num { text-align:right; padding-right:6mm; }
     td.empty { text-align:center; color:#666; height:12mm; }

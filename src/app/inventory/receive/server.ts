@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrap, unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -84,7 +85,7 @@ export const fetchBranches = () =>
   api.get<{ data: BranchOption[] } | BranchOption[]>("/admin/branches?limit=100").then(unwrapList<BranchOption>);
 
 export const receiveStock = (data: ReceivePayload) =>
-  api.post("/inventory/receive", data).then((r) => r.data);
+  api.post("/inventory/receive", data).then((r) => { emitStockChanged("receive:create"); return r.data; });
 
 export const fetchReceives = ({ page = 1, limit = 10, fromDate, toDate, branchId }: { page?: number; limit?: number; fromDate?: string; toDate?: string; branchId?: string } = {}): Promise<Paginated<ReceiveRecord>> => {
   const params = new URLSearchParams();
@@ -100,10 +101,10 @@ export const fetchReceive = (serialNo: string): Promise<ReceiveGroup> =>
   api.get(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
 export const updateReceive = (serialNo: string, data: UpdateReceivePayload) =>
-  api.patch(`/inventory/receive/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
+  api.patch(`/inventory/receive/${encodeURIComponent(serialNo)}`, data).then((r) => { emitStockChanged("receive:update"); return r.data; });
 
 export const deleteReceive = (serialNo: string) =>
-  api.delete(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => r.data);
+  api.delete(`/inventory/receive/${encodeURIComponent(serialNo)}`).then((r) => { emitStockChanged("receive:delete"); return r.data; });
 
 // ── Receive confirmation (issue -> receive handshake) ──────────────────
 
@@ -145,4 +146,4 @@ export const fetchPendingReceive = (serialNo: string) =>
 
 /** No payload by design — the server takes the quantities from the issue. */
 export const confirmReceive = (serialNo: string) =>
-  api.post(`/inventory/receive/confirm/${serialNo}`).then((r) => r.data);
+  api.post(`/inventory/receive/confirm/${serialNo}`).then((r) => { emitStockChanged("receive:confirm"); return r.data; });

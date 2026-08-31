@@ -27,7 +27,7 @@ import { getErrorMessage } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
-import { useStockChanged } from "@/lib/stockEvents";
+import { useLiveStock } from "@/hooks/useLiveStock";
 import { Plus, Factory } from "lucide-react";
 import { stockShortages, shortageMessage, lineProblems } from "@/lib/saleValidation";
 import toast from "react-hot-toast";
@@ -63,11 +63,16 @@ export default function CreditSalePage() {
   const canProduce = isFactoryBranch(user) && can("ProductionEntry", "add");
 
   const loadItems = () => fetchItems().then(setAvailableItems).catch(() => {});
-  // On-hand stock is what gates the lines this invoice can carry, so anything
-  // that moves it — the quick Production dialog below, or the Production Entry
-  // page in another tab — re-pulls the catalogue here rather than leaving the
-  // form quoting yesterday's numbers until it is reloaded.
-  useStockChanged(loadItems);
+  // On-hand stock is what gates the lines this invoice can carry, and it moves
+  // all day from places this form can't see: a POS sale on the till, another
+  // credit sale, a factory issue or receive, an NC, a stock adjustment, the
+  // quick Production dialog below. So the levels are re-read on a timer and
+  // whenever the operator returns to the tab, rather than leaving the form
+  // quoting the numbers it opened with. Only the quantities are refreshed —
+  // prices and the item list itself stay as loaded.
+  useLiveStock((levels) =>
+    setAvailableItems((prev) => prev.map((i) => ({ ...i, stock: levels[i.id] ?? 0 }))),
+  );
   /** Resolves with the fresh list too, so a just-created customer can be found
    *  in it and selected. */
   const loadCustomers = () =>

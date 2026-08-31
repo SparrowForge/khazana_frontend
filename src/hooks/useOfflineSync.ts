@@ -7,6 +7,7 @@ import { posSalesApi, type SyncOfflineResult } from "@/lib/services/pos.service"
 import {
   getOfflineOrders, removeOfflineOrders, toSyncPayload,
 } from "@/lib/offline/offlineStore";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 /**
  * Watches connectivity and drains the current user's offline order queue back to
@@ -66,6 +67,10 @@ export function useOfflineSync() {
       if (result.failedCount > 0) toast.error(`${result.failedCount} offline sale(s) failed to sync`);
 
       await refresh();
+      // The queue is drained and those sales are now the server's: screens
+      // watching stock can safely re-read it (they subtract anything still
+      // queued, so this has to come after the removal above).
+      emitStockChanged("pos-sale:sync-offline");
       return result;
     } catch {
       toast.error("Sync failed — will retry when online");

@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -43,7 +44,7 @@ export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
 export const adjustStock = (data: AdjustmentPayload) =>
-  api.post("/inventory/adjust", data).then((r) => r.data);
+  api.post("/inventory/adjust", data).then((r) => { emitStockChanged("adjust:create"); return r.data; });
 
 export const fetchAdjustments = ({ page = 1, limit = 10, fromDate, toDate }: { page?: number; limit?: number; fromDate?: string; toDate?: string } = {}): Promise<Paginated<AdjustmentRecord>> => {
   const params = new URLSearchParams();
@@ -58,7 +59,7 @@ export const fetchAdjustment = (invNo: string): Promise<AdjustmentGroup> =>
   api.get(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => r.data);
 
 export const updateAdjustment = (invNo: string, data: UpdateAdjustmentPayload) =>
-  api.patch(`/inventory/adjust/${encodeURIComponent(invNo)}`, data).then((r) => r.data);
+  api.patch(`/inventory/adjust/${encodeURIComponent(invNo)}`, data).then((r) => { emitStockChanged("adjust:update"); return r.data; });
 
 export const deleteAdjustment = (invNo: string) =>
-  api.delete(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => r.data);
+  api.delete(`/inventory/adjust/${encodeURIComponent(invNo)}`).then((r) => { emitStockChanged("adjust:delete"); return r.data; });

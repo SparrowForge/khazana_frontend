@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 /** Detail rows come back with the master so the list can show (and export) each
  *  NC's value without a second round-trip per row. */
@@ -40,4 +41,4 @@ export const ncTotalQty = (nc: NC): number =>
   (nc.details ?? []).reduce((sum, d) => sum + Number(d.ncdetQTY ?? 0), 0);
 
 export const deleteNcAdjustment = (id: string) =>
-  api.delete(`/nc-adjustment/${id}`).then((r) => r.data);
+  api.delete(`/nc-adjustment/${id}`).then((r) => { emitStockChanged("nc:delete"); return r.data; });

@@ -1,6 +1,7 @@
 ﻿import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -27,4 +28,4 @@ export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
 export const createCashSale = (data: CashSalePayload) =>
-  api.post("/sales/cash", data).then((r) => r.data);
+  api.post("/sales/cash", data).then((r) => { emitStockChanged("cash-sale:create"); return r.data; });

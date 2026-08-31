@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -109,7 +110,7 @@ export const fetchBranches = () =>
   api.get<{ data: BranchOption[] } | BranchOption[]>("/admin/branches?limit=100").then(unwrapList<BranchOption>);
 
 export const issueStock = (data: IssuePayload) =>
-  api.post("/inventory/issue", data).then((r) => r.data);
+  api.post("/inventory/issue", data).then((r) => { emitStockChanged("issue:create"); return r.data; });
 
 export const fetchIssues = ({ page = 1, limit = 10, fromDate, toDate, branchId }: { page?: number; limit?: number; fromDate?: string; toDate?: string; branchId?: string } = {}): Promise<Paginated<IssueRecord>> => {
   const params = new URLSearchParams();
@@ -125,7 +126,7 @@ export const fetchIssue = (serialNo: string): Promise<IssueGroup> =>
   api.get(`/inventory/issue/${encodeURIComponent(serialNo)}`).then((r) => r.data);
 
 export const updateIssue = (serialNo: string, data: UpdateIssuePayload) =>
-  api.patch(`/inventory/issue/${encodeURIComponent(serialNo)}`, data).then((r) => r.data);
+  api.patch(`/inventory/issue/${encodeURIComponent(serialNo)}`, data).then((r) => { emitStockChanged("issue:update"); return r.data; });
 
 export const deleteIssue = (serialNo: string) =>
-  api.delete(`/inventory/issue/${encodeURIComponent(serialNo)}`).then((r) => r.data);
+  api.delete(`/inventory/issue/${encodeURIComponent(serialNo)}`).then((r) => { emitStockChanged("issue:delete"); return r.data; });

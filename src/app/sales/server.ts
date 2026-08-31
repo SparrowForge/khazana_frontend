@@ -1,5 +1,6 @@
 ﻿import api from "@/lib/api";
 import { unwrapPaginated, type Paginated } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 // Normalized row from the unified /sales report (all sale types in one shape).
 export interface Sale {
@@ -28,5 +29,5 @@ export const fetchSales = ({ page = 1, limit = 10, type = "all" as SalesTypeFilt
   return api.get(`/sales?${params.toString()}`).then(unwrapPaginated<Sale>);
 };
 
-export const deleteCashSale = (id: string | number) => api.delete(`/sales/cash/${id}`).then((r) => r.data);
-export const deleteCreditSale = (id: string | number) => api.delete(`/sales/credit/${id}`).then((r) => r.data);
+export const deleteCashSale = (id: string | number) => api.delete(`/sales/cash/${id}`).then((r) => { emitStockChanged("cash-sale:delete"); return r.data; });
+export const deleteCreditSale = (id: string | number) => api.delete(`/sales/credit/${id}`).then((r) => { emitStockChanged("credit-sale:delete"); return r.data; });

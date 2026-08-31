@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 // Payment modes offered at the counter (persisted as a sale's `salesType` /
 // t_SOMstr.mtype). Shared by the POS terminal and the sale-edit screen.
@@ -141,9 +142,13 @@ export const posBanksApi = {
     }),
 };
 
+/* Each of these moves on-hand stock server-side, so it announces itself once
+ * the server has confirmed: the terminal that rang the sale, its other tabs,
+ * and any open credit-sale form re-read the levels instead of going stale. */
 export const posSalesApi = {
   create: (data: CreatePosSalePayload) =>
-    api.post<PosSale>("/pos/sales", data).then((r) => r.data),
+    api.post<PosSale>("/pos/sales", data)
+      .then((r) => { emitStockChanged("pos-sale:create"); return r.data; }),
   /** Optionally scoped to an inclusive date range (YYYY-MM-DD). */
   getAll: (params: { fromDate?: string; toDate?: string } = {}) => {
     const q = new URLSearchParams();
@@ -154,8 +159,13 @@ export const posSalesApi = {
   },
   getOne: (id: string) => api.get<PosSale>(`/pos/sales/${id}`).then((r) => r.data),
   update: (id: string, data: CreatePosSalePayload) =>
-    api.patch<PosSale>(`/pos/sales/${id}`, data).then((r) => r.data),
-  remove: (id: string) => api.delete(`/pos/sales/${id}`).then((r) => r.data),
+    api.patch<PosSale>(`/pos/sales/${id}`, data)
+      .then((r) => { emitStockChanged("pos-sale:update"); return r.data; }),
+  remove: (id: string) =>
+    api.delete(`/pos/sales/${id}`).then((r) => { emitStockChanged("pos-sale:delete"); return r.data; }),
   syncOffline: (data: SyncOfflinePayload) =>
+    // No stock signal here on purpose — the queue is only cleared after this
+    // resolves, and a refresh that still saw the queued sales would deduct them
+    // twice. useOfflineSync announces the flush once the queue is drained.
     api.post<SyncOfflineResult>("/pos/sync-offline", data).then((r) => r.data),
 };

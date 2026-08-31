@@ -1,6 +1,7 @@
 ﻿import api from "@/lib/api";
 import { unwrapList } from "@/lib/unwrap";
 import { SaleItem } from "@/types";
+import { emitStockChanged } from "@/lib/stockEvents";
 
 export interface AvailableItem {
   id: string;
@@ -63,5 +64,6 @@ export const createVatCreditSale = (data: VatCreditSalePayload) => {
       };
     }),
   };
-  return api.post<CreatedVatCreditSale>("/sales/vat/credit", payload).then((r) => r.data);
+  return api.post<CreatedVatCreditSale>("/sales/vat/credit", payload)
+    .then((r) => { emitStockChanged("vat-credit-sale:create"); return r.data; });
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -12,9 +12,10 @@ import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduc
 import { adminService, type Branch } from "@/lib/services/admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useLiveStock } from "@/hooks/useLiveStock";
 import {
   addOfflineOrder, deductCachedStock, cacheStock, cacheCatalog,
-  getCachedCatalog, getCachedStock, nextSequence, type OfflineOrder,
+  getCachedCatalog, getCachedStock, getOfflineOrders, nextSequence, type OfflineOrder,
 } from "@/lib/offline/offlineStore";
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
@@ -199,6 +200,41 @@ export default function PosPage() {
         /* offline or no access — the cached copy (if any) is already set */
       });
   }, [user?.branchId]);
+
+  /** Take a freshly read set of on-hand levels and put it on screen.
+   *
+   *  Sales queued offline have not reached the server yet, so the levels come
+   *  back without them — they are subtracted again here, or the grid would
+   *  offer stock this terminal has already sold. The offline cache is written
+   *  with the same net numbers it displays, since that is what a subsequent
+   *  offline sale will be checked against. */
+  const applyStockLevels = useCallback(async (levels: Record<string, number>) => {
+    const queued: Record<string, number> = {};
+    if (user) {
+      const orders = await getOfflineOrders(user.id).catch(() => [] as OfflineOrder[]);
+      for (const order of orders) {
+        for (const line of order.items) queued[line.itemId] = (queued[line.itemId] ?? 0) + line.qty;
+      }
+    }
+    // An item with no Inventory row is absent from the map, which is a zero
+    // balance — the same thing the catalogue reports for it.
+    const onHand = (itemId: string) => r2((levels[itemId] ?? 0) - (queued[itemId] ?? 0));
+
+    setProducts((prev) => prev.map((p) => ({ ...p, stock: onHand(p.id) })));
+    if (user) {
+      await cacheStock(
+        user.id,
+        Object.keys(levels).map((itemId) => ({ itemId, quantity: onHand(itemId) })),
+      ).catch(() => { /* storage unavailable — the screen is still correct */ });
+    }
+  }, [user]);
+
+  /** Stock moves all day from places this terminal can't see — the next till
+   *  along, a factory issue, a receive, an NC, an adjustment — and it is what
+   *  the grid refuses lines on. So it is re-read on a timer, whenever the
+   *  cashier comes back to the tab, and the moment anything in this browser
+   *  books stock. An offline terminal sits on its cached counts instead. */
+  useLiveStock(applyStockLevels, { enabled: isOnline });
 
   /** Reflect a sale in the on-screen stock counts (and not just the cache). */
   const decrementProductStock = (sold: CartItem[]) => {

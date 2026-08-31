@@ -118,8 +118,10 @@ function buildDocument(data: CustomerChallanData, autoPrint: boolean): string {
 
     .fill { flex:1; }
 
-    /* Signed for by the receiving party — the block they complete by hand. */
-    .sign { font-size:9pt; }
+    /* Signed for by the receiving party — the block they complete by hand.
+       It follows the last row of the table, with 2in of clear signing space
+       above it, rather than sitting at the foot of the sheet. */
+    .sign { font-size:9pt; margin-top:2in; break-inside:avoid; }
     .sign .line { margin-bottom:6mm; }
     .sign .who { display:flex; justify-content:space-between; margin-top:8mm; }
     .sign .who div { width:70mm; border-top:1px solid #000; padding-top:1.5mm; text-align:center; font-size:8pt; }
@@ -182,15 +184,15 @@ function buildDocument(data: CustomerChallanData, autoPrint: boolean): string {
             </tr>
           </tfoot>
         </table>
-      </div>
 
-      <div class="sign">
-        <div class="line">Name:</div>
-        <div class="line">Contact Number:</div>
-        <div class="line">Signature with Seal:</div>
-        <div class="who">
-          <div>Received By</div>
-          <div class="right">For ${esc(data.companyName)}</div>
+        <div class="sign">
+          <div class="line">Name:</div>
+          <div class="line">Contact Number:</div>
+          <div class="line">Signature with Seal:</div>
+          <div class="who">
+            <div>Received By</div>
+            <div class="right">For ${esc(data.companyName)}</div>
+          </div>
         </div>
       </div>
     </div>

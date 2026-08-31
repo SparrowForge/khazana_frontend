@@ -202,8 +202,10 @@ function Report({ data }: { data: ProductionDeliveryReport }) {
         </tfoot>
       </table>
 
-      {/* ── Signatures ── */}
-      <div className="flex justify-between mt-12 text-[10px] text-center">
+      {/* ── Signatures ──
+          Directly under the last row of data, with 2in of clear signing space
+          above the rules. Kept whole so the block never splits across sheets. */}
+      <div className="flex justify-between mt-[2in] break-inside-avoid text-[10px] text-center">
         {["Prepared By", "Checked By", "Accountant", "Authorised Sign"].map((label) => (
           <div key={label} className="border-t border-black px-6 pt-1">{label}</div>
         ))}

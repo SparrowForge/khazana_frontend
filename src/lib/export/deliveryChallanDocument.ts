@@ -14,7 +14,8 @@
 //
 // Laid out as sheets rather than one full-width flow, so the on-screen preview
 // is the same page the printer produces. A long document is split across
-// numbered sheets; the total and the signature block belong to the last one only.
+// numbered sheets; the total and the signature block belong to the last one only,
+// where they sit directly under the final row rather than at the foot of the sheet.
 
 export interface DeliveryChallanLine {
   itemName: string;
@@ -98,9 +99,10 @@ const VEHICLE_SPEC: PadSpec = {
 };
 
 /** Rows per sheet. Deliberately short of what the page could hold — the last
- *  sheet also carries the total and the four signature lines (which are pinned
- *  to the foot of the sheet), and a sheet that overflowed its 297mm would print
- *  a near-blank extra page after it. */
+ *  sheet also carries the total and the four signature lines under their 2in of
+ *  signing space, and a sheet that overflowed its 297mm would print a near-blank
+ *  extra page after it. At 28 rows the full stack — header, table, signatures
+ *  and foot — comes to roughly 281mm of the 296mm available. */
 const ROWS_PER_PAGE = 28;
 
 const esc = (s: unknown) =>
@@ -227,16 +229,18 @@ function sheetHtml(
             : ""
         }
       </table>
+      ${
+        // Inside .fill, directly under the last line of the document: the roles
+        // sign against the goods they can see, not at the foot of a sheet that
+        // may be mostly empty. The clear space above the rules is the room they
+        // sign in — see .signs.
+        isLast
+          ? `<div class="signs">${spec.signRoles
+              .map((role) => `<div class="sign"><div class="rule"></div><div class="role">${esc(role)}</div></div>`)
+              .join("")}</div>`
+          : ""
+      }
     </div>
-    ${
-      // Outside .fill, so the flex column drops it to the foot of the sheet
-      // whether the sheet carries three rows or twenty-eight.
-      isLast
-        ? `<div class="signs">${spec.signRoles
-            .map((role) => `<div class="sign"><div class="rule"></div><div class="role">${esc(role)}</div></div>`)
-            .join("")}</div>`
-        : ""
-    }
     <div class="foot">
       <span class="rev">${esc(data.revision ?? "REV#0")}</span>
       <span class="by">${data.preparedBy ? `Prepared By ${esc(data.preparedBy)}` : ""}</span>
@@ -313,10 +317,11 @@ function buildPadDocument(data: DeliveryChallanData, spec: PadSpec, autoPrint: b
     tfoot td.bare { border:none; }
     tfoot td.total { font-weight:700; }
 
-    /* Anchored to the foot of the sheet by .fill's flex:1 above it — the roles
-       sign on the same line of every page, not wherever the table happened to
-       stop. margin-top is the minimum clearance when the table runs long. */
-    .signs { display:flex; gap:8mm; margin-top:14mm; text-align: center; }
+    /* Follows the last row of the table. The 2in gap above the rules is the
+       signing space itself — deliberately generous, so a name, a seal and a
+       date all fit between the goods and the line. Kept whole: a signature
+       block split across two sheets is not a signature block. */
+    .signs { display:flex; gap:8mm; margin-top:2in; text-align:center; break-inside:avoid; }
     .sign { flex:1; }
     .rule { border-top:1px dotted #000; }
     .role { font-size:9pt; margin-top:1mm; }

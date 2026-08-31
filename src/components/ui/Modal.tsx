@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -18,12 +18,33 @@ const sizes = {
   xl: "max-w-4xl",
 };
 
+/** Every dialog currently on screen, innermost last. Escape closes only the one
+ *  on top: a confirmation opened over a half-filled form must not take the form
+ *  (and everything typed into it) down with it. */
+const openDialogs: object[] = [];
+
 export default function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
+  // Held in a ref so an inline `onClose` — redefined on every render — doesn't
+  // re-register this dialog and push it back to the top of the stack.
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
+  const token = useRef({}).current;
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    if (!open) return;
+    openDialogs.push(token);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (openDialogs[openDialogs.length - 1] !== token) return;
+      closeRef.current();
+    };
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener("keydown", handler);
+      const i = openDialogs.indexOf(token);
+      if (i !== -1) openDialogs.splice(i, 1);
+    };
+  }, [open, token]);
 
   if (!open) return null;
 

@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2, Edit2, AlertTriangle } from "lucide-react";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchDemandOrders, fetchDemandOrder, createDemandOrder, updateDemandOrder, deleteDemandOrder,
@@ -65,6 +65,9 @@ export default function DemandOrderPage() {
     remarks: "",
   });
   const [saving, setSaving] = useState(false);
+  /** The "is this the right round?" step between the Submit button and the
+   *  request — see {@link requestSave}. */
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<DemandOrderRecord | null>(null);
@@ -172,9 +175,22 @@ export default function DemandOrderPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load demand order")); }
   };
 
-  const handleSave = async () => {
+  /** Submit is a two-step. Which round a demand belongs to — First, Second or
+   *  Special — decides the production run the factory fills it from, and it is
+   *  the one field on this form nothing else gives away: the quantities look
+   *  identical whichever round they are for, and the default (First) is right
+   *  often enough to be clicked past. So the type is read back before anything
+   *  is sent. The cheap checks stay here, so the dialog can't open on a demand
+   *  that was never going to save. */
+  const requestSave = () => {
     if (!form.toBranchId) { toast.error("Select the factory / receiving branch"); return; }
     // Every quantity zero or blank is the same as an empty submission.
+    if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
+    setConfirmOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.toBranchId) { toast.error("Select the factory / receiving branch"); return; }
     if (!validLines.length) { toast.error("Enter a quantity on at least one item"); return; }
     setSaving(true);
     try {
@@ -193,7 +209,9 @@ export default function DemandOrderPage() {
         await createDemandOrder(payload);
         toast.success("Demand order submitted to factory");
       }
-      setModal(false); load();
+      setConfirmOpen(false); setModal(false); load();
+      // The dialog stays up on a failure, so the same confirmed submission can
+      // simply be retried.
     } catch (err) { toast.error(getErrorMessage(err, `Failed to ${editingId ? "update" : "submit"} demand order`)); } finally { setSaving(false); }
   };
 
@@ -348,12 +366,48 @@ export default function DemandOrderPage() {
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
           <Button
-            onClick={handleSave}
+            onClick={requestSave}
             loading={saving}
             // Nothing to submit until at least one line carries a quantity.
             disabled={!validLines.length || !form.toBranchId}
           >
             {editingId ? "Update Demand Order" : "Submit to Factory"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Reads the chosen round back before the demand goes anywhere. Sits over
+          the entry dialog, which stays open behind it — cancelling returns to
+          the form with everything typed still there. */}
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm Order Type" size="sm">
+        <div className="flex gap-3">
+          <AlertTriangle size={22} className="shrink-0 text-amber-500 mt-0.5" />
+          <div className="text-sm text-gray-700">
+            <p>
+              This demand will be {editingId ? "saved" : "submitted to the factory"} as
+            </p>
+            <p className={`my-2 text-lg font-bold ${form.orderType ? "text-primary-800" : "text-red-600"}`}>
+              {form.orderType ? demandTypeLabel(form.orderType) : "No order type selected"}
+            </p>
+            <p>
+              {form.orderType
+                ? "The factory fills each round separately, and the Demand Report can be read one round at a time — a demand filed under the wrong one is produced with the wrong batch."
+                : "A demand with no type is left out whenever the Demand Report is filtered to a round. Go back and pick one unless that is what you intend."}
+            </p>
+            <p className="mt-2 text-gray-500">
+              {validLines.length} item{validLines.length === 1 ? "" : "s"} to {branchName(form.toBranchId)}
+              {form.requiredDate ? `, required ${formatDate(form.requiredDate)}` : ""}.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={saving}>
+            Back
+          </Button>
+          <Button onClick={handleSave} loading={saving}>
+            {form.orderType
+              ? `${editingId ? "Update" : "Submit"} as ${demandTypeLabel(form.orderType)}`
+              : `${editingId ? "Update" : "Submit"} without a type`}
           </Button>
         </div>
       </Modal>

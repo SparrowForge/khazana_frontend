@@ -8,6 +8,10 @@ import {
   type AvailableItem, type IssueGroup,
 } from "@/app/inventory/issue/server";
 import { useIssueChallan } from "./useIssueChallan";
+// One gross-up rule for the whole app: list price + VAT, rounded to 2dp. The
+// same helper prices a Production Entry, so the two screens can't disagree.
+import { vatInclusiveRate } from "@/app/inventory/production/server";
+import { formatCurrency } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { isFactoryBranch } from "@/lib/branch";
 import { getErrorMessage } from "@/lib/api";
@@ -336,6 +340,10 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
           <tr className="text-left text-gray-600">
             <th className="px-3 py-2 font-medium">Item ID</th>
             <th className="px-3 py-2 font-medium">Item Name</th>
+            {/* The item's selling rate WITH VAT — the figure the delivery is
+                valued at on the Branchwise Delivery Report, so the person
+                writing the issue sees what they are sending out. */}
+            <th className="px-3 py-2 font-medium text-right w-28">Rate (Incl. VAT)</th>
             <th className="px-3 py-2 font-medium text-right">Available</th>
             <th className="px-3 py-2 font-medium text-right w-32">Issue Qty</th>
             {isFactorySession && (
@@ -376,6 +384,14 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
               >
                 <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
                 <td className="px-3 py-1.5">{it.itmName}</td>
+                <td
+                  className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap"
+                  // The parts behind the figure, for anyone checking it against
+                  // the price list.
+                  title={`${formatCurrency(it.price ?? 0)} + ${Number(it.vatPercentage ?? 0)}% VAT`}
+                >
+                  {formatCurrency(vatInclusiveRate(it))}
+                </td>
                 <td className={`px-3 py-1.5 text-right ${available <= 0 ? "text-gray-400" : ""}`}>{available}</td>
                 <td className="px-3 py-1.5">
                   <input
@@ -408,7 +424,7 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
           })}
           {visibleItems.length === 0 && (
             <tr>
-              <td colSpan={isFactorySession ? 5 : 4} className="px-3 py-6 text-center text-gray-400">
+              <td colSpan={isFactorySession ? 6 : 5} className="px-3 py-6 text-center text-gray-400">
                 {itemsLoading ? "Loading items…" : "No items match that search."}
               </td>
             </tr>

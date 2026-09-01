@@ -38,7 +38,9 @@ interface QuickAction {
 /** The factory's own working day: issue stock to the outlets, book production,
  *  ring up a sale, raise a credit invoice, then read the day back. */
 const FACTORY_QUICK_ACTIONS: QuickAction[] = [
-  { label: "Stock Issue",          href: "/inventory/issue",      controlName: "StockIssue" },
+  // The full-page Item Issue form, not the Stock Issue list — the factory's
+  // shortcut is for writing the issue, and the list is a menu click away.
+  { label: "Item Issue",           href: "/inventory/item-issue", controlName: "ItemIssue" },
   { label: "Production Entry",     href: "/inventory/production", controlName: "ProductionEntry" },
   { label: "POS Terminal Sale",    href: "/pos",                  controlName: "POSTerminal" },
   { label: "Credit Sale",          href: "/sales/credit",         controlName: "CreditSales" },
@@ -46,12 +48,16 @@ const FACTORY_QUICK_ACTIONS: QuickAction[] = [
   { label: "Today's Sales Report", href: "/reports/sales",        controlName: "SalesReport" },
 ];
 
-/** An outlet receives rather than produces, so its shortcuts stay as they were. */
+/** An outlet's working day: sell at the counter, take in what the factory sent,
+ *  read the day back, invoice on credit, take customer orders, and demand the
+ *  next delivery off the factory. */
 const BRANCH_QUICK_ACTIONS: QuickAction[] = [
-  { label: "New Cash Sale",   href: "/sales/cash",       controlName: "CashSales" },
-  { label: "New Credit Sale", href: "/sales/credit",     controlName: "CreditSales" },
-  { label: "Stock Receive",   href: "/inventory/receive", controlName: "StockReceive" },
-  { label: "New Order",       href: "/orders",           controlName: "OrdersList" },
+  { label: "POS Terminal Sale",  href: "/pos",               controlName: "POSTerminal" },
+  { label: "Item Receive",       href: "/inventory/receive", controlName: "StockReceive" },
+  { label: "Daily Final Report", href: "/reports/daily-final", controlName: "DailyFinalReport" },
+  { label: "Credit Sale",        href: "/sales/credit",      controlName: "CreditSales" },
+  { label: "Order Receive",      href: "/orders",            controlName: "OrdersList" },
+  { label: "Demand Order Entry", href: "/orders/demand",     controlName: "DemandOrders" },
 ];
 
 interface StatCardProps {

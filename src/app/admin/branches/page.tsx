@@ -14,7 +14,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
-const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "", sortingNo: "" };
+// New branches appear on the Demand Report unless the box is unticked, which
+// is how every branch behaved before the flag existed.
+const emptyForm = { branchCode: "", branchName: "", address: "", vatNo: "", mobileNo: "", sortingNo: "", showInDemandReport: true };
 
 export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -38,7 +40,7 @@ export default function BranchesPage() {
   useEffect(load, [page, limit, refreshKey, setMeta]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
-  const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "", sortingNo: b.sortingNo == null ? "" : String(b.sortingNo) }); setModal(true); };
+  const openEdit = (b: Branch) => { setEditing(b); setForm({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", vatNo: b.vatNo ?? "", mobileNo: b.mobileNo ?? "", sortingNo: b.sortingNo == null ? "" : String(b.sortingNo), showInDemandReport: b.showInDemandReport ?? true }); setModal(true); };
 
   const handleSave = async () => {
     if (!form.branchCode || !form.branchName) { toast.error("Code and name are required"); return; }
@@ -66,6 +68,12 @@ export default function BranchesPage() {
           { key: "address", header: "Address" },
           { key: "vatNo", header: "VAT No" },
           { key: "mobileNo", header: "Mobile" },
+          {
+            key: "showInDemandReport",
+            header: "Demand Report",
+            className: "text-center w-32",
+            render: (r) => (r.showInDemandReport ?? true) ? "Yes" : "No",
+          },
           { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
       />
@@ -92,10 +100,24 @@ export default function BranchesPage() {
             onChange={(e) => setForm({ ...form, sortingNo: e.target.value })}
           />
           <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="col-span-2" />
+          <label className="col-span-2 flex items-center gap-2 text-sm font-medium text-gray-700 select-none">
+            <input
+              type="checkbox"
+              checked={form.showInDemandReport}
+              onChange={(e) => setForm({ ...form, showInDemandReport: e.target.checked })}
+              className="h-4 w-4 rounded border-sage-400 text-primary-800 focus:ring-primary-800"
+            />
+            Show in Demand Report
+          </label>
         </div>
         <p className="mt-3 text-xs text-gray-500">
           <span className="font-medium">Sorting No</span> sets the position of this branch on the reports that show one
           column per branch (Demand Report and the pickers above it). Lowest first; a branch left blank sorts last.
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          <span className="font-medium">Show in Demand Report</span> gives the branch its own column on the Demand
+          Report. Untick it and the branch drops off the sheet — its demands are left out of the column totals too,
+          unless it is picked as the Demand From Branch.
         </p>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>

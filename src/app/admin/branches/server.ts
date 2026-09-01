@@ -12,6 +12,9 @@ export interface Branch {
   /** Display position on the reports that show one column per branch. Lowest
    *  first; a branch without one sorts last. */
   sortingNo?: number | null;
+  /** Whether the branch gets a column on the Demand Report. True unless it was
+   *  unticked on the Branches page. */
+  showInDemandReport?: boolean;
 }
 
 export interface BranchPayload {
@@ -21,6 +24,7 @@ export interface BranchPayload {
   vatNo?: string;
   mobileNo?: string;
   sortingNo?: number;
+  showInDemandReport?: boolean;
 }
 
 export const fetchBranches = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Branch>> =>

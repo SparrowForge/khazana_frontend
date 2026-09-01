@@ -12,7 +12,7 @@ import {
   type DemandReport, type DemandReportRow,
 } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
-import { DEMAND_ORDER_TYPES } from "@/app/orders/demand/server";
+import { DEMAND_ORDER_TYPES, demandTypeLabel } from "@/app/orders/demand/server";
 import DemandReportSheet, { DemandReportPrintStyles, periodLabel } from "@/components/reports/DemandReportSheet";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -112,13 +112,19 @@ export default function DemandReportPage() {
         numeric: true,
       })),
       { header: "Total Qty", value: (r) => r.totalQty, numeric: true },
-      { header: "Amount", value: (r) => r.amount, numeric: true },
     ];
   }, [report]);
 
+  // The round is named on the exported/printed sheet too — a filtered run and
+  // an unfiltered one are different documents and must not read alike.
   const subtitle = useMemo(
     () =>
-      [report?.fromBranch.name, report?.toBranch.name, periodLabel(fromDate, toDate)]
+      [
+        report?.fromBranch.name,
+        report?.toBranch.name,
+        report?.orderType ? demandTypeLabel(report.orderType) : "",
+        periodLabel(fromDate, toDate),
+      ]
         .filter(Boolean)
         .join(" · "),
     [report, fromDate, toDate],

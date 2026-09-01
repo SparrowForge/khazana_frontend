@@ -12,7 +12,6 @@ export interface DemandReportRow {
    *  sheet prints blanks the way the paper form does. */
   qtyByBranch: Record<string, number>;
   totalQty: number;
-  amount: number;
 }
 
 export interface DemandReportBranch {
@@ -29,10 +28,13 @@ export interface DemandReport {
   toBranch: { id: string; code: string; name: string };
   /** Who raised it; `All Branches` when no single branch was picked. */
   fromBranch: { id: string; name: string };
+  /** The demand round the run was filtered to ('First' | 'Second' | 'Special'),
+   *  '' when every round is included. */
+  orderType?: string;
   /** One table column each, in branch-code order. */
   branches: DemandReportBranch[];
   items: DemandReportRow[];
-  totals: { qtyByBranch: Record<string, number>; totalQty: number; amount: number };
+  totals: { qtyByBranch: Record<string, number>; totalQty: number };
 }
 
 /** Factory-only — the backend 403s unless the session branch is the factory.

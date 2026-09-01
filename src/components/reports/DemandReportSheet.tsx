@@ -1,6 +1,7 @@
 "use client";
 import { formatCurrency } from "@/lib/utils";
 import type { DemandReport } from "@/app/factory/demand-report/server";
+import { demandTypeLabel } from "@/app/orders/demand/server";
 
 // The Demand Report sheet itself — the A4 document, with no filter bar and no
 // buttons around it. Lives here rather than in the report page because the
@@ -46,6 +47,9 @@ export const DemandReportPrintStyles = () => (
 
 export default function DemandReportSheet({ data }: { data: DemandReport }) {
   const { company, branches, items, totals } = data;
+  // Named only when the run was filtered to one round — an unfiltered sheet
+  // covers every round, and heading it with a type would misstate what it holds.
+  const orderTypeName = data.orderType ? demandTypeLabel(data.orderType) : "";
 
   return (
     <div id="report" className="bg-white text-black text-[10px] border border-sage-400 p-5 overflow-x-auto">
@@ -59,8 +63,9 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
           sits on the right exactly where the paper form has its Date: field. */}
       <div className="flex items-end justify-between mt-2 mb-2">
         <div className="flex-1" />
-        <div className="font-semibold text-[13px]">
-          Demand Report of {periodLabel(data.fromDate, data.toDate)}
+        <div className="font-semibold text-[13px] text-center">
+          <div>Demand Report of {periodLabel(data.fromDate, data.toDate)}</div>
+          {orderTypeName && <div className="text-[11px] font-medium">{orderTypeName}</div>}
         </div>
         <div className="flex-1 text-right text-[11px]">
           Date: <span className="font-medium">{formatDate(data.toDate)}</span>
@@ -89,7 +94,6 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
               </th>
             ))}
             <th className="border border-black px-1 py-1 w-16">Total</th>
-            <th className="border border-black px-1 py-1 w-20">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -102,15 +106,11 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
                 <td key={b.id} className="border border-black px-1 text-right">{q(r.qtyByBranch[b.id])}</td>
               ))}
               <td className="border border-black px-1 text-right font-medium">{q(r.totalQty)}</td>
-              {/* Every row here was demanded, so a blank Amount can only mean the
-                  item has no active price. Shown as "-" rather than empty, so a
-                  missing price reads as a missing price. */}
-              <td className="border border-black px-1 text-right">{money(r.amount)}</td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-black px-2 py-3 text-center text-gray-500" colSpan={branches.length + 5}>
+              <td className="border border-black px-2 py-3 text-center text-gray-500" colSpan={branches.length + 4}>
                 No items were demanded in this period.
               </td>
             </tr>
@@ -124,7 +124,6 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
                 <td key={b.id} className="border border-black px-1 text-right">{q(totals.qtyByBranch[b.id])}</td>
               ))}
               <td className="border border-black px-1 text-right">{q(totals.totalQty)}</td>
-              <td className="border border-black px-1 text-right">{money(totals.amount)}</td>
             </tr>
           </tfoot>
         )}

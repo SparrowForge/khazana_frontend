@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Logo from "@/components/ui/Logo";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
-import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import { fetchMyBranches, type Branch } from "@/app/admin/branches/server";
 import {
   fetchPosAdjustmentReport,
   POS_ADJUSTMENT_LABELS,
@@ -57,15 +57,21 @@ export default function PosAdjustmentReportPage({ kind }: { kind: PosAdjustmentK
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Only the branches this user is mapped to — the picker must never offer a
+  // branch whose figures they may not read. The report endpoint scopes on the
+  // same set, so "All Branches" means all of THEIR branches.
   useEffect(() => {
-    fetchBranches({ page: 1, limit: 100 })
-      .then(({ items }) => setBranches(items))
+    fetchMyBranches()
+      .then(setBranches)
       .catch(() => {});
   }, []);
 
+  // Seed the session branch when the user actually has it; a session branch
+  // outside their set falls back to All Branches (scoped to their set server-side).
   useEffect(() => {
-    if (sessionBranchId) setBranchId((b) => b || sessionBranchId);
-  }, [sessionBranchId]);
+    if (!branches.length) return;
+    setBranchId((b) => b || (branches.some((x) => String(x.id) === sessionBranchId) ? sessionBranchId : ALL));
+  }, [branches, sessionBranchId]);
 
   // Switching between these reports must not leave the previous one's rows on
   // screen under the new heading.

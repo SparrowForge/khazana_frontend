@@ -26,6 +26,14 @@ export interface BranchPayload {
 export const fetchBranches = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Branch>> =>
   api.get(`/admin/branches?page=${page}&limit=${limit}`).then(unwrapPaginated<Branch>);
 
+/** Only the branches the signed-in user is mapped to, in display order.
+ *  Every branch PICKER should use this — `fetchBranches` lists the whole
+ *  company and belongs to the Branches maintenance screen. The report data
+ *  itself is scoped server-side too, so a picker built from this can't ask for
+ *  something the API would refuse. */
+export const fetchMyBranches = (): Promise<Branch[]> =>
+  api.get<{ branches: Branch[] }>("/auth/my-branches").then((r) => r.data?.branches ?? []);
+
 export const createBranch = (data: BranchPayload) =>
   api.post<Branch>("/admin/branches", data).then((r) => r.data);
 

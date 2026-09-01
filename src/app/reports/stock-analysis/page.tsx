@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchStockAnalysis, type StockAnalysisReport, type StockAnalysisRow } from "./server";
-import { fetchBranches, type Branch } from "@/app/admin/branches/server";
+import { fetchMyBranches, type Branch } from "@/app/admin/branches/server";
 import { formatCurrency} from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
@@ -51,16 +51,26 @@ export default function StockAnalysisPage() {
   const [report, setReport] = useState<StockAnalysisReport | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Only the branches this user is mapped to — the picker must never offer a
+  // branch whose figures they may not read. The report endpoint scopes on the
+  // same set, so "All Branches" means all of THEIR branches.
   useEffect(() => {
-    fetchBranches({ page: 1, limit: 100 })
-      .then(({ items }) => setBranches(items))
+    fetchMyBranches()
+      .then(setBranches)
       .catch(() => {});
   }, []);
 
   // Default the selected branch to the session branch once known.
+  // Default to the session branch, falling back to the first accessible one for
+  // a session whose login branch is no longer mapped to the user.
   useEffect(() => {
-    if (sessionBranchId) setBranchId((b) => b || sessionBranchId);
-  }, [sessionBranchId]);
+    if (!branches.length) return;
+    setBranchId((current) => {
+      if (current && branches.some((b) => String(b.id) === current)) return current;
+      if (sessionBranchId && branches.some((b) => String(b.id) === sessionBranchId)) return sessionBranchId;
+      return String(branches[0].id);
+    });
+  }, [branches, sessionBranchId]);
 
   const runReport = () => {
     if (!allBranches && !branchId) return;
@@ -86,15 +96,19 @@ export default function StockAnalysisPage() {
           className="w-48"
           disabled={allBranches}
         />
-        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 select-none">
-          <input
-            type="checkbox"
-            checked={allBranches}
-            onChange={(e) => setAllBranches(e.target.checked)}
-            className="h-4 w-4 rounded border-sage-400 text-primary-800 focus:ring-primary-800"
-          />
-          All Branches
-        </label>
+        {/* Nothing to combine when the user only has the one branch, and the
+            checkbox would read as a promise of data they cannot see. */}
+        {branches.length > 1 && (
+          <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 select-none">
+            <input
+              type="checkbox"
+              checked={allBranches}
+              onChange={(e) => setAllBranches(e.target.checked)}
+              className="h-4 w-4 rounded border-sage-400 text-primary-800 focus:ring-primary-800"
+            />
+            All Branches
+          </label>
+        )}
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}
         {/* Print above renders the bespoke landscape sheet (with its summary

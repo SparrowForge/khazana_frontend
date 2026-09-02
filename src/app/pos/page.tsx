@@ -8,14 +8,15 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
 import { adminService, type Branch } from "@/lib/services/admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLiveStock } from "@/hooks/useLiveStock";
 import {
-  addOfflineOrder, deductCachedStock, cacheStock, cacheCatalog,
-  getCachedCatalog, getCachedStock, getOfflineOrders, nextSequence, type OfflineOrder,
+  addOfflineOrder, deductCachedStock, cacheStock, cacheCatalog, cacheCustomers,
+  getCachedCatalog, getCachedCustomers, getCachedStock, getOfflineOrders, nextSequence,
+  type OfflineOrder,
 } from "@/lib/offline/offlineStore";
 import { buildOfflineInvoiceNo, fallbackPrefix } from "@/lib/offline/invoice";
 import { printOfflineReceipt } from "@/lib/offline/receipt";
@@ -52,9 +53,10 @@ interface HeldOrder {
   bankId: string;
   discountType: DiscountType;
   discountValue: string;
-  discountName: string;
-  discountContact: string;
-  guestName: string;
+  /** Empty string is the walk-in customer — what a held order resumes to unless
+   *  one was picked, exactly as a fresh terminal starts. */
+  customerId: string;
+  cardNo: string;
 }
 
 const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
@@ -102,12 +104,17 @@ export default function PosPage() {
   // Discount state
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
-  // Discount authoriser (mandatory when a discount is applied)
-  const [discountName, setDiscountName] = useState("");
-  const [discountContact, setDiscountContact] = useState("");
-  /** Walk-in customer's name. Optional on every sale and independent of the
-   *  discount panel above — reports show it in place of "POS". */
-  const [guestName, setGuestName] = useState("");
+
+  /** Who the bill is for. Empty is the walk-in customer — what the counter sells
+   *  to most of the time, so it is the default and needs no action from the
+   *  cashier. A DISCOUNT is the exception: it has to be given to somebody, so
+   *  the sale won't go through discounted until a real customer is picked (the
+   *  server enforces the same rule). */
+  const [customerId, setCustomerId] = useState("");
+  const [customers, setCustomers] = useState<PosCustomer[]>([]);
+  /** Last 4 digits of the card, on a Card payment. Never more — the last four
+   *  is all that may be kept, and all the settlement slip needs to match. */
+  const [cardNo, setCardNo] = useState("");
 
   // ── Order queue (Hold / Resume), persisted to localStorage ───
   const [queue, setQueue] = useState<HeldOrder[]>([]);
@@ -173,6 +180,26 @@ export default function PosPage() {
   useEffect(() => {
     posBanksApi.getAll().then(setBanks).catch(() => {});
   }, []);
+
+  // Customers for the picker, cached the same way the catalogue is: a till that
+  // boots with no connection still has to be able to bill a named customer,
+  // because that is the only way it can give a discount.
+  useEffect(() => {
+    let cancelled = false;
+    posCustomersApi
+      .getAll()
+      .then(async (list) => {
+        if (cancelled) return;
+        setCustomers(list);
+        if (user) await cacheCustomers(user.id, list);
+      })
+      .catch(async () => {
+        if (!user) return;
+        const cached = await getCachedCustomers(user.id);
+        if (!cancelled) setCustomers(cached);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Session branch letterhead (address / VAT Reg No / tel). Kept in localStorage
   // so an offline receipt can still print the same header the online one does.
@@ -399,6 +426,13 @@ export default function PosPage() {
   const paid = parseFloat(paidAmount) || 0;
   const change = r2(paid - payableAmount);
 
+  /** The picked customer, or undefined for a walk-in. */
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  /** A discount has to be given to somebody. Walk-in is nobody, so the bill
+   *  can't be discounted until a customer is named — the same rule the server
+   *  applies, checked here so the cashier is told before they hit Generate. */
+  const needsCustomerForDiscount = discountAmount > 0 && !customerId;
+
   // Discount input validation hint
   const discountExceedsTotal =
     discountType === "fixed"
@@ -413,9 +447,8 @@ export default function PosPage() {
     setBankId("");
     setDiscountType("fixed");
     setDiscountValue("");
-    setDiscountName("");
-    setDiscountContact("");
-    setGuestName("");
+    setCustomerId("");
+    setCardNo("");
   };
 
   // ── Hold / Resume ────────────────────────────────────────────
@@ -429,9 +462,8 @@ export default function PosPage() {
       bankId,
       discountType,
       discountValue,
-      discountName,
-      discountContact,
-      guestName,
+      customerId,
+      cardNo,
     };
     setQueue((q) => [held, ...q]);
     resetWorkspace();
@@ -453,9 +485,8 @@ export default function PosPage() {
           bankId,
           discountType,
           discountValue,
-          discountName,
-          discountContact,
-          guestName,
+          customerId,
+          cardNo,
         });
       }
       return remaining;
@@ -465,9 +496,10 @@ export default function PosPage() {
     setBankId(held.bankId ?? "");
     setDiscountType(held.discountType);
     setDiscountValue(held.discountValue);
-    setDiscountName(held.discountName ?? "");
-    setDiscountContact(held.discountContact ?? "");
-    setGuestName(held.guestName ?? "");
+    // An order parked before the picker existed has no customer — it resumes as
+    // a walk-in, which is what a blank picker means anyway.
+    setCustomerId(held.customerId ?? "");
+    setCardNo(held.cardNo ?? "");
     setPaidAmount("");
     toast.success("Order resumed");
   };
@@ -500,9 +532,8 @@ export default function PosPage() {
       branchId: user.branchId || undefined,
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
-      discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
-      discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
-      guestName: guestName.trim() || undefined,
+      customerId: customerId || undefined,
+      cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
       display: {
         // DD-MMM-YYYY h:mm AM, never the terminal's own locale format.
         dateTime: formatDateTime(at),
@@ -548,8 +579,12 @@ export default function PosPage() {
     }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
-    if (discountAmount > 0 && (!discountName.trim() || !discountContact.trim())) {
-      toast.error("Discount requires authoriser Name and Contact No");
+    if (needsCustomerForDiscount) {
+      toast.error("Select a customer — a discount cannot be given to a walk-in");
+      return;
+    }
+    if (payMode === "Card" && cardNo.trim() && cardNo.trim().length !== 4) {
+      toast.error("Card No must be the last 4 digits");
       return;
     }
 
@@ -575,9 +610,8 @@ export default function PosPage() {
         branchId: user?.branchId || undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
-        discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
-        discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
-        guestName: guestName.trim() || undefined,
+        customerId: customerId || undefined,
+        cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
       // Keep local caches in step with the server-side deduction.
@@ -997,24 +1031,14 @@ export default function PosPage() {
                   </p>
                 )}
 
-                {/* Discount authoriser — mandatory once a discount is applied. */}
-                {discountAmount > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <input
-                      type="text"
-                      value={discountName}
-                      onChange={(e) => setDiscountName(e.target.value)}
-                      placeholder="Guest name *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
-                    />
-                    <input
-                      type="text"
-                      value={discountContact}
-                      onChange={(e) => setDiscountContact(e.target.value)}
-                      placeholder="Guest contact no *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
-                    />
-                  </div>
+                {/* A discount has to be given to somebody. The name and phone
+                    number that used to be typed here are now the picked
+                    customer's, taken from their record — so this says what is
+                    missing and points at the field that fixes it. */}
+                {needsCustomerForDiscount && (
+                  <p className="mt-2 rounded-md border border-red-300 bg-red-50 px-2.5 py-1.5 text-xs text-red-600">
+                    Select a customer below — a discount cannot be given to a walk-in.
+                  </p>
                 )}
               </div>
 
@@ -1037,33 +1061,66 @@ export default function PosPage() {
               onChange={(e) => {
                 const next = e.target.value;
                 setPayMode(next);
-                if (next !== "Card") setBankId("");
+                // Leaving Card drops both of the card's fields — a cash bill
+                // must not keep a bank or a card number from a mode it is no
+                // longer in.
+                if (next !== "Card") { setBankId(""); setCardNo(""); }
               }}
               options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))}
             />
 
             {payMode === "Card" && (
-              <Select
-                label="Bank"
-                value={bankId}
-                onChange={(e) => setBankId(e.target.value)}
-                options={[
-                  { value: "", label: "Select bank" },
-                  ...banks.map((b) => ({ value: b.id, label: b.name })),
-                ]}
-              />
+              <>
+                <Select
+                  label="Bank"
+                  value={bankId}
+                  onChange={(e) => setBankId(e.target.value)}
+                  options={[
+                    { value: "", label: "Select bank" },
+                    ...banks.map((b) => ({ value: b.id, label: b.name })),
+                  ]}
+                />
+                {/* Last four only — it is all that may be kept, and all the
+                    end-of-day settlement slip needs to match a bill to a card. */}
+                <Input
+                  label="Card No (last 4 digits)"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={cardNo}
+                  onChange={(e) => setCardNo(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="1234"
+                />
+              </>
             )}
 
-            {/* Optional, and nothing to do with the discount authoriser above: a
-                running sale has no customer record, so without this the Sales
-                History Summary can only call the row "POS". Reports only — it
-                does not print on the receipt. */}
-            <Input
-              label="Customer Name"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Walk-in name (optional)"
+            {/* Who the bill is for. Walk-in is the default and covers most of
+                the counter's trade; picking a customer names the sale on the
+                reports, and is required before it can be discounted. */}
+            <Select
+              label="Customer"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              searchable
+              options={[
+                { value: "", label: "Walk-in Customer" },
+                ...customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
+              ]}
+              error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
             />
+
+            {selectedCustomer && (
+              <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
+                <p className="text-gray-500">
+                  Name: <span className="font-medium text-gray-800">{selectedCustomer.name}</span>
+                </p>
+                <p className="text-gray-500">
+                  Contact No:{" "}
+                  <span className="font-medium text-gray-800">
+                    {selectedCustomer.mobile || "— not on file —"}
+                  </span>
+                </p>
+              </div>
+            )}
 
             <Input
               label="Paid Amount (৳)"
@@ -1101,7 +1158,7 @@ export default function PosPage() {
                 size="lg"
                 onClick={handleGenerateBill}
                 loading={submitting}
-                disabled={!cart.length || paid < payableAmount || discountExceedsTotal}
+                disabled={!cart.length || paid < payableAmount || discountExceedsTotal || needsCustomerForDiscount}
               >
                 {isOnline ? "Generate Bill" : "Save Offline Bill"}
               </Button>

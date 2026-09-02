@@ -41,7 +41,7 @@ export interface PacketIssuePayload {
 
 
 export const packetsService = {
-  list: (limit = 500) =>
+  list: (limit = 100) =>
     api.get<{ data: Packet[] } | Packet[]>(`/packets?limit=${limit}`).then(unwrapList<Packet>),
 
   create: (data: PacketPayload) =>

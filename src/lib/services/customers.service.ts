@@ -44,7 +44,7 @@ export interface LedgerEntry {
 
 
 export const customersService = {
-  list: (limit = 500) =>
+  list: (limit = 100) =>
     api.get<{ data: Customer[] } | Customer[]>(`/customers?limit=${limit}`).then(unwrapList<Customer>),
 
   get: (id: number) =>

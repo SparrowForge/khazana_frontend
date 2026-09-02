@@ -6,7 +6,7 @@ import {
   STORE_ORDERS, STORE_STOCK, STORE_META, STORE_CATALOG,
   idbGet, idbPut, idbDelete, idbGetAll,
 } from "./idb";
-import type { PosProduct } from "@/lib/services/pos.service";
+import type { PosProduct, PosCustomer } from "@/lib/services/pos.service";
 
 /** Client-only display snapshot for printing the offline receipt (NOT synced). */
 export interface OfflineDisplayLine {
@@ -60,11 +60,18 @@ export interface OfflineOrder {
   branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
-  /** Discount authoriser name/contact — captured when a discount is applied. */
+  /** Customer this sale was billed to; absent for a walk-in. A discounted sale
+   *  always has one — the terminal won't take a discount without it. */
+  customerId?: string;
+  /** Last 4 digits of the card — captured when salesType is 'Card'. */
+  cardNo?: string;
+  /** @deprecated Only on orders queued before the customer picker existed. Still
+   *  uploaded so those sales sync with the discount audit they were rung up
+   *  under — the server falls back to them when an order names no customer. */
   discountRemarks?: string;
   discountContact?: string;
-  /** Walk-in customer's name — optional on every sale, independent of the
-   *  discount authoriser above. Shown in Sales History Summary. */
+  /** @deprecated Only on orders queued before the customer picker existed. Not
+   *  uploaded any more: the column it fed is gone. */
   guestName?: string;
   // ── Client-only ──
   display: OfflineDisplay;
@@ -174,6 +181,32 @@ export async function getCachedCatalog(userId: string): Promise<PosProduct[]> {
   return row?.products ?? [];
 }
 
+// ── Customer snapshot (for cold-offline boot) ─────────────────────────
+// Shares the catalog store under its own key rather than adding a fifth object
+// store: a new store means a DB version bump, and an upgrade that runs on a till
+// mid-shift with sales already queued is not worth a key prefix.
+
+interface CustomerCacheRow {
+  key: string; // `customers:${userId}`
+  customers: PosCustomer[];
+  cachedAt: string;
+}
+
+const customerCacheKey = (userId: string) => `customers:${userId}`;
+
+export async function cacheCustomers(userId: string, customers: PosCustomer[]): Promise<void> {
+  await idbPut<CustomerCacheRow>(STORE_CATALOG, {
+    key: customerCacheKey(userId),
+    customers,
+    cachedAt: new Date().toISOString(),
+  });
+}
+
+export async function getCachedCustomers(userId: string): Promise<PosCustomer[]> {
+  const row = await idbGet<CustomerCacheRow>(STORE_CATALOG, customerCacheKey(userId)).catch(() => undefined);
+  return row?.customers ?? [];
+}
+
 /** Strip an OfflineOrder down to the exact OfflineSaleDto the backend accepts —
  *  drops localId/userId/display so the strict whitelist DTO won't 400. */
 export function toSyncPayload(o: OfflineOrder) {
@@ -190,8 +223,14 @@ export function toSyncPayload(o: OfflineOrder) {
     ...(o.branchId != null ? { branchId: o.branchId } : {}),
     ...(o.discountType ? { discountType: o.discountType } : {}),
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),
+    ...(o.customerId ? { customerId: o.customerId } : {}),
+    ...(o.cardNo ? { cardNo: o.cardNo } : {}),
+    // Only ever present on an order queued before the customer picker existed;
+    // the server falls back to them when the order names no customer.
     ...(o.discountRemarks ? { discountRemarks: o.discountRemarks } : {}),
     ...(o.discountContact ? { discountContact: o.discountContact } : {}),
-    ...(o.guestName ? { guestName: o.guestName } : {}),
+    // guestName is deliberately NOT sent: the column it was written to is gone,
+    // and the server ignores it. The field stays on the type only because old
+    // queued orders still carry it.
   };
 }

@@ -9,7 +9,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, posBanksApi, POS_PAY_MODES, type PosProduct, type PosBank } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import { roundPayable } from "@/lib/utils";
@@ -58,11 +58,13 @@ export default function PosSaleEditPage() {
   const [search, setSearch] = useState("");
   const [discountType, setDiscountType] = useState<DiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
-  const [discountName, setDiscountName] = useState("");
-  const [discountContact, setDiscountContact] = useState("");
-  /** Walk-in customer's name — prefilled from the sale so an edit that does not
-   *  touch it does not wipe it. */
-  const [guestName, setGuestName] = useState("");
+  /** Who the sale was billed to — prefilled from the sale, so an edit that does
+   *  not touch it does not turn a named customer back into a walk-in. Empty is
+   *  the walk-in case, which a discounted sale is not allowed to be. */
+  const [customerId, setCustomerId] = useState("");
+  const [customers, setCustomers] = useState<PosCustomer[]>([]);
+  /** Last 4 digits of the card, on a Card sale. */
+  const [cardNo, setCardNo] = useState("");
   // Mandatory on every update — audited in the Daily Final Report.
   const [modifyReason, setModifyReason] = useState("");
   const [loading, setLoading] = useState(true);
@@ -84,16 +86,15 @@ export default function PosSaleEditPage() {
         setBankId(sale.bankId || "");
         setServedBy(sale.servedBy || "");
         setPaidAmount(String(sale.paidAmount ?? ""));
-        // Unconditional: the customer name exists independently of the
-        // discount, and the update writes whatever is in the box — so a sale
-        // with no discount would have its name wiped by an unrelated edit if
-        // this only ran inside the branch below.
-        setGuestName(sale.guestName ?? "");
+        // Unconditional: the customer is on the sale whether or not it was
+        // discounted, and the update writes whatever the picker holds — so a
+        // non-discounted sale would be demoted to a walk-in by an unrelated
+        // edit if this only ran inside the branch below.
+        setCustomerId(sale.customerId ?? "");
+        setCardNo(sale.cardNo ?? "");
         if (Number(sale.discountAmount) > 0) {
           setDiscountType("fixed");
           setDiscountValue(String(sale.discountAmount));
-          setDiscountName(sale.discountRemarks ?? "");
-          setDiscountContact(sale.discountContact ?? "");
         }
         const byId = new Map(prods.map((p) => [p.id, p]));
         setCart(
@@ -123,6 +124,13 @@ export default function PosSaleEditPage() {
   // Banks for the Card-payment dropdown (best-effort).
   useEffect(() => {
     posBanksApi.getAll().then(setBanks).catch(() => {});
+  }, []);
+
+  // Customers for the picker. Best-effort: this screen is online-only, and a
+  // failed load leaves the sale's own customer selected but unnamed rather than
+  // silently reassigning it.
+  useEffect(() => {
+    posCustomersApi.getAll().then(setCustomers).catch(() => {});
   }, []);
 
   const addToCart = (product: PosProduct) => {
@@ -203,6 +211,11 @@ export default function PosSaleEditPage() {
   const discountExceedsTotal =
     discountType === "fixed" ? discVal > discountableGross && discountableGross > 0 : discVal > 100;
 
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  /** Same rule as the till: a discount has to be given to somebody, so an edit
+   *  that leaves one applied has to name the customer it went to. */
+  const needsCustomerForDiscount = discountAmount > 0 && !customerId;
+
   const filtered = useMemo(
     () =>
       products.filter(
@@ -218,8 +231,12 @@ export default function PosSaleEditPage() {
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
     if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (!modifyReason.trim()) { toast.error("Modify Reason is required"); return; }
-    if (discountAmount > 0 && (!discountName.trim() || !discountContact.trim())) {
-      toast.error("Discount requires authoriser Name and Contact No");
+    if (needsCustomerForDiscount) {
+      toast.error("Select a customer — a discount cannot be given to a walk-in");
+      return;
+    }
+    if (salesType === "Card" && cardNo.trim() && cardNo.trim().length !== 4) {
+      toast.error("Card No must be the last 4 digits");
       return;
     }
 
@@ -232,9 +249,8 @@ export default function PosSaleEditPage() {
         bankId: salesType === "Card" ? (bankId || undefined) : undefined,
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
-        discountRemarks: discountAmount > 0 ? discountName.trim() : undefined,
-        discountContact: discountAmount > 0 ? discountContact.trim() : undefined,
-        guestName: guestName.trim() || undefined,
+        customerId: customerId || undefined,
+        cardNo: salesType === "Card" ? (cardNo.trim() || undefined) : undefined,
         modifyRemarks: modifyReason.trim(),
       });
       toast.success(`Invoice ${invoiceNo} updated`);
@@ -479,24 +495,13 @@ export default function PosSaleEditPage() {
                   </p>
                 )}
 
-                {/* Discount authoriser — mandatory once a discount is applied. */}
-                {discountAmount > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <input
-                      type="text"
-                      value={discountName}
-                      onChange={(e) => setDiscountName(e.target.value)}
-                      placeholder="Guest name *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountName.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
-                    />
-                    <input
-                      type="text"
-                      value={discountContact}
-                      onChange={(e) => setDiscountContact(e.target.value)}
-                      placeholder="Guest contact no *"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${discountContact.trim() ? "border-sage-300" : "border-red-300 bg-red-50"}`}
-                    />
-                  </div>
+                {/* The discount's name and contact number are the picked
+                    customer's, read off their record — so this says what is
+                    missing rather than asking for it to be typed again. */}
+                {needsCustomerForDiscount && (
+                  <p className="mt-2 rounded-md border border-red-300 bg-red-50 px-2.5 py-1.5 text-xs text-red-600">
+                    Select a customer below — a discount cannot be given to a walk-in.
+                  </p>
                 )}
               </div>
 
@@ -518,7 +523,10 @@ export default function PosSaleEditPage() {
               onChange={(e) => {
                 const next = e.target.value;
                 setSalesType(next);
-                if (next !== "Card") setBankId("");
+                // Leaving Card drops both of the card's fields — a cash bill
+                // must not keep a bank or a card number from a mode it is no
+                // longer in.
+                if (next !== "Card") { setBankId(""); setCardNo(""); }
               }}
               options={((POS_PAY_MODES as readonly string[]).includes(salesType) ? [...POS_PAY_MODES] : [salesType, ...POS_PAY_MODES])
                 .filter(Boolean)
@@ -526,17 +534,52 @@ export default function PosSaleEditPage() {
             />
 
             {salesType === "Card" && (
-              <Select
-                label="Bank"
-                value={bankId}
-                onChange={(e) => setBankId(e.target.value)}
-                options={[
-                  { value: "", label: "Select bank" },
-                  ...banks.map((b) => ({ value: b.id, label: b.name })),
-                ]}
-              />
+              <>
+                <Select
+                  label="Bank"
+                  value={bankId}
+                  onChange={(e) => setBankId(e.target.value)}
+                  options={[
+                    { value: "", label: "Select bank" },
+                    ...banks.map((b) => ({ value: b.id, label: b.name })),
+                  ]}
+                />
+                <Input
+                  label="Card No (last 4 digits)"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={cardNo}
+                  onChange={(e) => setCardNo(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="1234"
+                />
+              </>
             )}
-            <Input label="Customer Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Walk-in name (optional)" />
+
+            <Select
+              label="Customer"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              searchable
+              options={[
+                { value: "", label: "Walk-in Customer" },
+                ...customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
+              ]}
+              error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
+            />
+
+            {selectedCustomer && (
+              <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
+                <p className="text-gray-500">
+                  Name: <span className="font-medium text-gray-800">{selectedCustomer.name}</span>
+                </p>
+                <p className="text-gray-500">
+                  Contact No:{" "}
+                  <span className="font-medium text-gray-800">
+                    {selectedCustomer.mobile || "— not on file —"}
+                  </span>
+                </p>
+              </div>
+            )}
 
             {/* The cashier who rang the sale, stamped from their session at the
                 till. An edit corrects the sale, never who served it. */}
@@ -567,7 +610,7 @@ export default function PosSaleEditPage() {
                 paid < payableAmount ||
                 discountExceedsTotal ||
                 !modifyReason.trim() ||
-                (discountAmount > 0 && (!discountName.trim() || !discountContact.trim()))
+                needsCustomerForDiscount
               }
             >
               Save Changes

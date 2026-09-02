@@ -13,7 +13,9 @@ const exportColumns: ExportColumn<SalesReportRow>[] = [
   { header: "Invoice No", value: (r) => r.invNo },
   { header: "Date", value: (r) => formatDate(r.date) },
   { header: "Customer", value: (r) => r.customerName },
+  { header: "Contact No", value: (r) => r.contactNo ?? "" },
   { header: "Type", value: (r) => r.saleType },
+  { header: "Card No", value: (r) => (r.cardNo ? `**** ${r.cardNo}` : "") },
   { header: "Gross", value: (r) => r.totalAmount ?? 0, numeric: true },
   { header: "Discount", value: (r) => r.discount ?? 0, numeric: true },
   { header: "Net", value: (r) => r.netAmount ?? 0, numeric: true },
@@ -49,7 +51,7 @@ export default function SalesReportPage() {
           meta={{
             title: "Sales Report",
             subtitle: `${formatDate(from)} — ${formatDate(to)}`,
-            footer: ["", "", "", "Total", "", "", formatCurrency(totalNet)],
+            footer: ["", "", "", "", "", "Total", "", "", formatCurrency(totalNet)],
           }}
         />
       </div>
@@ -58,7 +60,11 @@ export default function SalesReportPage() {
           { key: "invNo", header: "Invoice No" },
           { key: "date", header: "Date", render: (r) => formatDate(r.date) },
           { key: "customerName", header: "Customer" },
+          { key: "contactNo", header: "Contact No", render: (r) => r.contactNo || "—" },
           { key: "saleType", header: "Type" },
+          // The masking is cosmetic — only the last four are ever stored — but
+          // it reads as a card number rather than a stray 4-digit code.
+          { key: "cardNo", header: "Card No", render: (r) => (r.cardNo ? `**** ${r.cardNo}` : "—") },
           { key: "totalAmount", header: "Gross", render: (r) => `৳ ${formatCurrency(r.totalAmount ?? 0)}`, className: "text-right" },
           { key: "discount", header: "Discount", render: (r) => `৳ ${formatCurrency(r.discount ?? 0)}`, className: "text-right" },
           { key: "netAmount", header: "Net", render: (r) => `৳ ${formatCurrency(r.netAmount ?? 0)}`, className: "text-right font-semibold" },

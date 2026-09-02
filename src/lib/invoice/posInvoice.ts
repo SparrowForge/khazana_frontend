@@ -34,14 +34,19 @@ export function posSaleToInvoice(sale: PosSale): CreditInvoice {
     // sales name the bank, which is the only place the A4 sheet records it.
     saleType: sale.bankName ? `${sale.salesType} — ${sale.bankName}` : sale.salesType,
     customer: {
-      // No Customer row behind a running sale, so there is no code to print.
-      code: "",
-      // The name typed at the counter, else the discount authoriser (the only
-      // name sales rung up before that field existed can carry) — same order
-      // the Sales History Summary resolves it in. Failing both, the document
-      // says what it is rather than leaving the line blank.
-      name: (sale.guestName ?? "").trim() || (sale.discountRemarks ?? "").trim() || "Walk-in Customer",
-      mobile: null,
+      // A counter sale names its customer now, so the document can print their
+      // code and phone number the way a credit invoice does. A walk-in has no
+      // Customer row and leaves all three blank.
+      code: sale.customerCode ?? "",
+      // Failing a picked customer: the discount authoriser, which is the only
+      // name a sale rung up before the picker existed can have. Same order the
+      // Sales History Summary resolves it in. Failing both, the document says
+      // what the sale was rather than leaving the line blank.
+      name:
+        (sale.customerName ?? "").trim() ||
+        (sale.discountRemarks ?? "").trim() ||
+        "Walk-in Customer",
+      mobile: sale.customerMobile ?? null,
       address: null,
     },
     branch: sale.branch

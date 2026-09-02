@@ -21,10 +21,19 @@ import { previewDeliveryChallan, type DeliveryChallanLine } from "@/lib/export/d
 
 /** What the user typed against one item in the entry grid. The grid lists the
  *  whole catalogue, so most items carry an empty `qty` and are simply skipped —
- *  only rows with qty > 0 are ever sent. */
-interface ItemEntry { qty: string; isProduction: boolean; }
+ *  only rows with qty > 0 are ever sent.
+ *
+ *  `rate` is used ONLY for items with no active price row: everything else is
+ *  issued at its catalogue rate, which is not editable here — the price list is
+ *  maintained on Price Setup, not talked out of on an issue. */
+interface ItemEntry { qty: string; isProduction: boolean; rate: string; }
 
-const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false };
+const BLANK_ENTRY: ItemEntry = { qty: "", isProduction: false, rate: "" };
+
+/** An item priced on the price list. Zero is not a price: it would value the
+ *  delivery at nothing on every report that reads the issue, so it is treated
+ *  as absent and the operator is asked for a rate. */
+const hasCataloguePrice = (it: AvailableItem) => Number(it.price ?? 0) > 0;
 
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -116,6 +125,10 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
         acc[it.itemId] = {
           qty: String(previous + Number(it.qty ?? 0)),
           isProduction: acc[it.itemId]?.isProduction || !!it.isProduction,
+          // The rate this line was saved at, so reopening an unpriced item's
+          // document shows what it went out at rather than an empty box the
+          // operator has to fill in again from memory.
+          rate: Number(it.unitPrice ?? 0) > 0 ? String(it.unitPrice) : (acc[it.itemId]?.rate ?? ""),
         };
         return acc;
       }, {}),
@@ -149,6 +162,12 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
 
   const entryFor = (itemId: string) => entries[itemId] ?? BLANK_ENTRY;
 
+  /** The rate a line will be issued at: the catalogue price where there is one,
+   *  otherwise whatever was typed into the Rate cell. Zero means "still needs a
+   *  rate", which is what blocks the save. */
+  const rateFor = (it: AvailableItem) =>
+    hasCataloguePrice(it) ? Number(it.price) : parseFloat(entries[it.id]?.rate ?? "") || 0;
+
   const setEntry = (itemId: string, patch: Partial<ItemEntry>) =>
     setEntries((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] ?? BLANK_ENTRY), ...patch } }));
 
@@ -164,7 +183,10 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
           itemId: item.id,
           itemName: item.itmName || item.itmCode,
           qty: parseFloat(entry!.qty),
-          unitPrice: Number(item.price ?? 0),
+          // Catalogue rate, or the one typed against an item the price list has
+          // nothing for. Stored VAT-exclusive; an unpriced item carries no VAT
+          // percent either, so a typed rate is both figures at once.
+          unitPrice: hasCataloguePrice(item) ? Number(item.price) : parseFloat(entry!.rate) || 0,
           // Only the factory may produce, so the flag can never leave a shop
           // session even if a stale checkbox state survived a branch switch.
           isProduction: isFactorySession && entry!.isProduction,
@@ -173,6 +195,13 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
   );
 
   const totalQty = validLines.reduce((sum, l) => sum + l.qty, 0);
+
+  /** Lines that would be issued at no value at all — an item with no price row
+   *  whose Rate cell is still empty. The save is refused until each has one. */
+  const missingRates = useMemo(
+    () => validLines.filter((l) => !(l.unitPrice > 0)),
+    [validLines],
+  );
 
   /** Every branch except the one issuing — a document that sends stock to the
    *  branch it came from is meaningless. A legacy record whose receiving branch
@@ -268,6 +297,13 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
       toast.error(`Not enough stock: ${short.map((s) => `${s.name} (${s.available} available, ${s.qty} requested)`).join(", ")}`);
       return;
     }
+    // No rate, no issue: the line would be delivered at zero value and every
+    // report that prices the delivery would under-report it. The server refuses
+    // the same lines, so a stale tab cannot get round this.
+    if (missingRates.length) {
+      toast.error(`Enter a rate for: ${missingRates.map((l) => l.itemName).join(", ")}`);
+      return;
+    }
     setSubmitting(true);
     try {
       // `itemName` is carried only for the panel on screen — the DTO whitelist
@@ -342,8 +378,10 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
             <th className="px-3 py-2 font-medium">Item Name</th>
             {/* The item's selling rate WITH VAT — the figure the delivery is
                 valued at on the Branchwise Delivery Report, so the person
-                writing the issue sees what they are sending out. */}
-            <th className="px-3 py-2 font-medium text-right w-28">Rate (Incl. VAT)</th>
+                writing the issue sees what they are sending out. An item the
+                price list has nothing for gets an editable cell instead: it
+                cannot be issued without a rate, so one is asked for here. */}
+            <th className="px-3 py-2 font-medium text-right w-32">Rate (Incl. VAT)</th>
             <th className="px-3 py-2 font-medium text-right">Available</th>
             <th className="px-3 py-2 font-medium text-right w-32">Issue Qty</th>
             {isFactorySession && (
@@ -373,25 +411,48 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
             // Only a plain line can over-issue; a production line supplies
             // its own quantity, so it is never flagged red.
             const over = qty > available && !entry.isProduction;
+            // An unpriced item with a quantity on it and no rate typed yet.
+            const needsRate = qty > 0 && !(rateFor(it) > 0);
             return (
               <tr
                 key={it.id}
                 className={`border-t border-sage-200 ${
-                  // Production-selected rows are called out; an over-issue
-                  // outranks that, since it blocks the save.
-                  over ? "bg-red-50" : entry.isProduction && qty > 0 ? "bg-amber-50" : qty > 0 ? "bg-primary-50/40" : ""
+                  // Production-selected rows are called out; an over-issue or a
+                  // missing rate outranks that, since either blocks the save.
+                  over || needsRate ? "bg-red-50" : entry.isProduction && qty > 0 ? "bg-amber-50" : qty > 0 ? "bg-primary-50/40" : ""
                 }`}
               >
                 <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{it.itmCode}</td>
                 <td className="px-3 py-1.5">{it.itmName}</td>
-                <td
-                  className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap"
-                  // The parts behind the figure, for anyone checking it against
-                  // the price list.
-                  title={`${formatCurrency(it.price ?? 0)} + ${Number(it.vatPercentage ?? 0)}% VAT`}
-                >
-                  {formatCurrency(vatInclusiveRate(it))}
-                </td>
+                {hasCataloguePrice(it) ? (
+                  <td
+                    className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap"
+                    // The parts behind the figure, for anyone checking it against
+                    // the price list.
+                    title={`${formatCurrency(it.price ?? 0)} + ${Number(it.vatPercentage ?? 0)}% VAT`}
+                  >
+                    {formatCurrency(vatInclusiveRate(it))}
+                  </td>
+                ) : (
+                  <td className="px-3 py-1.5">
+                    {/* No price row for this item, so the rate is typed here and
+                        saved on the issue line. Flagged red once a quantity is
+                        on the row and the rate is still missing — that is the
+                        state that blocks the save. */}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={entry.rate}
+                      placeholder="Rate"
+                      onChange={(e) => setEntry(it.id, { rate: e.target.value })}
+                      title="This item has no price on the price list — enter the rate it is being issued at"
+                      className={`w-full border rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 ${
+                        needsRate ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-amber-400 focus:ring-amber-500"
+                      }`}
+                    />
+                  </td>
+                )}
                 <td className={`px-3 py-1.5 text-right ${available <= 0 ? "text-gray-400" : ""}`}>{available}</td>
                 <td className="px-3 py-1.5">
                   <input
@@ -434,6 +495,15 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
     </div>
   );
 
+  /** Named under the grid as well as in the toast: on the full page the
+   *  offending row can be scrolled out of sight when Save is pressed. */
+  const rateWarning = missingRates.length ? (
+    <p className="mt-2 text-xs text-red-600">
+      Enter a rate for {missingRates.map((l) => l.itemName).join(", ")} — an item with no price on the price list
+      cannot be issued until a rate is typed against it.
+    </p>
+  ) : null;
+
   const productionNote = isFactorySession ? (
     <p className="mt-2 text-xs text-gray-500">
       Ticking <span className="font-medium text-amber-700">Is Production</span> also records the line in Production
@@ -468,6 +538,7 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
         {headerFields}
         {searchRow}
         {itemGrid}
+        {rateWarning}
         {productionNote}
         <div className="flex justify-end gap-3 mt-6">{actions}</div>
       </>
@@ -482,6 +553,7 @@ export default function StockIssueForm({ variant = "modal", document: doc, onCan
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {searchRow}
         {itemGrid}
+        {rateWarning}
         {productionNote}
       </div>
 

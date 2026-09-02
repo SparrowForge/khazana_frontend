@@ -47,7 +47,14 @@ export interface PosSale {
   salesType: string;
   bankId?: string | null;
   bankName?: string | null;
-  guestName?: string | null;
+  /** The customer this sale was billed to. All four null is a walk-in — the
+   *  default at the till, and the only case with no customer behind the sale. */
+  customerId?: string | null;
+  customerCode?: string | null;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  /** Last 4 digits of the card, on a Card sale only. */
+  cardNo?: string | null;
   discountRemarks?: string | null;
   discountContact?: string | null;
   modifyRemarks?: string | null;
@@ -75,13 +82,13 @@ export interface CreatePosSalePayload {
   branchId?: string;
   discountType?: 'fixed' | 'percentage';
   discountValue?: number;
-  /** Discount authoriser name/contact — sent when a discount is applied. */
-  discountRemarks?: string;
-  discountContact?: string;
-  /** Walk-in customer's name → SoMstr_GuestName. Optional on every sale and
-   *  independent of the discount authoriser above; Sales History Summary shows
-   *  it in place of 'POS'. Not printed on the receipt. */
-  guestName?: string;
+  /** Customer UUID this sale is billed to. Omitted for a walk-in, which is the
+   *  default at the till — but MANDATORY once a discount is applied: the server
+   *  rejects a discounted walk-in, and stamps the customer's name and mobile
+   *  onto the discount audit the reports read. */
+  customerId?: string;
+  /** Last 4 digits of the card — sent only when salesType is 'Card'. */
+  cardNo?: string;
   /** Mandatory reason for an edit (update only) → SoMstr_ModifyRemarks. */
   modifyRemarks?: string;
 }
@@ -99,11 +106,10 @@ export interface OfflineSalePayload {
   branchId?: string;
   discountType?: "fixed" | "percentage";
   discountValue?: number;
-  /** Discount authoriser name/contact — captured when a discount is applied. */
-  discountRemarks?: string;
-  discountContact?: string;
-  /** Walk-in customer's name → SoMstr_GuestName. */
-  guestName?: string;
+  /** Customer UUID captured at sale time; absent for a walk-in. */
+  customerId?: string;
+  /** Last 4 digits of the card, captured at sale time. */
+  cardNo?: string;
 }
 
 export interface SyncOfflinePayload {
@@ -139,6 +145,33 @@ export const posBanksApi = {
     api.get("/admin/banks?page=1&limit=100").then((r) => {
       const rows = unwrapList<{ id: string; name?: string }>(r);
       return rows.map((b) => ({ id: b.id, name: b.name ?? "" }));
+    }),
+};
+
+/**
+ * Customers offered by the terminal's picker.
+ *
+ * The counter bills a walk-in by default, so this list only has to be reachable
+ * — not complete on the first keystroke. It is the same `/customers` feed the
+ * credit-sale header uses, and the same page-1 cap: a till with more than that
+ * many registered customers wants a type-ahead endpoint, not a longer dropdown.
+ */
+export interface PosCustomer {
+  id: string;
+  code: string;
+  name: string;
+  mobile?: string | null;
+}
+export const posCustomersApi = {
+  getAll: () =>
+    api.get("/customers?page=1&limit=100").then((r) => {
+      const rows = unwrapList<{ id: string; code?: string; name?: string; mobile?: string | null }>(r);
+      return rows.map((c) => ({
+        id: String(c.id),
+        code: c.code ?? "",
+        name: c.name ?? "",
+        mobile: c.mobile ?? null,
+      }));
     }),
 };
 

@@ -34,7 +34,7 @@ export interface CategoryPayload {
 
 
 export const itemsService = {
-  list: (limit = 500) =>
+  list: (limit = 100) =>
     api.get<{ data: Item[] } | Item[]>(`/items?limit=${limit}`).then(unwrapList<Item>),
 
   create: (data: ItemPayload) =>

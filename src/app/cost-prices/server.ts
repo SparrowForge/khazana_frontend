@@ -3,6 +3,7 @@ import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface CostPrice {
   id: string;
+  /** Item_Information.ID (uuid) — not the item code. */
   priceItemOId?: string;
   priceFromDate?: string;
   priceToDate?: string;
@@ -11,6 +12,7 @@ export interface CostPrice {
 }
 
 export interface CostPricePayload {
+  /** Item_Information.ID (uuid). */
   priceItemOId: string;
   priceFromDate: string;
   priceToDate: string;
@@ -18,7 +20,8 @@ export interface CostPricePayload {
 }
 
 export interface AvailableItem {
-  id: number;
+  /** Item_Information.ID — what t_CostPr keys on; the code is display only. */
+  id: string;
   itmCode: string;
   itmName?: string;
 }

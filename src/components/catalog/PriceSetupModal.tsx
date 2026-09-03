@@ -12,8 +12,8 @@ import { PRICE_OPEN_END } from "./ItemQuickAddModal";
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** The item being priced — `itmCode` is what t_Price keys on. */
-  item: { itmCode: string; itmName?: string } | null;
+  /** The item being priced — `id` is what t_Price keys on; the code is shown. */
+  item: { id: string; itmCode: string; itmName?: string } | null;
   onSaved?: () => void | Promise<void>;
 }
 
@@ -45,7 +45,7 @@ export default function PriceSetupModal({ open, onClose, item, onSaved }: Props)
     setCurrent(null);
     setForm({ priceFromDate: today(), priceToDate: PRICE_OPEN_END, priceListPrice: "", priceVatPercent: "0" });
     setLoading(true);
-    fetchCurrentPrice(item.itmCode)
+    fetchCurrentPrice(item.id)
       .then((price) => {
         if (stale) return;
         setCurrent(price);
@@ -77,7 +77,7 @@ export default function PriceSetupModal({ open, onClose, item, onSaved }: Props)
     setSaving(true);
     try {
       await createPrice({
-        priceItemOId:    item.itmCode,
+        priceItemOId:    item.id,
         priceFromDate:   form.priceFromDate,
         priceToDate:     form.priceToDate || PRICE_OPEN_END,
         priceListPrice:  price,

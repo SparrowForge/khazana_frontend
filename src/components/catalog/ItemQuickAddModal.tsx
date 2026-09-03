@@ -99,7 +99,7 @@ export default function ItemQuickAddModal({ open, onClose, onCreated }: Props) {
 
     try {
       await createPrice({
-        priceItemOId:   form.itmCode.trim(),
+        priceItemOId:   created.id,
         priceFromDate:  new Date().toISOString().split("T")[0],
         priceToDate:    PRICE_OPEN_END,
         priceListPrice: price,

@@ -79,7 +79,7 @@ export default function PricesPage() {
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Edit Price" : "New Price"}>
         <div className="grid grid-cols-2 gap-4">
           <Select label="Item *" value={form.priceItemOId} onChange={(e) => setForm({ ...form, priceItemOId: e.target.value })}
-            placeholder="Select item..." options={items.map((i) => ({ value: i.itmCode, label: `${i.itmCode} — ${i.itmName}` }))} className="col-span-2" />
+            placeholder="Select item..." options={items.map((i) => ({ value: i.id, label: `${i.itmCode} — ${i.itmName}` }))} className="col-span-2" />
           <Input label="From Date" type="date" value={form.priceFromDate} onChange={(e) => setForm({ ...form, priceFromDate: e.target.value })} />
           <Input label="To Date" type="date" value={form.priceToDate} onChange={(e) => setForm({ ...form, priceToDate: e.target.value })} />
           <Input label="List Price" type="number" value={form.priceListPrice} onChange={(e) => setForm({ ...form, priceListPrice: e.target.value })} />

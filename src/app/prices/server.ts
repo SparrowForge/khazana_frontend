@@ -3,6 +3,7 @@ import { unwrapList, unwrapPaginated, type Paginated } from "@/lib/unwrap";
 
 export interface Price {
   id: string;
+  /** Item_Information.ID (uuid) — not the item code. */
   priceItemOId?: string;
   priceFromDate?: string;
   priceToDate?: string;
@@ -13,6 +14,7 @@ export interface Price {
 }
 
 export interface PricePayload {
+  /** Item_Information.ID (uuid). */
   priceItemOId: string;
   priceFromDate: string;
   priceToDate: string;
@@ -22,7 +24,8 @@ export interface PricePayload {
 }
 
 export interface AvailableItem {
-  id: number;
+  /** Item_Information.ID — what t_Price keys on; the code is display only. */
+  id: string;
   itmCode: string;
   itmName?: string;
 }
@@ -43,8 +46,8 @@ export const fetchItems = (): Promise<AvailableItem[]> =>
  *  Backs the Price Setup dialog opened from the Items page, which prefills
  *  with whatever the item is selling for today. Responds with the raw t_Price
  *  row (no envelope) — an unpriced item comes back empty. */
-export const fetchCurrentPrice = (itemCode: string): Promise<Price | null> =>
+export const fetchCurrentPrice = (itemId: string): Promise<Price | null> =>
   api
-    .get<Price | null | "">(`/pricing/prices/current?itemCode=${encodeURIComponent(itemCode)}`)
+    .get<Price | null | "">(`/pricing/prices/current?itemId=${encodeURIComponent(itemId)}`)
     .then((r) => (r.data && typeof r.data === "object" ? r.data : null))
     .catch(() => null);

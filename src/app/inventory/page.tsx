@@ -12,7 +12,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
 const tableColumns = [
-  { key: "itemCode", header: "Item Code" },
+  { key: "itemCode", header: "Item Code", render: (r: StockItem) => r.item?.itmCode ?? "-" },
   { key: "itmName", header: "Item Name", render: (r: StockItem) => r.item?.itmName ?? "-" },
   { key: "itmUOM", header: "UOM", render: (r: StockItem) => r.item?.itmUOM ?? "-" },
   { key: "quantity", header: "Qty", render: (r: StockItem) => formatCurrency(r.quantity), className: "text-right" },
@@ -21,7 +21,7 @@ const tableColumns = [
 ];
 
 const exportColumns: ExportColumn<StockItem>[] = [
-  { header: "Item Code", value: (r) => r.itemCode },
+  { header: "Item Code", value: (r) => r.item?.itmCode ?? "-" },
   { header: "Item Name", value: (r) => r.item?.itmName ?? "-" },
   { header: "UOM", value: (r) => r.item?.itmUOM ?? "-" },
   { header: "Qty", value: (r) => r.quantity, numeric: true },
@@ -57,7 +57,7 @@ export default function InventoryPage() {
   };
 
   const matchesSearch = (s: StockItem) =>
-    s.itemCode.toLowerCase().includes(search.toLowerCase()) ||
+    (s.item?.itmCode ?? "").toLowerCase().includes(search.toLowerCase()) ||
     (s.item?.itmName ?? "").toLowerCase().includes(search.toLowerCase());
 
   const filtered = stock.filter(matchesSearch);

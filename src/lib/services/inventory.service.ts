@@ -2,9 +2,11 @@
 import { unwrapList } from "@/lib/unwrap";
 
 export interface StockItem {
-  id: number;
-  itemCode: string;
-  item?: { itmName?: string; itmUOM?: string };
+  /** Item_Information.ID — the Inventory primary key since the uuid migration.
+   *  Echoed as `id` by the list endpoint so table rows have a stable key. */
+  id: string;
+  itemId: string;
+  item?: { itmCode?: string; itmName?: string; itmUOM?: string };
   quantity: number;
   unitCost: number;
   totalValue: number;

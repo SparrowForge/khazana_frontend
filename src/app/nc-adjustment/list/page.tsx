@@ -8,7 +8,7 @@ import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { Edit2, Trash2, Plus } from "lucide-react";
-import { fetchNcAdjustments, deleteNcAdjustment, ncTotalQty, ncTotalValue, type NC } from "./server";
+import { fetchNcAdjustments, deleteNcAdjustment, ncTotalQty, ncTotalValue, ncRecipient, ncContact, type NC } from "./server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { ExportColumn } from "@/lib/export/reportExport";
@@ -18,8 +18,8 @@ import toast from "react-hot-toast";
 const exportColumns: ExportColumn<NC>[] = [
   { header: "Date", value: (r) => formatDate(r.ncmstrDate) },
   { header: "NC Code", value: (r) => r.ncmstrCode ?? "-" },
-  { header: "Name", value: (r) => r.ncmstrName ?? "-" },
-  { header: "Contact", value: (r) => r.ncmstrContactNo ?? "-" },
+  { header: "Customer", value: (r) => ncRecipient(r) },
+  { header: "Contact", value: (r) => ncContact(r) },
   { header: "Reference", value: (r) => r.ncmstrReference ?? "-" },
   { header: "Qty", value: (r) => ncTotalQty(r), numeric: true },
   { header: "Value", value: (r) => ncTotalValue(r), numeric: true },
@@ -109,8 +109,8 @@ export default function NCAdjustmentListPage() {
               {r.ncmstrCode ?? "—"}
             </Link>
           )},
-          { key: "ncmstrName", header: "Name" },
-          { key: "ncmstrContactNo", header: "Contact" },
+          { key: "customer", header: "Customer", render: (r) => ncRecipient(r) },
+          { key: "contact", header: "Contact", render: (r) => ncContact(r) },
           { key: "ncmstrReference", header: "Reference" },
           { key: "value", header: "Value", render: (r) => `৳ ${formatCurrency(ncTotalValue(r))}`, className: "text-right" },
           { key: "actions", header: "", render: (r) => (

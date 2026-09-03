@@ -14,11 +14,20 @@ export interface NC {
   id: string;
   ncmstrCode?: string;
   ncmstrDate?: string;
+  /** Who the goods went to — a registered customer since the NC screen stopped
+   *  taking a typed name and number. */
+  customer?: { id: string; code?: string | null; name?: string | null; mobile?: string | null } | null;
+  /** Legacy free text, only on NCs entered before the customer link existed. */
   ncmstrName?: string;
   ncmstrContactNo?: string;
   ncmstrReference?: string;
   details?: NCDetailRow[];
 }
+
+/** Recipient of an NC, preferring the linked customer and falling back to the
+ *  free text older rows were saved with. */
+export const ncRecipient = (nc: NC): string => nc.customer?.name ?? nc.ncmstrName ?? "-";
+export const ncContact = (nc: NC): string => nc.customer?.mobile ?? nc.ncmstrContactNo ?? "-";
 
 /** The list is unpaginated on screen (it prints/exports as one sheet), so it
  *  asks for the backend's maximum page size within the chosen date range. */

@@ -14,12 +14,22 @@ export interface AvailableItem {
   stock?: number;
 }
 
+/** A customer offered in the NC recipient picker. An NC hands goods over
+ *  without charging for them, so the recipient is the whole audit trail — it is
+ *  a registered customer now, not free text typed per document. */
+export interface NcCustomer {
+  id: string;
+  code: string;
+  name: string;
+  mobile?: string;
+  address?: string;
+}
+
 export interface NcPayload {
   code?: string;
   date: string;
-  /** Required — the backend rejects a blank name/contact/reference. */
-  name: string;
-  contactNo: string;
+  /** Required — the backend rejects a missing customer or a blank reference. */
+  customerId: string;
   reference: string;
   items: SaleItem[];
   netAmount: number;
@@ -28,6 +38,9 @@ export interface NcPayload {
 
 export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+
+export const fetchCustomers = () =>
+  api.get<{ data: NcCustomer[] } | NcCustomer[]>("/customers?limit=100").then(unwrapList<NcCustomer>);
 
 /** Backend t_NCMstr + details (item joined) returned by GET /nc-adjustment/:id. */
 export interface NcDetail {
@@ -43,6 +56,10 @@ export interface NcRecord {
   id: string;
   ncmstrCode?: string | null;
   ncmstrDate?: string | null;
+  customerId?: string | null;
+  customer?: { id: string; code?: string | null; name?: string | null; mobile?: string | null } | null;
+  /** Legacy free-text recipient, only on NCs entered before the customer link
+   *  existed. Shown, never written. */
   ncmstrName?: string | null;
   ncmstrContactNo?: string | null;
   ncmstrReference?: string | null;
@@ -56,8 +73,7 @@ const toPayload = (data: NcPayload) => ({
   code: data.code || undefined,
   date: data.date,
   // Sent verbatim (not `|| undefined`) — these are mandatory server-side.
-  name: data.name.trim(),
-  contactNo: data.contactNo.trim(),
+  customerId: data.customerId,
   reference: data.reference.trim(),
   items: data.items.map((it) => ({
     itemId: it.itemId,

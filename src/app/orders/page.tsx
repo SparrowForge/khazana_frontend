@@ -293,7 +293,7 @@ export default function OrdersPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Orders" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
+      <PageHeader title="Advance Order" action={canAdd ? { label: "New Order", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <Table loading={loading} data={orders}
         columns={[
           { key: "orderDate", header: "Order Date", render: (r) => formatDate(r.orderDate) },

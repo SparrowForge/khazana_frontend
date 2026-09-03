@@ -18,9 +18,12 @@ export interface NcInvoice {
   id: string;
   ncCode: string | null;
   ncDate: string | null;
-  /** Who the non-charge goods went to, and why. */
+  /** Who the non-charge goods went to, and why. Name and contact no come off
+   *  the linked customer (older NCs fall back to the free text they were typed
+   *  with); `customerCode` is null on those legacy rows. */
   name: string | null;
   contactNo: string | null;
+  customerCode: string | null;
   reference: string | null;
   issuedBy: string | null;
   branch: {

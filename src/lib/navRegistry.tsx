@@ -111,7 +111,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
   Orders: {
     icon: <ClipboardList size={18} />,
     links: [
-      { label: "Orders", route: "/orders", icon: <ClipboardList size={16} />, controlName: "OrdersList" },
+      { label: "Advance Order", route: "/orders", icon: <ClipboardList size={16} />, controlName: "OrdersList" },
       { label: "VAT Orders", route: "/orders/vat", icon: <ClipboardList size={16} />, controlName: "VatOrders" },
       { label: "Demand Order", route: "/orders/demand", icon: <FileText size={16} />, controlName: "DemandOrders" },
     ],

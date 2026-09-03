@@ -7,7 +7,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
-import { fetchNCReport, type NCReport, type NCReportRow } from "./server";
+import { fetchNCReport, fetchCustomers, type NCReport, type NCReportRow, type NCReportCustomer } from "./server";
 import { fetchMyBranches, type Branch } from "@/app/admin/branches/server";
 import { formatCurrency } from "@/lib/utils";
 import type { ExportColumn } from "@/lib/export/reportExport";
@@ -45,8 +45,11 @@ export default function NCReportPage() {
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [customers, setCustomers] = useState<NCReportCustomer[]>([]);
   // Branch (Outlet) — defaults to the logged-in session branch; user may switch it.
   const [branchId, setBranchId] = useState("");
+  // Who the NCs were issued to. Blank covers every customer.
+  const [customerId, setCustomerId] = useState("");
   const [report, setReport] = useState<NCReport | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -56,6 +59,9 @@ export default function NCReportPage() {
   useEffect(() => {
     fetchMyBranches()
       .then(setBranches)
+      .catch(() => {});
+    fetchCustomers()
+      .then(setCustomers)
       .catch(() => {});
   }, []);
 
@@ -68,7 +74,7 @@ export default function NCReportPage() {
 
   const runReport = () => {
     setLoading(true);
-    fetchNCReport(fromDate, toDate, branchId || undefined)
+    fetchNCReport(fromDate, toDate, branchId || undefined, customerId || undefined)
       .then(setReport)
       .catch(() => setReport(null))
       .finally(() => setLoading(false));
@@ -76,7 +82,12 @@ export default function NCReportPage() {
 
   const subtitle = useMemo(
     () =>
-      [report?.branch.name, `${formatDate(fromDate)} — ${formatDate(toDate)}`]
+      [
+        report?.branch.name,
+        // Only worth a line when the sheet was narrowed to one customer.
+        report?.customer?.id ? report.customer.name : "",
+        `${formatDate(fromDate)} — ${formatDate(toDate)}`,
+      ]
         .filter(Boolean)
         .join(" · "),
     [report, fromDate, toDate],
@@ -96,6 +107,14 @@ export default function NCReportPage() {
           placeholder="All branches"
           options={branches.map((b) => ({ value: String(b.id), label: b.branchName }))}
           className="w-48"
+        />
+        <Select
+          label="Customer"
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
+          placeholder="All customers"
+          options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+          className="w-56"
         />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>
         {report && <Button variant="secondary" onClick={() => window.print()} className="mb-0.5">🖨 Print</Button>}
@@ -127,7 +146,7 @@ export default function NCReportPage() {
 }
 
 function Report({ data }: { data: NCReport }) {
-  const { branch, items, totals } = data;
+  const { branch, customer, items, totals } = data;
 
   return (
     <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
@@ -135,6 +154,13 @@ function Report({ data }: { data: NCReport }) {
         <div className="font-extrabold text-[16px] italic">Khazana Mithai</div>
         <div className="font-semibold">NC Report</div>
         <div className="text-[10px]">{branch.name}</div>
+        {/* Only stated when the sheet was narrowed to one customer — otherwise
+            the Name column already says who each line went to. */}
+        {customer?.id && (
+          <div className="text-[10px] font-semibold">
+            Customer: {[customer.code, customer.name].filter(Boolean).join(" — ")}
+          </div>
+        )}
         <div className="mt-1 font-semibold">
           NC Details From {formatDate(data.fromDate)} to {formatDate(data.toDate)}
         </div>

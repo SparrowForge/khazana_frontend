@@ -13,19 +13,6 @@ export interface Sale {
   saleType?: string;
 }
 
-export interface CashSalePayload {
-  invoiceNo: string;
-  invoiceDate: string;
-  paymentMethod: string;
-  items: SaleItem[];
-  totalAmount: number;
-  totalDiscount: number;
-  netAmount: number;
-  paidAmount: number;
-  changeAmount: number;
-  discountRemarks?: string;
-}
-
 export interface CreditSalePayload {
   invoiceNo: string;
   invoiceDate: string;
@@ -67,9 +54,6 @@ export interface VatCreditSalePayload {
 export const salesService = {
   list: () =>
     api.get<{ data: Sale[] } | Sale[]>("/sales").then(unwrapList<Sale>),
-
-  createCash: (data: CashSalePayload) =>
-    api.post("/sales/cash", data).then((r) => r.data),
 
   createCredit: (data: CreditSalePayload) =>
     api.post("/sales/credit", data).then((r) => r.data),

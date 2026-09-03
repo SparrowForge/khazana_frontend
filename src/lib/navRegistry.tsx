@@ -39,13 +39,12 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
   Sales: {
     icon: <ShoppingCart size={18} />,
     links: [
-      { label: "POS Terminal", route: "/pos", icon: <Receipt size={16} />, controlName: "POSTerminal" },
-      { label: "POS Sales", route: "/pos/sales", icon: <Receipt size={16} />, controlName: "POSSales" },
-      { label: "Cash Sales", route: "/sales/cash", icon: <DollarSign size={16} />, controlName: "CashSales" },
+      { label: "Cash Sales", route: "/pos", icon: <Receipt size={16} />, controlName: "POSTerminal" },
+      { label: "Cash Sales List", route: "/pos/sales", icon: <Receipt size={16} />, controlName: "POSSales" },
       { label: "Credit Sales", route: "/sales/credit", icon: <DollarSign size={16} />, controlName: "CreditSales" },
       { label: "VAT Cash Sales", route: "/sales/vat/cash", icon: <DollarSign size={16} />, controlName: "VatCashSales" },
       { label: "VAT Credit Sales", route: "/sales/vat/credit", icon: <DollarSign size={16} />, controlName: "VatCreditSales" },
-      { label: "Sales List", route: "/sales", icon: <FileText size={16} />, controlName: "SalesList" },
+      { label: "Credit Sales List", route: "/sales", icon: <FileText size={16} />, controlName: "SalesList" },
     ],
   },
 

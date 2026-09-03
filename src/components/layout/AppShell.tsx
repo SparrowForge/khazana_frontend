@@ -20,7 +20,6 @@ const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/verify"
 const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/sales/vat/cash", "VatCashSales"],
   ["/sales/vat/credit", "VatCreditSales"],
-  ["/sales/cash", "CashSales"],
   ["/sales/credit", "CreditSales"],
   ["/sales", "SalesList"],
   ["/pos/sales", "POSSales"],

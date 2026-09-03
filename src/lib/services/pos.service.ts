@@ -161,16 +161,20 @@ export interface PosCustomer {
   code: string;
   name: string;
   mobile?: string | null;
+  /** The counter customer the till defaults to. A discount may not be given to
+   *  this one — see the discount guard on the POS screens. */
+  isWalkIn?: boolean;
 }
 export const posCustomersApi = {
   getAll: () =>
     api.get("/customers?page=1&limit=100").then((r) => {
-      const rows = unwrapList<{ id: string; code?: string; name?: string; mobile?: string | null }>(r);
+      const rows = unwrapList<{ id: string; code?: string; name?: string; mobile?: string | null; isWalkIn?: boolean }>(r);
       return rows.map((c) => ({
         id: String(c.id),
         code: c.code ?? "",
         name: c.name ?? "",
         mobile: c.mobile ?? null,
+        isWalkIn: c.isWalkIn ?? false,
       }));
     }),
 };

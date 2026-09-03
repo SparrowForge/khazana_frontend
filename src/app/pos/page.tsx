@@ -105,11 +105,14 @@ export default function PosPage() {
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState("");
 
-  /** Who the bill is for. Empty is the walk-in customer — what the counter sells
-   *  to most of the time, so it is the default and needs no action from the
-   *  cashier. A DISCOUNT is the exception: it has to be given to somebody, so
-   *  the sale won't go through discounted until a real customer is picked (the
-   *  server enforces the same rule). */
+  /** Who the bill is for. Defaults to the walk-in customer — the Customer row
+   *  flagged `isWalkIn`, which is what the counter sells to most of the time, so
+   *  it needs no action from the cashier and every sale still records a real
+   *  customer. A DISCOUNT is the exception: it has to be given to somebody, and
+   *  the walk-in is nobody, so a discounted bill won't go through until a named
+   *  customer is picked (the server enforces the same rule).
+   *
+   *  Empty until the customer list lands — the picker fills it in below. */
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
   /** Last 4 digits of the card, on a Card payment. Never more — the last four
@@ -186,17 +189,26 @@ export default function PosPage() {
   // because that is the only way it can give a discount.
   useEffect(() => {
     let cancelled = false;
+    // Select the counter customer as soon as the list is known, so a plain sale
+    // is billed to it without the cashier touching the picker. Only ever fills a
+    // BLANK picker: a resumed held order, or a customer the cashier already
+    // chose, must not be reset by the list arriving late.
+    const applyList = (list: PosCustomer[]) => {
+      setCustomers(list);
+      const walkIn = list.find((c) => c.isWalkIn);
+      if (walkIn) setCustomerId((current) => current || walkIn.id);
+    };
     posCustomersApi
       .getAll()
       .then(async (list) => {
         if (cancelled) return;
-        setCustomers(list);
+        applyList(list);
         if (user) await cacheCustomers(user.id, list);
       })
       .catch(async () => {
         if (!user) return;
         const cached = await getCachedCustomers(user.id);
-        if (!cancelled) setCustomers(cached);
+        if (!cancelled) applyList(cached);
       });
     return () => { cancelled = true; };
   }, [user]);
@@ -426,12 +438,15 @@ export default function PosPage() {
   const paid = parseFloat(paidAmount) || 0;
   const change = r2(paid - payableAmount);
 
-  /** The picked customer, or undefined for a walk-in. */
+  /** The picked customer — the walk-in row unless the cashier chose someone. */
   const selectedCustomer = customers.find((c) => c.id === customerId);
-  /** A discount has to be given to somebody. Walk-in is nobody, so the bill
-   *  can't be discounted until a customer is named — the same rule the server
-   *  applies, checked here so the cashier is told before they hit Generate. */
-  const needsCustomerForDiscount = discountAmount > 0 && !customerId;
+  /** A discount has to be given to somebody. The walk-in customer is nobody, so
+   *  the bill can't be discounted until a real one is named — the same rule the
+   *  server applies, checked here so the cashier is told before they hit
+   *  Generate. Tests the walk-in FLAG, not merely whether a customer is set:
+   *  the till now always has one set. */
+  const needsCustomerForDiscount =
+    discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
 
   // Discount input validation hint
   const discountExceedsTotal =
@@ -496,9 +511,9 @@ export default function PosPage() {
     setBankId(held.bankId ?? "");
     setDiscountType(held.discountType);
     setDiscountValue(held.discountValue);
-    // An order parked before the picker existed has no customer — it resumes as
-    // a walk-in, which is what a blank picker means anyway.
-    setCustomerId(held.customerId ?? "");
+    // An order parked before the picker existed has no customer — it resumes on
+    // the walk-in customer, the same place a fresh sale starts.
+    setCustomerId(held.customerId || customers.find((c) => c.isWalkIn)?.id || "");
     setCardNo(held.cardNo ?? "");
     setPaidAmount("");
     toast.success("Order resumed");

@@ -213,8 +213,11 @@ export default function PosSaleEditPage() {
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
   /** Same rule as the till: a discount has to be given to somebody, so an edit
-   *  that leaves one applied has to name the customer it went to. */
-  const needsCustomerForDiscount = discountAmount > 0 && !customerId;
+   *  that leaves one applied has to name the customer it went to — and the
+   *  walk-in customer is nobody, which is why this tests the flag rather than
+   *  just whether a customer is set. */
+  const needsCustomerForDiscount =
+    discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
 
   const filtered = useMemo(
     () =>

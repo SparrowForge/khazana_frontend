@@ -16,6 +16,25 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 
+/**
+ * MRP — what the customer actually pays: the list price plus its VAT, rounded
+ * to 2dp, the same VAT-inclusive figure the invoices and reports print.
+ *
+ * Never stored. `t_Price` keeps the ex-VAT price and the rate it carries, and
+ * this is recomputed from the pair wherever it is shown — so a price edited to
+ * a new VAT rate can never leave a stale MRP behind. Returns null when either
+ * side is missing, which the caller renders as a dash rather than ৳ 0.00.
+ */
+const vatInclusive = (
+  listPrice: number | string | null | undefined,
+  vatPercent: number | string | null | undefined,
+): number | null => {
+  const price = typeof listPrice === "number" ? listPrice : parseFloat(listPrice ?? "");
+  const vat = typeof vatPercent === "number" ? vatPercent : parseFloat(vatPercent ?? "");
+  if (!Number.isFinite(price) || !Number.isFinite(vat)) return null;
+  return Math.round(price * (1 + vat / 100) * 100) / 100;
+};
+
 type FormState = { priceItemOId: string; priceFromDate: string; priceToDate: string; priceListPrice: string; priceVatPercent: string; priceIsActive: string; };
 const emptyForm: FormState = { priceItemOId: "", priceFromDate: new Date().toISOString().split("T")[0], priceToDate: "2099-12-31", priceListPrice: "0", priceVatPercent: "0", priceIsActive: "1" };
 
@@ -49,6 +68,8 @@ export default function PricesPage() {
     setModal(true);
   };
 
+  const mrp = vatInclusive(form.priceListPrice, form.priceVatPercent);
+
   const handleSave = async () => {
     if (!form.priceItemOId) { toast.error("Select an item"); return; }
     setSaving(true);
@@ -71,6 +92,15 @@ export default function PricesPage() {
           { key: "priceToDate", header: "To", render: (r) => formatDate(r.priceToDate) },
           { key: "priceListPrice", header: "Price", render: (r) => `৳ ${formatCurrency(r.priceListPrice ?? 0)}`, className: "text-right" },
           { key: "priceVatPercent", header: "VAT%", render: (r) => `${r.priceVatPercent ?? 0}%`, className: "text-right" },
+          {
+            key: "mrp",
+            header: "MRP",
+            render: (r) => {
+              const value = vatInclusive(r.priceListPrice, r.priceVatPercent ?? 0);
+              return value === null ? "-" : `৳ ${formatCurrency(value)}`;
+            },
+            className: "text-right",
+          },
           { key: "priceIsActive", header: "Active" },
           { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
         ]}
@@ -84,6 +114,18 @@ export default function PricesPage() {
           <Input label="To Date" type="date" value={form.priceToDate} onChange={(e) => setForm({ ...form, priceToDate: e.target.value })} />
           <Input label="List Price" type="number" value={form.priceListPrice} onChange={(e) => setForm({ ...form, priceListPrice: e.target.value })} />
           <Input label="VAT %" type="number" value={form.priceVatPercent} onChange={(e) => setForm({ ...form, priceVatPercent: e.target.value })} />
+          {/* Derived, never posted — handleSave sends only the fields above.
+              Wrapped because Input passes className to the control, not the
+              grid item, so col-span-2 has to sit on a wrapper. */}
+          <div className="col-span-2">
+            <Input
+              label="MRP (incl. VAT)"
+              readOnly
+              tabIndex={-1}
+              value={mrp === null ? "-" : `৳ ${formatCurrency(mrp)}`}
+              className="bg-sage-100 font-medium text-primary-900"
+            />
+          </div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>

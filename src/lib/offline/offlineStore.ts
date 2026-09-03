@@ -65,6 +65,10 @@ export interface OfflineOrder {
   customerId?: string;
   /** Last 4 digits of the card — captured when salesType is 'Card'. */
   cardNo?: string;
+  /** Split payment keyed at the till. Absent on a single-payment sale and on
+   *  every order queued before splits existed, which is why the server treats a
+   *  missing list as "one tender of `salesType`". */
+  payments?: { method: string; amount: number; bankId?: string; cardNo?: string; transactionRef?: string }[];
   /** @deprecated Only on orders queued before the customer picker existed. Still
    *  uploaded so those sales sync with the discount audit they were rung up
    *  under — the server falls back to them when an order names no customer. */
@@ -225,6 +229,10 @@ export function toSyncPayload(o: OfflineOrder) {
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),
     ...(o.customerId ? { customerId: o.customerId } : {}),
     ...(o.cardNo ? { cardNo: o.cardNo } : {}),
+    // The split, when the bill was settled more than one way. Omitted entirely
+    // for a single-payment sale, which is what makes the server synthesise one
+    // tender from salesType instead.
+    ...(o.payments?.length ? { payments: o.payments } : {}),
     // Only ever present on an order queued before the customer picker existed;
     // the server falls back to them when the order names no customer.
     ...(o.discountRemarks ? { discountRemarks: o.discountRemarks } : {}),

@@ -9,7 +9,8 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, MULTI_PAY_MODE, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
+import PaymentSplitModal, { type SplitPayment, type SplitRow } from "@/components/pos/PaymentSplitModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
 import { roundPayable } from "@/lib/utils";
@@ -65,6 +66,13 @@ export default function PosSaleEditPage() {
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
   /** Last 4 digits of the card, on a Card sale. */
   const [cardNo, setCardNo] = useState("");
+
+  /** The tender rows of a split bill. Loaded from the sale being edited, so
+   *  saving an untouched split re-writes the same breakdown rather than
+   *  collapsing it to one tender called "Multiple". */
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitRows, setSplitRows] = useState<SplitRow[]>([]);
+  const [splits, setSplits] = useState<SplitPayment[]>([]);
   // Mandatory on every update — audited in the Daily Final Report.
   const [modifyReason, setModifyReason] = useState("");
   const [loading, setLoading] = useState(true);
@@ -92,6 +100,29 @@ export default function PosSaleEditPage() {
         // edit if this only ran inside the branch below.
         setCustomerId(sale.customerId ?? "");
         setCardNo(sale.cardNo ?? "");
+        // Only a genuine split is loaded as one: a single-tender sale keeps the
+        // ordinary Pay Mode panel, exactly as it did before splits existed.
+        const tenders = sale.payments ?? [];
+        if (tenders.length > 1) {
+          setSplits(
+            tenders.map((t) => ({
+              method: t.method,
+              amount: Number(t.amount),
+              bankId: t.bankId ?? undefined,
+              cardNo: t.cardNo ?? undefined,
+              transactionRef: t.transactionRef ?? undefined,
+            })),
+          );
+          setSplitRows(
+            tenders.map((t) => ({
+              method: t.method,
+              amount: String(Number(t.amount)),
+              bankId: t.bankId ?? "",
+              cardNo: t.cardNo ?? "",
+              transactionRef: t.transactionRef ?? "",
+            })),
+          );
+        }
         if (Number(sale.discountAmount) > 0) {
           setDiscountType("fixed");
           setDiscountValue(String(sale.discountAmount));
@@ -130,7 +161,17 @@ export default function PosSaleEditPage() {
   // failed load leaves the sale's own customer selected but unnamed rather than
   // silently reassigning it.
   useEffect(() => {
-    posCustomersApi.getAll().then(setCustomers).catch(() => {});
+    posCustomersApi.getAll().then((list) => {
+      setCustomers(list);
+      // A sale raised before the walk-in customer existed carries no customer at
+      // all. With no blank option in the picker that would render as an empty
+      // box, so it lands on the counter customer instead — which is what saving
+      // it would record anyway (the server fills an absent customer with the
+      // walk-in row). Only ever fills a BLANK picker, never overrides the
+      // customer the sale was actually billed to.
+      const walkIn = list.find((c) => c.isWalkIn);
+      if (walkIn) setCustomerId((current) => current || walkIn.id);
+    }).catch(() => {});
   }, []);
 
   const addToCart = (product: PosProduct) => {
@@ -219,6 +260,12 @@ export default function PosSaleEditPage() {
   const needsCustomerForDiscount =
     discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
 
+  const isSplitMode = salesType === MULTI_PAY_MODE;
+  const splitTotal = Math.round(splits.reduce((sum, t) => sum + t.amount, 0) * 100) / 100;
+  /** Editing the cart moves the bill, which leaves the tenders settling the
+   *  wrong amount — blocked until they are rebalanced, never silently rewritten. */
+  const splitOutOfDate = isSplitMode && Math.abs(splitTotal - payableAmount) > 0.005;
+
   const filtered = useMemo(
     () =>
       products.filter(
@@ -232,10 +279,22 @@ export default function PosSaleEditPage() {
   const handleSave = async () => {
     if (!cart.length) { toast.error("Cart is empty"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
-    if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
+    // A split settles the bill through its own rows, so the Paid box is not the
+    // measure — buildPayments checks the tenders against the payable instead.
+    if (!isSplitMode && paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (!modifyReason.trim()) { toast.error("Modify Reason is required"); return; }
     if (needsCustomerForDiscount) {
       toast.error("Select a customer — a discount cannot be given to a walk-in");
+      return;
+    }
+    if (isSplitMode && !splits.length) {
+      toast.error("Add the payment splits before saving");
+      setSplitOpen(true);
+      return;
+    }
+    if (splitOutOfDate) {
+      toast.error(`Splits total ৳${splitTotal.toFixed(2)} but the bill is ৳${payableAmount.toFixed(2)} — rebalance them`);
+      setSplitOpen(true);
       return;
     }
     if (salesType === "Card" && cardNo.trim() && cardNo.trim().length !== 4) {
@@ -254,6 +313,7 @@ export default function PosSaleEditPage() {
         discountValue: discVal > 0 ? discVal : undefined,
         customerId: customerId || undefined,
         cardNo: salesType === "Card" ? (cardNo.trim() || undefined) : undefined,
+        payments: isSplitMode && splits.length ? splits : undefined,
         modifyRemarks: modifyReason.trim(),
       });
       toast.success(`Invoice ${invoiceNo} updated`);
@@ -530,11 +590,50 @@ export default function PosSaleEditPage() {
                 // must not keep a bank or a card number from a mode it is no
                 // longer in.
                 if (next !== "Card") { setBankId(""); setCardNo(""); }
+                if (next === MULTI_PAY_MODE) setSplitOpen(true);
+                else { setSplits([]); setSplitRows([]); }
               }}
-              options={((POS_PAY_MODES as readonly string[]).includes(salesType) ? [...POS_PAY_MODES] : [salesType, ...POS_PAY_MODES])
-                .filter(Boolean)
-                .map((m) => ({ value: m, label: m }))}
+              options={[
+                ...((POS_PAY_MODES as readonly string[]).includes(salesType) || salesType === MULTI_PAY_MODE
+                  ? [...POS_PAY_MODES]
+                  : [salesType, ...POS_PAY_MODES]
+                )
+                  .filter(Boolean)
+                  .map((m) => ({ value: m, label: m })),
+                { value: MULTI_PAY_MODE, label: `${MULTI_PAY_MODE} (split payment)` },
+              ]}
             />
+
+            {isSplitMode && (
+              <div className={`rounded-md border px-3 py-2 text-sm ${splitOutOfDate ? "border-amber-400 bg-amber-50" : "border-sage-300 bg-white"}`}>
+                {splits.length ? (
+                  <>
+                    <ul className="space-y-0.5">
+                      {splits.map((t, i) => (
+                        <li key={i} className="flex justify-between">
+                          <span className="text-gray-600">{t.method}</span>
+                          <span className="font-medium text-gray-900">৳{t.amount.toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {splitOutOfDate && (
+                      <p className="mt-1 text-xs font-medium text-amber-800">
+                        Splits total ৳{splitTotal.toFixed(2)} but the bill is now ৳{payableAmount.toFixed(2)} — rebalance.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-gray-500">No splits entered yet.</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSplitOpen(true)}
+                  className="mt-1 text-sm font-medium text-primary-700 hover:text-primary-900"
+                >
+                  {splits.length ? "Edit split" : "Add Payment Split"}
+                </button>
+              </div>
+            )}
 
             {salesType === "Card" && (
               <>
@@ -558,15 +657,14 @@ export default function PosSaleEditPage() {
               </>
             )}
 
+            {/* Every option is a Customer row — the walk-in included — so there
+                is no synthetic blank entry. */}
             <Select
               label="Customer"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               searchable
-              options={[
-                { value: "", label: "Walk-in Customer" },
-                ...customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
-              ]}
+              options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
               error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
             />
 
@@ -610,7 +708,8 @@ export default function PosSaleEditPage() {
               loading={submitting}
               disabled={
                 !cart.length ||
-                paid < payableAmount ||
+                (!isSplitMode && paid < payableAmount) ||
+                (isSplitMode && (!splits.length || splitOutOfDate)) ||
                 discountExceedsTotal ||
                 !modifyReason.trim() ||
                 needsCustomerForDiscount
@@ -621,6 +720,27 @@ export default function PosSaleEditPage() {
           </div>
         </div>
       </div>
+
+      <PaymentSplitModal
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        payable={payableAmount}
+        banks={banks}
+        initial={splitRows}
+        onConfirm={(payments) => {
+          setSplits(payments);
+          setSplitRows(
+            payments.map((t) => ({
+              method: t.method,
+              amount: String(t.amount),
+              bankId: t.bankId ?? "",
+              cardNo: t.cardNo ?? "",
+              transactionRef: t.transactionRef ?? "",
+            })),
+          );
+          setSplitOpen(false);
+        }}
+      />
     </AppLayout>
   );
 }

@@ -7,7 +7,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import { useAuthStore } from "@/store/auth.store";
-import { fetchSalesHistory, type SalesHistoryReport } from "./server";
+import { fetchSalesHistory, PAY_METHOD_FILTERS, type SalesHistoryReport } from "./server";
 import { fetchMyBranches, type Branch } from "@/app/admin/branches/server";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { formatCurrency } from "@/lib/utils";
@@ -85,6 +85,8 @@ export default function SalesHistoryPage() {
   const [toDate, setToDate] = useState(today);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
+  /** Empty = every method. A split bill matches each method it used. */
+  const [payMethod, setPayMethod] = useState("");
   const [allBranches, setAllBranches] = useState(false);
   const [report, setReport] = useState<SalesHistoryReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -112,7 +114,7 @@ export default function SalesHistoryPage() {
   const runReport = () => {
     if (!allBranches && !branchId) return;
     setLoading(true);
-    fetchSalesHistory(fromDate, toDate, allBranches ? undefined : branchId)
+    fetchSalesHistory(fromDate, toDate, allBranches ? undefined : branchId, payMethod || undefined)
       .then(setReport)
       .catch(() => setReport(null))
       .finally(() => setLoading(false));
@@ -246,6 +248,13 @@ export default function SalesHistoryPage() {
           options={branches.map((b) => ({ value: String(b.id), label: b.branchName }))}
           className="w-48"
           disabled={allBranches}
+        />
+        <Select
+          label="Payment Method"
+          value={payMethod}
+          onChange={(e) => setPayMethod(e.target.value)}
+          options={PAY_METHOD_FILTERS}
+          className="w-48"
         />
         {/* Nothing to combine when the user only has the one branch, and the
             checkbox would read as a promise of data they cannot see. */}

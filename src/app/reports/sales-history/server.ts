@@ -85,10 +85,36 @@ export interface SalesHistoryReport {
   dailySubTotals: DailySubTotal[];
 }
 
-export const fetchSalesHistory = (fromDate: string, toDate: string, branchId?: string): Promise<SalesHistoryReport> => {
+/** The payment columns this sheet reports, and the values the method filter
+ *  accepts. Keep in step with ReportsService.PAY_COLUMNS. */
+export const PAY_METHOD_FILTERS = [
+  { value: "", label: "All payment methods" },
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "brac", label: "BRAC (card)" },
+  { value: "ucb", label: "UCB (card)" },
+  { value: "city", label: "City (card)" },
+  { value: "ebl", label: "EBL (card)" },
+  { value: "fpanda", label: "Foodpanda" },
+  { value: "pathao", label: "Pathao" },
+  { value: "foodi", label: "Foodi" },
+  { value: "credit", label: "Credit" },
+];
+
+/** `payMethod` filters to the invoices that put money in that column. A split
+ *  bill appears under every method it was settled with, showing that method's
+ *  share — which is the honest answer to "what came in on card". */
+export const fetchSalesHistory = (
+  fromDate: string,
+  toDate: string,
+  branchId?: string,
+  payMethod?: string,
+): Promise<SalesHistoryReport> => {
   const params = new URLSearchParams();
   params.append("fromDate", fromDate);
   params.append("toDate", toDate);
   if (branchId) params.append("branchId", branchId);
+  if (payMethod) params.append("payMethod", payMethod);
   return api.get(`/reports/sales-history?${params.toString()}`).then((r) => r.data);
 };

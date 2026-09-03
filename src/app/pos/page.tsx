@@ -8,7 +8,8 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
+import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, MULTI_PAY_MODE, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
+import PaymentSplitModal, { type SplitPayment, type SplitRow } from "@/components/pos/PaymentSplitModal";
 import { adminService, type Branch } from "@/lib/services/admin.service";
 import { useAuthStore } from "@/store/auth.store";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
@@ -57,6 +58,9 @@ interface HeldOrder {
    *  one was picked, exactly as a fresh terminal starts. */
   customerId: string;
   cardNo: string;
+  /** The tender rows when the bill was held on Multiple. Absent on a
+   *  single-payment hold, and on every order parked before splits existed. */
+  splits?: SplitRow[];
 }
 
 const QUEUE_STORAGE_KEY = "pos.orderQueue.v1";
@@ -118,6 +122,13 @@ export default function PosPage() {
   /** Last 4 digits of the card, on a Card payment. Never more — the last four
    *  is all that may be kept, and all the settlement slip needs to match. */
   const [cardNo, setCardNo] = useState("");
+
+  /** Split payment. `splitRows` is what the modal shows when reopened; `splits`
+   *  is what gets posted. Both are empty unless the pay mode is Multiple, so the
+   *  ordinary single-payment path carries nothing extra. */
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitRows, setSplitRows] = useState<SplitRow[]>([]);
+  const [splits, setSplits] = useState<SplitPayment[]>([]);
 
   // ── Order queue (Hold / Resume), persisted to localStorage ───
   const [queue, setQueue] = useState<HeldOrder[]>([]);
@@ -448,6 +459,13 @@ export default function PosPage() {
   const needsCustomerForDiscount =
     discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
 
+  const isSplitMode = payMode === MULTI_PAY_MODE;
+  const splitTotal = r2(splits.reduce((sum, t) => sum + t.amount, 0));
+  /** The cart can change after a split was keyed, which would leave the tenders
+   *  settling the wrong bill. Rather than silently rewriting what the cashier
+   *  entered, the sale is blocked until they reopen and rebalance it. */
+  const splitOutOfDate = isSplitMode && Math.abs(splitTotal - payableAmount) > 0.005;
+
   // Discount input validation hint
   const discountExceedsTotal =
     discountType === "fixed"
@@ -462,8 +480,12 @@ export default function PosPage() {
     setBankId("");
     setDiscountType("fixed");
     setDiscountValue("");
-    setCustomerId("");
+    // Back to the counter customer, not to blank: the till starts every sale on
+    // the walk-in row, and the load effect only fills an empty picker on mount.
+    setCustomerId(customers.find((c) => c.isWalkIn)?.id ?? "");
     setCardNo("");
+    setSplits([]);
+    setSplitRows([]);
   };
 
   // ── Hold / Resume ────────────────────────────────────────────
@@ -479,6 +501,7 @@ export default function PosPage() {
       discountValue,
       customerId,
       cardNo,
+      splits: splitRows.length ? splitRows : undefined,
     };
     setQueue((q) => [held, ...q]);
     resetWorkspace();
@@ -515,6 +538,17 @@ export default function PosPage() {
     // the walk-in customer, the same place a fresh sale starts.
     setCustomerId(held.customerId || customers.find((c) => c.isWalkIn)?.id || "");
     setCardNo(held.cardNo ?? "");
+    const heldSplits = held.splits ?? [];
+    setSplitRows(heldSplits);
+    setSplits(
+      heldSplits.map((r) => ({
+        method: r.method,
+        amount: parseFloat(r.amount) || 0,
+        bankId: r.method === "Card" && r.bankId ? r.bankId : undefined,
+        cardNo: r.method === "Card" && r.cardNo ? r.cardNo : undefined,
+        transactionRef: r.transactionRef || undefined,
+      })).filter((t) => t.amount > 0),
+    );
     setPaidAmount("");
     toast.success("Order resumed");
   };
@@ -549,6 +583,9 @@ export default function PosPage() {
       discountValue: discVal > 0 ? discVal : undefined,
       customerId: customerId || undefined,
       cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
+      // A bill split at the till while offline syncs as a split, rather than
+      // collapsing to whichever single mode happened to be selected.
+      payments: isSplitMode && splits.length ? splits : undefined,
       display: {
         // DD-MMM-YYYY h:mm AM, never the terminal's own locale format.
         dateTime: formatDateTime(at),
@@ -592,7 +629,9 @@ export default function PosPage() {
       );
       return;
     }
-    if (paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
+    // A split settles the bill through its own rows, so the Paid box is not the
+    // measure — buildPayments checks the tenders against the payable instead.
+    if (!isSplitMode && paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
     if (needsCustomerForDiscount) {
       toast.error("Select a customer — a discount cannot be given to a walk-in");
@@ -600,6 +639,16 @@ export default function PosPage() {
     }
     if (payMode === "Card" && cardNo.trim() && cardNo.trim().length !== 4) {
       toast.error("Card No must be the last 4 digits");
+      return;
+    }
+    if (isSplitMode && !splits.length) {
+      toast.error("Add the payment splits before generating the bill");
+      setSplitOpen(true);
+      return;
+    }
+    if (splitOutOfDate) {
+      toast.error(`Splits total ৳${fmt(splitTotal)} but the bill is ৳${fmt(payableAmount)} — rebalance them`);
+      setSplitOpen(true);
       return;
     }
 
@@ -627,6 +676,7 @@ export default function PosPage() {
         discountValue: discVal > 0 ? discVal : undefined,
         customerId: customerId || undefined,
         cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
+        payments: isSplitMode && splits.length ? splits : undefined,
       });
       toast.success(`Invoice ${sale.invoiceNo} generated!`);
       // Keep local caches in step with the server-side deduction.
@@ -1080,9 +1130,54 @@ export default function PosPage() {
                 // must not keep a bank or a card number from a mode it is no
                 // longer in.
                 if (next !== "Card") { setBankId(""); setCardNo(""); }
+                if (next === MULTI_PAY_MODE) {
+                  // Picking Multiple IS the request to split, so open the modal
+                  // rather than making the cashier hunt for a second control.
+                  setSplitOpen(true);
+                } else {
+                  setSplits([]);
+                  setSplitRows([]);
+                }
               }}
-              options={POS_PAY_MODES.map((m) => ({ value: m, label: m }))}
+              options={[
+                ...POS_PAY_MODES.map((m) => ({ value: m, label: m })),
+                { value: MULTI_PAY_MODE, label: `${MULTI_PAY_MODE} (split payment)` },
+              ]}
             />
+
+            {isSplitMode && (
+              <div className={`rounded-md border px-3 py-2 text-sm ${splitOutOfDate ? "border-amber-400 bg-amber-50" : "border-sage-300 bg-white"}`}>
+                {splits.length ? (
+                  <>
+                    <ul className="space-y-0.5">
+                      {splits.map((t, i) => (
+                        <li key={i} className="flex justify-between">
+                          <span className="text-gray-600">
+                            {t.method}
+                            {t.transactionRef ? ` · ${t.transactionRef}` : ""}
+                          </span>
+                          <span className="font-medium text-gray-900">৳{fmt(t.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {splitOutOfDate && (
+                      <p className="mt-1 text-xs font-medium text-amber-800">
+                        Splits total ৳{fmt(splitTotal)} but the bill is now ৳{fmt(payableAmount)} — rebalance.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-gray-500">No splits entered yet.</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSplitOpen(true)}
+                  className="mt-1 text-sm font-medium text-primary-700 hover:text-primary-900"
+                >
+                  {splits.length ? "Edit split" : "Add Payment Split"}
+                </button>
+              </div>
+            )}
 
             {payMode === "Card" && (
               <>
@@ -1108,18 +1203,17 @@ export default function PosPage() {
               </>
             )}
 
-            {/* Who the bill is for. Walk-in is the default and covers most of
-                the counter's trade; picking a customer names the sale on the
-                reports, and is required before it can be discounted. */}
+            {/* Who the bill is for. The counter customer is preselected and
+                covers most of the counter's trade; picking a real customer names
+                the sale on the reports, and is required before it can be
+                discounted. Every option is a row from the Customer table — the
+                walk-in is one of them, so there is no synthetic blank entry. */}
             <Select
               label="Customer"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               searchable
-              options={[
-                { value: "", label: "Walk-in Customer" },
-                ...customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
-              ]}
+              options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
               error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
             />
 
@@ -1188,6 +1282,31 @@ export default function PosPage() {
         open={itemModal}
         onClose={() => setItemModal(false)}
         onCreated={reloadProducts}
+      />
+
+      {/* Splits one bill across several tenders. Cancelling without a balanced
+          split leaves the pay mode on Multiple with nothing entered, which the
+          Generate guard catches — the cashier is never left thinking a bill is
+          settled when it is not. */}
+      <PaymentSplitModal
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        payable={payableAmount}
+        banks={banks}
+        initial={splitRows}
+        onConfirm={(payments) => {
+          setSplits(payments);
+          setSplitRows(
+            payments.map((t) => ({
+              method: t.method,
+              amount: String(t.amount),
+              bankId: t.bankId ?? "",
+              cardNo: t.cardNo ?? "",
+              transactionRef: t.transactionRef ?? "",
+            })),
+          );
+          setSplitOpen(false);
+        }}
       />
     </AppLayout>
   );

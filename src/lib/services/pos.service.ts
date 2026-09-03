@@ -9,6 +9,12 @@ export const POS_PAY_MODES = [
   "Ucash", "Mycash", "T-cash", "Sure Cash", "Others",
 ] as const;
 
+/** The mode a bill carries when it was settled more than one way. Deliberately
+ *  NOT in POS_PAY_MODES: that list is the tenders a split is built from, and
+ *  "Multiple" is not something a single split row can be. The real breakdown
+ *  lives in the sale's `payments`. */
+export const MULTI_PAY_MODE = "Multiple";
+
 // Items come from Item_Information + t_Price (active, date-ranged)
 export interface PosProduct {
   id: string;          // Item_Information.id (UUID)
@@ -64,12 +70,31 @@ export interface PosSale {
   payableAmount: number;
   paidAmount: number;
   changeAmount: number;
+  /** What the tenders settled, and what is still owed. A sale raised before
+   *  split payments reads back as fully paid — which it was. */
+  settledAmount?: number;
+  dueAmount?: number;
+  paymentStatus?: string;
+  /** The tender breakdown. EMPTY on a sale raised before split payments — use
+   *  `salesType` for those. */
+  payments?: { id: string; method: string; amount: number; bankId?: string | null; bankName?: string | null; cardNo?: string | null; transactionRef?: string | null }[];
   /** The cashier who rang the sale — stamped server-side from their session,
    *  never sent by the terminal. */
   servedBy: string;
   items: PosSaleItem[];
   /** Branch header for the printed invoice (present on GET /pos/sales/:id). */
   branch?: { name: string; address: string; vatNo: string; mobileNo: string } | null;
+}
+
+
+/** One tender against a bill — several of these are a payment split. Amounts are
+ *  what each tender puts AGAINST the bill and must add up to the payable. */
+export interface SalePaymentPayload {
+  method: string;
+  amount: number;
+  bankId?: string;
+  cardNo?: string;
+  transactionRef?: string;
 }
 
 export interface CreatePosSalePayload {
@@ -91,6 +116,11 @@ export interface CreatePosSalePayload {
   cardNo?: string;
   /** Mandatory reason for an edit (update only) → SoMstr_ModifyRemarks. */
   modifyRemarks?: string;
+  /** Split payment: one entry per tender. Omit for an ordinary single-payment
+   *  sale — salesType/bankId/cardNo then describe the one tender, as before. */
+  payments?: SalePaymentPayload[];
+  /** Accept a split total below the payable and book the rest as due. */
+  allowPartial?: boolean;
 }
 
 // ── Offline sync ──────────────────────────────────────────────
@@ -110,6 +140,8 @@ export interface OfflineSalePayload {
   customerId?: string;
   /** Last 4 digits of the card, captured at sale time. */
   cardNo?: string;
+  /** Split payment captured at the till while offline. */
+  payments?: SalePaymentPayload[];
 }
 
 export interface SyncOfflinePayload {

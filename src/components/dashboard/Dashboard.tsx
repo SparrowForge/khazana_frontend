@@ -42,7 +42,7 @@ const FACTORY_QUICK_ACTIONS: QuickAction[] = [
   // shortcut is for writing the issue, and the list is a menu click away.
   { label: "Item Issue",           href: "/inventory/item-issue", controlName: "ItemIssue" },
   { label: "Production Entry",     href: "/inventory/production", controlName: "ProductionEntry" },
-  { label: "POS Terminal Sale",    href: "/pos",                  controlName: "POSTerminal" },
+  { label: "Cash Sale",    href: "/pos",                  controlName: "POSTerminal" },
   { label: "Credit Sale",          href: "/sales/credit",         controlName: "CreditSales" },
   // The Sales Report opens on today's date, so it lands as today's figures.
   { label: "Today's Sales Report", href: "/reports/sales",        controlName: "SalesReport" },
@@ -52,7 +52,7 @@ const FACTORY_QUICK_ACTIONS: QuickAction[] = [
  *  read the day back, invoice on credit, take customer orders, and demand the
  *  next delivery off the factory. */
 const BRANCH_QUICK_ACTIONS: QuickAction[] = [
-  { label: "POS Terminal Sale",  href: "/pos",               controlName: "POSTerminal" },
+  { label: "Cash Sale",  href: "/pos",               controlName: "POSTerminal" },
   { label: "Item Receive",       href: "/inventory/receive", controlName: "StockReceive" },
   { label: "Daily Final Report", href: "/reports/daily-final", controlName: "DailyFinalReport" },
   { label: "Credit Sale",        href: "/sales/credit",      controlName: "CreditSales" },

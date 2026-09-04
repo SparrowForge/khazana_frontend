@@ -151,6 +151,7 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
   FactoryReport: {
     icon: <Factory size={18} />,
     links: [
+      { label: "Daily Sales Report", route: "/factory/daily-sales", icon: <BarChart2 size={16} />, controlName: "DailySalesReport", factoryOnly: true },
       { label: "Production & Delivery Report", route: "/factory/production-delivery", icon: <BarChart2 size={16} />, controlName: "ProductionDeliveryReport", factoryOnly: true },
       { label: "Branchwise Delivery Report", route: "/factory/branchwise-delivery", icon: <BarChart2 size={16} />, controlName: "BranchwiseDeliveryReport", factoryOnly: true },
       // Same report as Reports > Discount Summary, under the factory's own

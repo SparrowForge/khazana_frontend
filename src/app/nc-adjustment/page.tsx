@@ -141,7 +141,7 @@ export default function NCAdjustmentPage() {
             </div>
           </Card>
           <Card title="Items">
-            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock vatInclusiveTotal />
+            <SaleItemsTable items={items} onItemsChange={setItems} availableItems={availableItems} enforceStock vatInclusiveTotal showDiscount={false} />
           </Card>
         </div>
         <div>

@@ -89,16 +89,31 @@ export default function NCAdjustmentEditPage() {
           nc.customer ? "" : [nc.ncmstrName, nc.ncmstrContactNo].filter(Boolean).join(" — "),
         );
         setReference(nc.ncmstrReference ?? "");
-        const saved = (nc.details ?? []).map((d) => ({
-          itemId: d.ncdetItemOID,
-          itemCode: d.item?.itmCode ?? "",
-          itemName: d.item?.itmName ?? "",
-          quantity: Number(d.ncdetQTY ?? 0),
-          rate: Number(d.ncdetPrice ?? 0),
-          discount: Number(d.ncdetDiscount ?? 0),
-          vat: Number(d.ncdetVATAmount ?? 0),
-          total: Number(d.ncdetNetAmount ?? 0),
-        }));
+        // An NC is non-charge, so it carries no discount any more. A row saved
+        // before that rule is restated at its full value on load: the discount
+        // is dropped AND the line re-valued at rate × qty, because saving it
+        // back with discount 0 but a still-discounted total would leave the row
+        // internally inconsistent. VAT keeps the rate it was charged at, taken
+        // off the saved figures before they are replaced.
+        const saved = (nc.details ?? []).map((d) => {
+          const quantity = Number(d.ncdetQTY ?? 0);
+          const rate = Number(d.ncdetPrice ?? 0);
+          const savedNet = Number(d.ncdetNetAmount ?? 0);
+          const savedVat = Number(d.ncdetVATAmount ?? 0);
+          const vatPct = savedNet > 0 ? (savedVat / savedNet) * 100 : 0;
+          const total = Math.round(rate * quantity * 100) / 100;
+          return {
+            itemId: d.ncdetItemOID,
+            itemCode: d.item?.itmCode ?? "",
+            itemName: d.item?.itmName ?? "",
+            quantity,
+            rate,
+            discount: 0,
+            vatPercentage: vatPct,
+            vat: Math.round(((total * vatPct) / 100) * 100) / 100,
+            total,
+          };
+        });
         setItems(saved);
         setHeldStock(
           saved.reduce<Record<string, number>>((acc, it) => {
@@ -208,6 +223,7 @@ export default function NCAdjustmentEditPage() {
                 enforceStock
                 heldStock={heldStock}
                 vatInclusiveTotal
+                showDiscount={false}
               />
             </Card>
           </div>

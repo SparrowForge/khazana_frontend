@@ -72,6 +72,7 @@ const ROUTE_CONTROL_MAP: Array<[string, string]> = [
   ["/reports/item-sales", "ItemSales"],
   ["/reports/packet", "PacketAnalysis"],
   ["/reports", "Reports"],
+  ["/factory/daily-sales", "DailySalesReport"],
   ["/factory/production-delivery", "ProductionDeliveryReport"],
   ["/factory/branchwise-delivery", "BranchwiseDeliveryReport"],
   ["/factory/discount-log", "DiscountLogReport"],

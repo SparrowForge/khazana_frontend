@@ -75,11 +75,12 @@ const toPayload = (data: NcPayload) => ({
   // Sent verbatim (not `|| undefined`) — these are mandatory server-side.
   customerId: data.customerId,
   reference: data.reference.trim(),
+  // `discount` is deliberately not sent: an NC is non-charge, so there is
+  // nothing to discount. The server writes 0 regardless.
   items: data.items.map((it) => ({
     itemId: it.itemId,
     qty: it.quantity,
     price: it.rate,
-    discount: it.discount,
     vatAmount: it.vat,
     netAmount: it.total,
   })),

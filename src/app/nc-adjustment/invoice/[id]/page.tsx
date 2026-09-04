@@ -121,6 +121,11 @@ function ThermalInvoice({ inv }: { inv: NcInvoice }) {
 
 // ── Format 2: corporate A4 sheet ─────────────────────────────
 function CorporateInvoice({ inv }: { inv: NcInvoice }) {
+  // An NC is non-charge, so nothing raised now carries a discount and the
+  // column is dropped entirely. NCs raised before that rule keep theirs on the
+  // document — without it their Sub-total would not reconcile to their Net.
+  const hadDiscount = Number(inv.totalDiscount) > 0;
+
   return (
     <div
       id="invoice"
@@ -171,7 +176,9 @@ function CorporateInvoice({ inv }: { inv: NcInvoice }) {
             <th className="border border-gray-400 px-2 py-1.5 text-left">Description</th>
             <th className="border border-gray-400 px-2 py-1.5 text-right w-20">Qty</th>
             <th className="border border-gray-400 px-2 py-1.5 text-right w-24">Rate</th>
-            <th className="border border-gray-400 px-2 py-1.5 text-right w-24">Discount</th>
+            {hadDiscount && (
+              <th className="border border-gray-400 px-2 py-1.5 text-right w-24">Discount</th>
+            )}
             <th className="border border-gray-400 px-2 py-1.5 text-right w-24">VAT</th>
             <th className="border border-gray-400 px-2 py-1.5 text-right w-28">Amount</th>
           </tr>
@@ -188,7 +195,9 @@ function CorporateInvoice({ inv }: { inv: NcInvoice }) {
                 {fmtQty(item.quantity)}{item.uom ? ` ${item.uom}` : ""}
               </td>
               <td className="border border-gray-400 px-2 py-1.5 text-right">{fmt(item.rate)}</td>
-              <td className="border border-gray-400 px-2 py-1.5 text-right">{fmt(item.discount)}</td>
+              {hadDiscount && (
+                <td className="border border-gray-400 px-2 py-1.5 text-right">{fmt(item.discount)}</td>
+              )}
               <td className="border border-gray-400 px-2 py-1.5 text-right">{fmt(item.vat)}</td>
               <td className="border border-gray-400 px-2 py-1.5 text-right font-medium">
                 {fmt(item.total + item.vat)}
@@ -201,12 +210,16 @@ function CorporateInvoice({ inv }: { inv: NcInvoice }) {
       {/* Totals */}
       <div className="flex justify-end mt-4">
         <div className="w-72 text-[12px]">
-          <div className="flex justify-between py-0.5">
-            <span className="text-gray-600">Sub-total</span><span>৳ {fmt(inv.totalAmount)}</span>
-          </div>
-          <div className="flex justify-between py-0.5">
-            <span className="text-gray-600">Item Discount</span><span>৳ {fmt(inv.totalDiscount)}</span>
-          </div>
+          {hadDiscount && (
+            <>
+              <div className="flex justify-between py-0.5">
+                <span className="text-gray-600">Sub-total</span><span>৳ {fmt(inv.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span className="text-gray-600">Item Discount</span><span>৳ {fmt(inv.totalDiscount)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between py-0.5">
             <span className="text-gray-600">Net Amount</span><span>৳ {fmt(inv.netAmount)}</span>
           </div>

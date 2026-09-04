@@ -63,6 +63,12 @@ interface SaleItemsTableProps {
    *  8-column table. The table needs the full page width; a side column doesn't
    *  have it. */
   compactLines?: boolean;
+  /** Show the Discount input, column and totals. Off for a document that is
+   *  given away rather than sold — an NC is non-charge, so discounting it is
+   *  meaningless. Every line it adds carries `discount: 0`, so the caller's
+   *  totals need no special case. On by default: every form that does sell
+   *  keeps its discount exactly as it was. */
+  showDiscount?: boolean;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -82,6 +88,7 @@ export default function SaleItemsTable({
   itemPicker = "select",
   section = "all",
   compactLines = false,
+  showDiscount = true,
 }: SaleItemsTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [qty, setQty] = useState("1");
@@ -151,7 +158,8 @@ export default function SaleItemsTable({
         itemName: itemMeta.itmName,
         quantity,
         rate: itemMeta.price ?? 0,
-        discount: parseFloat(disc) || 0,
+        // No discount box on a non-charge document, so nothing to read off it.
+        discount: showDiscount ? parseFloat(disc) || 0 : 0,
         vatPercentage: itemMeta.vatPercentage ?? 0,
         vat: 0,
         total: 0,
@@ -456,14 +464,16 @@ export default function SaleItemsTable({
           className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
         />
       </div>
-      <div className="w-28">
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Discount</label>
-        <input
-          type="number" min="0" step="0.01"
-          value={disc} onChange={(e) => setDisc(e.target.value)}
-          className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
-        />
-      </div>
+      {showDiscount && (
+        <div className="w-28">
+          <label className="text-xs font-medium text-gray-600 mb-1 block">Discount</label>
+          <input
+            type="number" min="0" step="0.01"
+            value={disc} onChange={(e) => setDisc(e.target.value)}
+            className="w-full border border-sage-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800"
+          />
+        </div>
+      )}
       <Button size="sm" onClick={addItem} disabled={!selectedItemId}>
         <Plus size={14} /> Add
       </Button>
@@ -536,19 +546,21 @@ export default function SaleItemsTable({
                       <Plus size={12} />
                     </button>
                   </div>
-                  <label className="flex items-center gap-1 text-[11px] text-gray-400">
-                    Disc
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={cellValue(i, "discount")}
-                      onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
-                      onBlur={commitDraft}
-                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                      onFocus={(e) => e.currentTarget.select()}
-                      aria-label={`Discount for ${item.itemName || item.itemCode}`}
-                      className="w-16 text-right border border-sage-300 rounded-md px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
-                    />
-                  </label>
+                  {showDiscount && (
+                    <label className="flex items-center gap-1 text-[11px] text-gray-400">
+                      Disc
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={cellValue(i, "discount")}
+                        onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
+                        onBlur={commitDraft}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                        onFocus={(e) => e.currentTarget.select()}
+                        aria-label={`Discount for ${item.itemName || item.itemCode}`}
+                        className="w-16 text-right border border-sage-300 rounded-md px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
+                      />
+                    </label>
+                  )}
                   <span className="text-sm font-bold text-primary-700 whitespace-nowrap w-20 text-right">
                     ৳{formatCurrency(lineTotal(item))}
                   </span>
@@ -570,7 +582,9 @@ export default function SaleItemsTable({
               <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Item</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Rate</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Qty</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Disc</th>
+              {showDiscount && (
+                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Disc</th>
+              )}
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">VAT</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
                 {vatInclusiveTotal ? "Total (incl. VAT)" : "Total"}
@@ -580,7 +594,7 @@ export default function SaleItemsTable({
           </thead>
           <tbody className="divide-y divide-sage-200">
             {items.length === 0 && (
-              <tr><td colSpan={8} className="text-center py-6 text-gray-400">No items added</td></tr>
+              <tr><td colSpan={showDiscount ? 8 : 7} className="text-center py-6 text-gray-400">No items added</td></tr>
             )}
             {items.map((item, i) => (
               <tr key={i} className="hover:bg-sage-100">
@@ -621,16 +635,18 @@ export default function SaleItemsTable({
                     </button>
                   </div>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={cellValue(i, "discount")}
-                    onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
-                    onBlur={commitDraft}
-                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    className="w-20 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
-                  />
-                </td>
+                {showDiscount && (
+                  <td className="px-3 py-2 text-right">
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={cellValue(i, "discount")}
+                      onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
+                      onBlur={commitDraft}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      className="w-20 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right text-gray-600">
                   {formatCurrency(item.vat)}
                   {!!item.vatPercentage && (
@@ -650,7 +666,9 @@ export default function SaleItemsTable({
             <tfoot className="bg-sage-100 border-t border-sage-300">
               <tr>
                 <td colSpan={4} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Subtotal</td>
-                <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalDiscount)}</td>
+                {showDiscount && (
+                  <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalDiscount)}</td>
+                )}
                 <td className="px-3 py-2 text-right text-xs text-gray-700">{formatCurrency(totalVat)}</td>
                 <td className="px-3 py-2 text-right font-bold text-gray-800">{formatCurrency(columnTotal)}</td>
                 <td></td>
@@ -665,12 +683,20 @@ export default function SaleItemsTable({
    *  wraps into an unreadable knot in a side column. */
   const totalsStrip = compactLines ? (
     <dl className="rounded-lg border border-sage-300 bg-sage-100 px-3 py-2 text-sm">
-      {([
-        ["Gross", totalAmount],
-        ["Discount", totalDiscount],
-        ["Net", netAmount],
-        ["VAT", totalVat],
-      ] as const).map(([label, value]) => (
+      {(showDiscount
+        ? ([
+            ["Gross", totalAmount],
+            ["Discount", totalDiscount],
+            ["Net", netAmount],
+            ["VAT", totalVat],
+          ] as const)
+        : // Without a discount, Gross and Net are the same number — printing
+          // both invites the reader to look for a difference that cannot exist.
+          ([
+            ["Value", netAmount],
+            ["VAT", totalVat],
+          ] as const)
+      ).map(([label, value]) => (
         <div key={label} className="flex justify-between text-gray-500">
           <dt>{label}</dt>
           <dd className="font-medium text-gray-700">{formatCurrency(value)}</dd>
@@ -683,9 +709,15 @@ export default function SaleItemsTable({
     </dl>
   ) : (
     <div className="text-right text-sm text-gray-500">
-      Gross: <span className="font-medium">{formatCurrency(totalAmount)}</span>
-      {" | "}Discount: <span className="font-medium">{formatCurrency(totalDiscount)}</span>
-      {" | "}Net: <span className="font-medium">{formatCurrency(netAmount)}</span>
+      {showDiscount ? (
+        <>
+          Gross: <span className="font-medium">{formatCurrency(totalAmount)}</span>
+          {" | "}Discount: <span className="font-medium">{formatCurrency(totalDiscount)}</span>
+          {" | "}Net: <span className="font-medium">{formatCurrency(netAmount)}</span>
+        </>
+      ) : (
+        <>Value: <span className="font-medium">{formatCurrency(netAmount)}</span></>
+      )}
       {" | "}VAT: <span className="font-medium">{formatCurrency(totalVat)}</span>
       {" | "}Total: <span className="font-bold text-gray-800 text-base">{formatCurrency(grandTotal)}</span>
     </div>

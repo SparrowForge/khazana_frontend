@@ -106,15 +106,8 @@ export default function ItemsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file (jpg, png, gif, webp)");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be smaller than 5 MB");
-      return;
-    }
-
+    // Type and size are checked inside uploadFile, which also downscales large
+    // photos — it throws an Error whose message already names the real cause.
     setUploadingImage(true);
     try {
       // Upload to /upload → get back the full media_files DB record
@@ -126,7 +119,7 @@ export default function ItemsPage() {
       setPreviewUrl(mediaFile.fileUrl);
       toast.success("Image uploaded");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Image upload failed"));
+      toast.error(err instanceof Error ? err.message : getErrorMessage(err, "Image upload failed"));
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -419,7 +412,7 @@ export default function ItemsPage() {
                   <>
                     <ImagePlus size={16} />
                     Upload Item Image
-                    <span className="text-xs text-gray-400">(jpg, png, gif, webp · max 5 MB)</span>
+                    <span className="text-xs text-gray-400">(jpg, png, gif, webp · large photos are resized automatically)</span>
                   </>
                 )}
               </button>

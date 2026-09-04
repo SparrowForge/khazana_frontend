@@ -105,15 +105,8 @@ export default function UsersPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be smaller than 5 MB");
-      return;
-    }
-
+    // uploadFile validates the type, shrinks oversized photos, and throws an
+    // Error whose message already names the real cause.
     setUploadingAvatar(true);
     try {
       const mediaFile = await uploadFile(file);
@@ -121,7 +114,7 @@ export default function UsersPage() {
       setPreviewUrl(mediaFile.fileUrl);
       toast.success("Avatar uploaded");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Avatar upload failed"));
+      toast.error(err instanceof Error ? err.message : getErrorMessage(err, "Avatar upload failed"));
     } finally {
       setUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

@@ -34,3 +34,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Compiled output of the TS sources under src/. Running `tsc` without
+# --noEmit drops .js next to each .ts; committed, they fail `next lint`
+# (require() imports) and so fail the build, and they silently drift from
+# the source they were compiled from. This is a TypeScript project — no
+# hand-written .js belongs under src/.
+/src/**/*.js
+/src/**/*.jsx

@@ -43,7 +43,12 @@ export interface DailyFinalReport {
     issue: CategoryRow;
     credit: CategoryRow;
   };
-  payments: { bkash: number; card: number; cash: number; credit: number };
+  /** `advance` is money taken today on newly received orders. It is shown with
+   *  the payment modes but is NOT part of `totals.totalSale`: the order is
+   *  invoiced out later as a credit sale for its full value, and the advance is
+   *  settled against that invoice, so counting it as a sale today too would
+   *  bill the same money on two different days. */
+  payments: { bkash: number; card: number; cash: number; credit: number; advance: number };
   totals: { totalSale: number; ncSale: number; discount: number; grandTotal: number };
   breakdown: { credit: NamedAmount[]; discount: DiscountRow[]; nc: NamedAmount[] };
   cardBank: CardBankRow[];

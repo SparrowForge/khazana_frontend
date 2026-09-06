@@ -200,24 +200,42 @@ export default function PosSaleEditPage() {
       prev.map((c) => (c.itemId === itemId ? { ...c, qty: r2(c.qty + delta) } : c)).filter((c) => c.qty > 0),
     );
 
-  /** Commit a typed qty. Blank or <= 0 reverts to the previous value rather than
-   *  silently dropping the line — removal is the trash button, an explicit act.
+  /** What a typed qty is worth, in one place so the live and the commit path
+   *  can't disagree. `null` is "not usable yet" — blank, half-typed, or <= 0.
    *
    *  No on-hand clamp here, unlike the terminal: this sale's own quantities are
    *  already deducted from stock, so the ceiling is "on hand plus what this line
    *  currently holds". The server works that out for real when it re-prices
    *  (assertStockAvailable credits the existing lines back); guessing at it here
    *  would block legitimate edits. */
+  const readQty = (raw: string): number | null => {
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return Math.max(MIN_QTY, r2(parsed));
+  };
+
+  const setQty = (itemId: string, qty: number) =>
+    setCart((prev) => prev.map((c) => (c.itemId === itemId ? { ...c, qty } : c)));
+
+  /** Retype a qty. The line and the invoice totals follow the keystroke rather
+   *  than waiting for the box to lose focus; a half-typed value is just held in
+   *  the draft, leaving the line on its last good qty. */
+  const typeQty = (itemId: string, raw: string) => {
+    setQtyDraft((d) => ({ ...d, [itemId]: raw }));
+    const qty = readQty(raw);
+    if (qty !== null) setQty(itemId, qty);
+  };
+
+  /** Finish a typed qty. Blank or <= 0 reverts to the previous value rather than
+   *  silently dropping the line — removal is the trash button, an explicit act. */
   const commitQty = (itemId: string, raw: string) => {
     setQtyDraft((d) => {
       const next = { ...d };
       delete next[itemId];
       return next;
     });
-    const parsed = parseFloat(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) return;
-    const wanted = Math.max(MIN_QTY, r2(parsed));
-    setCart((prev) => prev.map((c) => (c.itemId === itemId ? { ...c, qty: wanted } : c)));
+    const qty = readQty(raw);
+    if (qty !== null) setQty(itemId, qty);
   };
 
   const removeFromCart = (itemId: string) => setCart((prev) => prev.filter((c) => c.itemId !== itemId));
@@ -481,7 +499,7 @@ export default function PosSaleEditPage() {
                             step={QTY_STEP}
                             value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
                             onChange={(e) =>
-                              setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
+                              typeQty(c.itemId, e.target.value)
                             }
                             onBlur={(e) => commitQty(c.itemId, e.target.value)}
                             onKeyDown={(e) => {

@@ -52,6 +52,7 @@ function toFlatRows(d: DailyFinalReport): FinalFlatRow[] {
 
   const payModes: [string, number][] = [
     ["Bkash", p.bkash], ["Card", p.card], ["Cash", p.cash], ["Credit", p.credit],
+    ["Advance", p.advance],
   ];
   for (const [label, amount] of payModes) {
     rows.push({ section: "Payment Modes", label, detail: "", amount: amount ?? 0 });
@@ -214,6 +215,9 @@ function Report({ data }: { data: DailyFinalReport }) {
             ["Card", p.card],
             ["Cash", p.cash],
             ["Credit", p.credit],
+            // Advance on today's orders — money in the drawer, but not a sale
+            // yet, so it is listed here and left out of Total Sale below.
+            ["Advance", p.advance],
           ].map(([label, val]) => (
             <tr key={label as string} className="border-b border-sage-400">
               <td className="font-bold py-0.5 px-2">{label as string}</td>

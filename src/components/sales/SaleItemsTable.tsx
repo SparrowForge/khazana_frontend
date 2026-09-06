@@ -261,39 +261,85 @@ export default function SaleItemsTable({
     updateItem(idx, "quantity", next);
   };
 
-  /** Commit a typed cell. Anything that isn't a usable number reverts to the
-   *  value the line already had rather than silently billing 0 (or a negative
-   *  discount): a blank box is a half-finished edit, not an instruction. */
+  /**
+   * What a typed cell is worth, in ONE place, so the live (per-keystroke) path
+   * and the commit (blur/Enter) path can never disagree about what is valid.
+   * They differ only in whether they complain about it.
+   *
+   * `null` means "not a number yet" — a blank box or a half-typed "1." / "-".
+   * That is a half-finished edit, not an instruction, so neither path treats it
+   * as an error and neither writes it back.
+   */
+  const readCell = (
+    idx: number,
+    field: "quantity" | "discount",
+    raw: string,
+  ): { value: number } | { error: string } | null => {
+    const line = items[idx];
+    if (!line) return null;
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed)) return null;
+    const value = r2(parsed);
+
+    if (field === "quantity") {
+      if (value <= 0) return { error: "Quantity must be greater than zero" };
+      if (enforceStock) {
+        const available = availableFor(line.itemId);
+        if (r2(committedFor(line.itemId, idx) + value) > available) {
+          return { error: `${line.itemName || line.itemCode} — only ${fmtQty(available)} in stock` };
+        }
+      }
+      return { value };
+    }
+
+    if (value < 0) return { error: "Discount can't be negative" };
+    // A discount above the line's own value would invert the line (and, on a
+    // credit sale, the invoice total the customer is billed).
+    const lineGross = r2(line.rate * line.quantity);
+    if (value > lineGross) {
+      return {
+        error: `${line.itemName || line.itemCode} — discount can't exceed the line value (${formatCurrency(lineGross)})`,
+      };
+    }
+    return { value };
+  };
+
+  /** Write an already-validated cell and restate the line's VAT and total. */
+  const applyCell = (idx: number, field: "quantity" | "discount", value: number) =>
+    onItemsChange(items.map((item, i) => (i === idx ? recalc({ ...item, [field]: value }) : item)));
+
+  /**
+   * Type a cell. The line's amount follows the keystroke rather than waiting for
+   * the box to lose focus — an operator changing a quantity should see the money
+   * move as they type.
+   *
+   * Anything not yet valid is simply held in the draft: the line keeps its last
+   * good figures and NOTHING is said. Complaining per keystroke would fire a
+   * toast at "15" on the way to typing "1.5", and again at "1" on the way to
+   * "10" when only 5 are in stock. The objection belongs at the end of the edit,
+   * which is what `commitDraft` is for.
+   */
+  const typeCell = (idx: number, field: "quantity" | "discount", raw: string) => {
+    setDraft({ idx, field, value: raw });
+    const read = readCell(idx, field, raw);
+    if (read && "value" in read) applyCell(idx, field, read.value);
+  };
+
+  /** Finish a typed cell (blur or Enter). Same rules as `typeCell`, but this is
+   *  where an unusable value is called out and the box snaps back to the figure
+   *  the line actually holds — rather than silently billing 0, a negative
+   *  discount, or more stock than exists. */
   const commitDraft = () => {
     if (!draft) return;
     const { idx, field, value } = draft;
     setDraft(null);
-    const line = items[idx];
-    if (!line) return;
-    const parsed = parseFloat(value);
-    if (!Number.isFinite(parsed)) return;
-    if (field === "quantity") {
-      if (parsed <= 0) {
-        stockToast("Quantity must be greater than zero");
-        return;
-      }
-      updateItem(idx, "quantity", r2(parsed));
+    const read = readCell(idx, field, value);
+    if (!read) return;
+    if ("error" in read) {
+      stockToast(read.error);
       return;
     }
-    if (parsed < 0) {
-      stockToast("Discount can't be negative");
-      return;
-    }
-    // A discount above the line's own value would invert the line (and, on a
-    // credit sale, the invoice total the customer is billed).
-    const lineGross = r2(line.rate * line.quantity);
-    if (r2(parsed) > lineGross) {
-      stockToast(
-        `${line.itemName || line.itemCode} — discount can't exceed the line value (${formatCurrency(lineGross)})`,
-      );
-      return;
-    }
-    updateItem(idx, "discount", r2(parsed));
+    applyCell(idx, field, read.value);
   };
 
   /** The text a cell shows: the in-flight draft while it's being typed, the
@@ -525,7 +571,7 @@ export default function SaleItemsTable({
                     <input
                       type="number" min="0.01" step="0.01" inputMode="decimal"
                       value={cellValue(i, "quantity")}
-                      onChange={(e) => setDraft({ idx: i, field: "quantity", value: e.target.value })}
+                      onChange={(e) => typeCell(i, "quantity", e.target.value)}
                       onBlur={commitDraft}
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                       onFocus={(e) => e.currentTarget.select()}
@@ -552,7 +598,7 @@ export default function SaleItemsTable({
                       <input
                         type="number" min="0" step="0.01"
                         value={cellValue(i, "discount")}
-                        onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
+                        onChange={(e) => typeCell(i, "discount", e.target.value)}
                         onBlur={commitDraft}
                         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                         onFocus={(e) => e.currentTarget.select()}
@@ -615,7 +661,7 @@ export default function SaleItemsTable({
                     <input
                       type="number" min="0.01" step="0.01" inputMode="decimal"
                       value={cellValue(i, "quantity")}
-                      onChange={(e) => setDraft({ idx: i, field: "quantity", value: e.target.value })}
+                      onChange={(e) => typeCell(i, "quantity", e.target.value)}
                       onBlur={commitDraft}
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                       className="w-16 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"
@@ -640,7 +686,7 @@ export default function SaleItemsTable({
                     <input
                       type="number" min="0" step="0.01"
                       value={cellValue(i, "discount")}
-                      onChange={(e) => setDraft({ idx: i, field: "discount", value: e.target.value })}
+                      onChange={(e) => typeCell(i, "discount", e.target.value)}
                       onBlur={commitDraft}
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                       className="w-20 text-right border border-sage-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-800"

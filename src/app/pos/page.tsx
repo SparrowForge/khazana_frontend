@@ -383,7 +383,43 @@ export default function PosPage() {
     );
   };
 
-  /** Commit a typed qty. Blank/invalid/<=0 — or more than is on hand — reverts to
+  /**
+   * What a typed qty is worth, in ONE place so the live (per-keystroke) path and
+   * the commit (blur/Enter) path can never disagree — they differ only in
+   * whether they complain.
+   *
+   * `null` means "not a number yet": a blank box or a half-typed "1." / "-".
+   * That is a half-finished edit, not an instruction to drop the line.
+   */
+  const readQty = (itemId: string, raw: string): { value: number } | { error: string } | null => {
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed)) return null;
+    if (parsed <= 0) return null;
+    const wanted = Math.max(MIN_QTY, r2(parsed));
+    const onHand = stockOf(itemId);
+    if (wanted > onHand) return { error: `Only ${fmtQty(onHand)} in stock` };
+    return { value: wanted };
+  };
+
+  /**
+   * Retype a qty. The line and the bill total follow the keystroke instead of
+   * waiting for the box to lose focus — the cashier should see the money move as
+   * they type.
+   *
+   * Anything not yet usable is just held in the draft: the line keeps its last
+   * good qty and nothing is said. Complaining per keystroke would fire a toast
+   * at "15" on the way to typing "1.5", and again at "1" on the way to "10" when
+   * only 5 are on hand. The objection belongs at the end of the edit.
+   */
+  const typeQty = (itemId: string, raw: string) => {
+    setQtyDraft((d) => ({ ...d, [itemId]: raw }));
+    const read = readQty(itemId, raw);
+    if (read && "value" in read) {
+      setCart((prev) => prev.map((c) => (c.itemId === itemId ? { ...c, qty: read.value } : c)));
+    }
+  };
+
+  /** Finish a typed qty. Blank/invalid/<=0 — or more than is on hand — reverts to
    *  the previous value rather than silently dropping the line or clamping to a
    *  number the cashier didn't type; removal is an explicit action. */
   const commitQty = (itemId: string, raw: string) => {
@@ -392,16 +428,14 @@ export default function PosPage() {
       delete next[itemId];
       return next;
     });
-    const parsed = parseFloat(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) return;
-    const wanted = Math.max(MIN_QTY, r2(parsed));
-    const onHand = stockOf(itemId);
-    if (wanted > onHand) {
-      toast.error(`Only ${fmtQty(onHand)} in stock`);
+    const read = readQty(itemId, raw);
+    if (!read) return;
+    if ("error" in read) {
+      toast.error(read.error);
       return;
     }
     setCart((prev) =>
-      prev.map((c) => (c.itemId === itemId ? { ...c, qty: wanted } : c)),
+      prev.map((c) => (c.itemId === itemId ? { ...c, qty: read.value } : c)),
     );
   };
 
@@ -984,9 +1018,7 @@ export default function PosPage() {
                             min={MIN_QTY}
                             step={QTY_STEP}
                             value={qtyDraft[c.itemId] ?? fmtQty(c.qty)}
-                            onChange={(e) =>
-                              setQtyDraft((d) => ({ ...d, [c.itemId]: e.target.value }))
-                            }
+                            onChange={(e) => typeQty(c.itemId, e.target.value)}
                             onBlur={(e) => commitQty(c.itemId, e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") e.currentTarget.blur();

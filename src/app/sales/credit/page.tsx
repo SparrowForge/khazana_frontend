@@ -321,7 +321,7 @@ export default function CreditSalePage() {
                     onClick={() => setCustomerModal(true)}
                     className="self-start inline-flex items-center gap-1 text-xs text-primary-700 hover:underline"
                   >
-                    <Plus size={12} /> New customer
+                    <Plus size={12} /> Add Customer
                   </button>
                 )}
               </div>

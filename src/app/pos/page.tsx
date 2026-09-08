@@ -25,6 +25,7 @@ import { getErrorMessage } from "@/lib/api";
 import { roundPayable, formatDateTime } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
+import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Tag, PauseCircle, Clock, X,
   Wifi, WifiOff, RefreshCw, PackagePlus,
@@ -119,6 +120,11 @@ export default function PosPage() {
    *  Empty until the customer list lands — the picker fills it in below. */
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
+  /** Quick-add: register a customer without abandoning the bill on screen —
+   *  the same dialog the credit-sale and order screens use. Online only, since
+   *  the code (C-nnnn) is allocated server-side. */
+  const [customerModal, setCustomerModal] = useState(false);
+  const canAddCustomer = can("Customers", "add");
   /** Last 4 digits of the card, on a Card payment. Never more — the last four
    *  is all that may be kept, and all the settlement slip needs to match. */
   const [cardNo, setCardNo] = useState("");
@@ -223,6 +229,44 @@ export default function PosPage() {
       });
     return () => { cancelled = true; };
   }, [user]);
+
+  /** Takes the customer the dialog just created: the list is re-pulled (and
+   *  re-cached, so the next offline boot has them too) and the new record is
+   *  selected straight away — the cashier opened the dialog to bill this
+   *  person, so picking them again by hand would be busywork.
+   *
+   *  The picker only carries the first 100 customers by name, so a new one can
+   *  sort outside it. It is appended locally in that case, rather than being
+   *  created and then not selectable — which would read as the dialog having
+   *  done nothing. */
+  const handleCustomerCreated = async (created: {
+    id: string | number; code?: string; name?: string; mobile?: string;
+  }) => {
+    const fallback: PosCustomer = {
+      id: String(created.id),
+      code: created.code ?? "",
+      name: created.name ?? "",
+      mobile: created.mobile ?? null,
+      // Never the counter customer: that row already exists and is not something
+      // this dialog can create, so a discount to this one is allowed.
+      isWalkIn: false,
+    };
+    try {
+      const list = await posCustomersApi.getAll();
+      const match =
+        list.find((c) => c.id === fallback.id) ??
+        (created.code ? list.find((c) => c.code === created.code) : undefined);
+      const next = match ? list : [...list, fallback];
+      setCustomers(next);
+      if (user) await cacheCustomers(user.id, next);
+      setCustomerId(match?.id ?? fallback.id);
+    } catch {
+      // The customer is saved — only the refresh failed. Carry on with the row
+      // the server returned so the bill in progress can still be billed to them.
+      setCustomers((prev) => [...prev, fallback]);
+      setCustomerId(fallback.id);
+    }
+  };
 
   // Session branch letterhead (address / VAT Reg No / tel). Kept in localStorage
   // so an offline receipt can still print the same header the online one does.
@@ -1240,14 +1284,30 @@ export default function PosPage() {
                 the sale on the reports, and is required before it can be
                 discounted. Every option is a row from the Customer table — the
                 walk-in is one of them, so there is no synthetic blank entry. */}
-            <Select
-              label="Customer"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              searchable
-              options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
-              error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
-            />
+            <div className="flex flex-col gap-1">
+              <Select
+                label="Customer"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                searchable
+                options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
+              />
+              {/* Registering the customer at the till is what unblocks a
+                  discount for someone who walked in without a record. Needs the
+                  server to allocate the code, so it is offline-disabled. */}
+              {canAddCustomer && (
+                <button
+                  type="button"
+                  onClick={() => setCustomerModal(true)}
+                  disabled={!isOnline}
+                  title={isOnline ? "Register a new customer" : "Reconnect to add a customer"}
+                  className="self-start inline-flex items-center gap-1 text-xs text-primary-700 hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
+                >
+                  <Plus size={12} /> New customer
+                </button>
+              )}
+            </div>
 
             {selectedCustomer && (
               <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
@@ -1314,6 +1374,14 @@ export default function PosPage() {
         open={itemModal}
         onClose={() => setItemModal(false)}
         onCreated={reloadProducts}
+      />
+
+      {/* A customer registered from the till itself — selected on the bill in
+          progress as soon as it is saved. */}
+      <CustomerQuickAddModal
+        open={customerModal}
+        onClose={() => setCustomerModal(false)}
+        onCreated={handleCustomerCreated}
       />
 
       {/* Splits one bill across several tenders. Cancelling without a balanced

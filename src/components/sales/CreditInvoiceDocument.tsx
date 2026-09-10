@@ -211,7 +211,6 @@ export function CorporateInvoice({ inv }: { inv: CreditInvoice }) {
               <td className="border border-gray-400 px-2 py-1.5">{i + 1}</td>
               <td className="border border-gray-400 px-2 py-1.5">
                 {item.itemName || item.itemCode}
-                {item.itemCode && <span className="text-gray-500"> ({item.itemCode})</span>}
               </td>
               <td className="border border-gray-400 px-2 py-1.5 text-right">
                 {fmtQty(item.quantity)}{item.uom ? ` ${item.uom}` : ""}

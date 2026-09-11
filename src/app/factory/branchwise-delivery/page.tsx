@@ -13,68 +13,20 @@ import {
   type BranchwiseDeliveryRow,
 } from "./server";
 import { fetchBranches, type Branch } from "@/app/admin/branches/server";
-import { formatCurrency } from "@/lib/utils";
+import {
+  isWholeMonth, monthName, spanLabel, dayHeader, q, amt, getDefaultMonth,
+} from "@/lib/reports/dayPivot";
 import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { ExportColumn } from "@/lib/export/reportExport";
 
-const formatDate = (dateString: string | Date) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
-  return `${day}-${month}-${date.getUTCFullYear()}`;
-};
-
 /** The legacy sheet is headed "For The Month August 2026" when the range covers
  *  exactly one calendar month, which is how the factory normally runs it. Any
  *  other range prints as a span so the heading never misrepresents the query. */
-const periodLabel = (fromDate: string, toDate: string) => {
-  const from = new Date(fromDate);
-  const to = new Date(toDate);
-  const isMonth =
-    from.getUTCDate() === 1 &&
-    from.getUTCFullYear() === to.getUTCFullYear() &&
-    from.getUTCMonth() === to.getUTCMonth() &&
-    to.getUTCDate() === new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth() + 1, 0)).getUTCDate();
-  if (isMonth) {
-    return `For The Month ${from.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${from.getUTCFullYear()}`;
-  }
-  return fromDate === toDate
-    ? `On ${formatDate(fromDate)}`
-    : `From ${formatDate(fromDate)} To ${formatDate(toDate)}`;
-};
-
-/** Day columns read as bare day numbers on a single-month sheet (1…31, as the
- *  legacy report prints them); a range straddling months needs the month too,
- *  or day 1 would appear twice with nothing to tell the two apart. */
-const dayHeader = (days: string[]) => {
-  const months = new Set(days.map((d) => d.slice(0, 7)));
-  return (iso: string) => {
-    const d = new Date(iso);
-    const day = d.getUTCDate();
-    return months.size > 1 ? `${day}/${d.getUTCMonth() + 1}` : String(day);
-  };
-};
-
-// A dash where nothing was delivered — the sheet is mostly empty cells, and
-// zeros everywhere would drown the numbers that matter.
-const q = (n: number | undefined) => {
-  const v = Math.round(Number(n ?? 0) * 100) / 100;
-  return v === 0 ? "-" : v.toFixed(2);
-};
-const amt = (n: number) => {
-  const v = Math.round(Number(n ?? 0) * 100) / 100;
-  return v === 0 ? "-" : formatCurrency(v);
-};
-
-/** Defaults to the current calendar month — the period this sheet is run for. */
-const getDefaultMonth = () => {
-  const today = new Date();
-  const first = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1));
-  const last = new Date(Date.UTC(today.getFullYear(), today.getMonth() + 1, 0));
-  return { fromDate: first.toISOString().split("T")[0], toDate: last.toISOString().split("T")[0] };
-};
+const periodLabel = (fromDate: string, toDate: string) =>
+  isWholeMonth(fromDate, toDate)
+    ? `For The Month ${monthName(fromDate)}`
+    : spanLabel(fromDate, toDate);
 
 export default function BranchwiseDeliveryReportPage() {
   const defaults = getDefaultMonth();

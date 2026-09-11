@@ -154,6 +154,8 @@ export const NAV_REGISTRY: Record<string, NavMeta> = {
       { label: "Daily Sales Report", route: "/factory/daily-sales", icon: <BarChart2 size={16} />, controlName: "DailySalesReport", factoryOnly: true },
       { label: "Production & Delivery Report", route: "/factory/production-delivery", icon: <BarChart2 size={16} />, controlName: "ProductionDeliveryReport", factoryOnly: true },
       { label: "Branchwise Delivery Report", route: "/factory/branchwise-delivery", icon: <BarChart2 size={16} />, controlName: "BranchwiseDeliveryReport", factoryOnly: true },
+      { label: "Monthly Production Report", route: "/factory/monthly-production", icon: <BarChart2 size={16} />, controlName: "MonthlyProductionReport", factoryOnly: true },
+      { label: "Business Analysis Report", route: "/factory/business-analysis", icon: <BarChart2 size={16} />, controlName: "BusinessAnalysisReport", factoryOnly: true },
       // Same report as Reports > Discount Summary, under the factory's own
       // menu and permission. The page is a re-export, not a copy.
       { label: "Discount Log Report", route: "/factory/discount-log", icon: <FileText size={16} />, controlName: "DiscountLogReport", factoryOnly: true },

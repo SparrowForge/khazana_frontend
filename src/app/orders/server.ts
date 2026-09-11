@@ -58,9 +58,24 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  /** t_Price.priceListPrice — VAT-EXCLUSIVE. */
   price?: number;
+  /** t_Price.priceVatPercent, used to derive the VAT-inclusive rate. */
   vatPercentage?: number;
 }
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** The order form quotes rates the way the customer reads them — VAT INCLUDED,
+ *  the same basis a Production Entry rate is kept on — while the order itself
+ *  stores the ex-VAT unit price that the backend prices VAT on top of. These
+ *  two convert between the pair, so what is typed and what is posted never
+ *  drift apart. */
+export const grossUpRate = (price?: number | null, vatPercentage?: number | null): number =>
+  r2((Number(price) || 0) * (1 + (Number(vatPercentage) || 0) / 100));
+
+export const exVatRate = (rateIncl?: number | null, vatPercentage?: number | null): number =>
+  r2((Number(rateIncl) || 0) / (1 + (Number(vatPercentage) || 0) / 100));
 
 export interface OrderPayload {
   clientId: string;

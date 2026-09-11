@@ -11,7 +11,7 @@ import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet } from "lucide-react";
 import {
   fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchCustomerBalance,
-  fetchItems, fetchBranches,
+  fetchItems, fetchBranches, grossUpRate, exVatRate,
   type Order, type OrderRecord, type Customer, type AvailableItem, type BranchInfo,
 } from "./server";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
@@ -26,7 +26,10 @@ import {
 } from "@/lib/export/orderInvoiceDocument";
 import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
 
-interface OrderLine { itemId: string; qty: string; unitPrice: string; vatPercentage?: number; }
+/** `rateIncl` is what the operator types and reads: the VAT-INCLUSIVE unit
+ *  rate. The order stores the ex-VAT unit price (the backend prices VAT on top
+ *  of it), so the inclusive figure is split back out on save. */
+interface OrderLine { itemId: string; qty: string; rateIncl: string; vatPercentage?: number; }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -36,7 +39,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<number | string | null>(null);
-  const [lines, setLines] = useState<OrderLine[]>([{ itemId: "", qty: "1", unitPrice: "0" }]);
+  const [lines, setLines] = useState<OrderLine[]>([{ itemId: "", qty: "1", rateIncl: "0" }]);
   const [form, setForm] = useState({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
   const [saving, setSaving] = useState(false);
   const [customerModal, setCustomerModal] = useState(false);
@@ -110,14 +113,15 @@ export default function OrdersPage() {
     return () => { stale = true; };
   }, [form.clientId, modal]);
 
-  const addLine = () => setLines([...lines, { itemId: "", qty: "1", unitPrice: "0" }]);
+  const addLine = () => setLines([...lines, { itemId: "", qty: "1", rateIncl: "0" }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, f: keyof OrderLine, v: string) =>
     setLines(lines.map((l, idx) => {
       if (idx !== i) return l;
       if (f === "itemId") {
         const item = availableItems.find((it) => it.id === v);
-        return { ...l, itemId: v, unitPrice: String(item?.price ?? 0), vatPercentage: item?.vatPercentage ?? 0 };
+        const vatPercentage = item?.vatPercentage ?? 0;
+        return { ...l, itemId: v, rateIncl: String(grossUpRate(item?.price, vatPercentage)), vatPercentage };
       }
       return { ...l, [f]: v };
     }));
@@ -126,12 +130,20 @@ export default function OrdersPage() {
   // VAT-inclusive gross (MRP) — the same basis the POS terminal discounts on,
   // so an order and a counter sale of the same basket net out identically.
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const totalPrice = r2(lines.reduce((s, l) => s + parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0"), 0));
-  const vatAmount = r2(lines.reduce((s, l) => {
-    const lineSubtotal = parseFloat(l.qty || "0") * parseFloat(l.unitPrice || "0");
-    const lineVat = lineSubtotal * ((l.vatPercentage ?? 0) / 100);
-    return s + lineVat;
-  }, 0));
+  /** One line read as the order will store it: the typed VAT-inclusive rate
+   *  split into the ex-VAT unit price and the VAT charged on it, rounded per
+   *  line exactly the way the saved detail rows are, so the figures on this
+   *  form and the ones on the document agree to the paisa. */
+  const lineOf = (l: OrderLine) => {
+    const qty = parseFloat(l.qty || "0") || 0;
+    const vatPercentage = l.vatPercentage ?? 0;
+    const unitPrice = exVatRate(parseFloat(l.rateIncl || "0") || 0, vatPercentage);
+    const amount = r2(qty * unitPrice);
+    const vat = r2((amount * vatPercentage) / 100);
+    return { qty, vatPercentage, unitPrice, unitVat: r2(grossUpRate(unitPrice, vatPercentage) - unitPrice), amount, vat };
+  };
+  const totalPrice = r2(lines.reduce((s, l) => s + lineOf(l).amount, 0));
+  const vatAmount = r2(lines.reduce((s, l) => s + lineOf(l).vat, 0));
   const grossAmount = r2(totalPrice + vatAmount);
   const discountPercent = parseFloat(form.discount || "0") || 0;
   const discountAmount = Math.min(r2(grossAmount * (discountPercent / 100)), grossAmount);
@@ -162,7 +174,7 @@ export default function OrdersPage() {
         advance: parseFloat(form.advance),
         discount: parseFloat(form.discount),
         totalPrice,
-        items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
+        items: valid.map((l) => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: lineOf(l).unitPrice })),
       };
       if (editingId) {
         await updateOrder(editingId, payload);
@@ -178,7 +190,7 @@ export default function OrdersPage() {
   const openCreate = () => {
     setEditingId(null);
     setForm({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
-    setLines([{ itemId: "", qty: "1", unitPrice: "0" }]);
+    setLines([{ itemId: "", qty: "1", rateIncl: "0" }]);
     setModal(true);
   };
 
@@ -194,10 +206,17 @@ export default function OrdersPage() {
         advance: String(full.advance ?? 0),
         discount: String(full.discount ?? 0),
       });
+      // Stored lines are ex-VAT; the form quotes VAT-inclusive rates, so each
+      // one is grossed back up at the item's current VAT percentage — which
+      // also has to be carried on the line, or the reopened order would total
+      // as if nothing were VAT-rated.
       setLines(
         full.details?.length
-          ? full.details.map((d) => ({ itemId: d.itemId, qty: String(d.qty), unitPrice: String(d.unitPrice ?? 0) }))
-          : [{ itemId: "", qty: "1", unitPrice: "0" }],
+          ? full.details.map((d) => {
+              const vatPercentage = availableItems.find((it) => it.id === d.itemId)?.vatPercentage ?? 0;
+              return { itemId: d.itemId, qty: String(d.qty), rateIncl: String(grossUpRate(d.unitPrice ?? 0, vatPercentage)), vatPercentage };
+            })
+          : [{ itemId: "", qty: "1", rateIncl: "0" }],
       );
       setModal(true);
     } catch (err) { toast.error(getErrorMessage(err, "Failed to load order")); }
@@ -378,30 +397,50 @@ export default function OrdersPage() {
           </div>
         </div>
         <div className="space-y-2 mb-4">
-          <p className="text-sm font-medium text-gray-700">Order Items</p>
-          {lines.map((l, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <div className="flex-1 min-w-0">
-                <Select
-                  searchable
-                  value={l.itemId}
-                  onChange={(e) => updateLine(i, "itemId", e.target.value)}
-                  placeholder="Select item..."
-                  options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
-                />
+          <p className="text-sm font-medium text-gray-700">
+            Order Items <span className="font-normal text-xs text-gray-500">— rates include VAT</span>
+          </p>
+          {lines.map((l, i) => {
+            // Spelled out under the row the operator types on: the rate they
+            // quote is VAT-inclusive, so the ex-VAT rate and the VAT riding on
+            // it are shown rather than left to be worked out.
+            const calc = lineOf(l);
+            return (
+              <div key={i} className="space-y-1">
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      searchable
+                      value={l.itemId}
+                      onChange={(e) => updateLine(i, "itemId", e.target.value)}
+                      placeholder="Select item..."
+                      options={availableItems.map((it) => ({ value: it.id, label: `${it.itmCode} — ${it.itmName}` }))}
+                    />
+                  </div>
+                  <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
+                    className="w-20 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
+                  <input type="number" placeholder="Rate (incl. VAT)" value={l.rateIncl} onChange={(e) => updateLine(i, "rateIncl", e.target.value)}
+                    className="w-28 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
+                  <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                </div>
+                {l.itemId && (
+                  <p className="pl-1 text-xs text-gray-500">
+                    Rate: <span className="font-medium text-gray-700">৳ {formatCurrency(calc.unitPrice)}</span>
+                    {" + VAT "}({calc.vatPercentage}%): <span className="font-medium text-gray-700">৳ {formatCurrency(calc.unitVat)}</span>
+                    {" = ৳ "}{formatCurrency(r2(calc.unitPrice + calc.unitVat))} / unit
+                    <span className="mx-1.5 text-gray-300">|</span>
+                    Line: ৳ {formatCurrency(calc.amount)} + VAT ৳ {formatCurrency(calc.vat)} ={" "}
+                    <span className="font-medium text-gray-700">৳ {formatCurrency(r2(calc.amount + calc.vat))}</span>
+                  </p>
+                )}
               </div>
-              <input type="number" placeholder="Qty" value={l.qty} onChange={(e) => updateLine(i, "qty", e.target.value)}
-                className="w-20 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              <input type="number" placeholder="Price" value={l.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                className="w-24 border border-sage-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-800" />
-              <button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-            </div>
-          ))}
+            );
+          })}
           <Button variant="secondary" size="sm" onClick={addLine}><Plus size={14} /> Add Item</Button>
         </div>
         <div className="flex justify-between items-end">
           <div className="text-sm space-y-0.5">
-            <div>Grand Total: <span className="font-semibold">৳ {formatCurrency(totalPrice)}</span></div>
+            <div>Sub Total (excl. VAT): <span className="font-semibold">৳ {formatCurrency(totalPrice)}</span></div>
             {vatAmount > 0 && (
               <div>VAT Amount: <span className="font-semibold text-primary-700">+ ৳ {formatCurrency(vatAmount)}</span></div>
             )}

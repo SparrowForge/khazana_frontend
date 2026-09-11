@@ -240,9 +240,11 @@ function Report({ data }: { data: BusinessAnalysisReport }) {
       </table>
 
       <div className="mt-1 text-[9px] italic text-gray-600">
-        Closing Balance quantity is the measured stock figure; its Amount is the residual value that
-        balances the statement — sales carry their actual discounted money while stock is valued at the
-        list rate, so it is not a valuation of what is on the shelf.
+        Closing Balance is valued at the VAT-inclusive list rate, the same basis the Production &amp;
+        Delivery report uses — every row above matches that report line for line. Discount &amp; Rate
+        Variance is the value of goods that left for less than list rate (mostly sales discount, plus any
+        difference between the recorded production rate and the list rate); it is shown separately so it
+        does not inflate the value of stock still on the shelf.
       </div>
 
       {/* ── Comments box, as the pad prints it ── */}

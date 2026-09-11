@@ -147,14 +147,19 @@ export default function ProductionDeliveryReportPage() {
 }
 
 function Report({ data }: { data: ProductionDeliveryReport }) {
-  const { company, branch, items, totals } = data;
+  const { company, branch, items, totals, uomTotals } = data;
 
   return (
     <div id="report" className="bg-white text-black text-[11px] border border-sage-400 p-4 overflow-x-auto">
       {/* ── Header ── */}
       <div className="text-center mb-3">
         <div className="font-extrabold text-[16px] italic">{company.name}</div>
-        {company.address && <div className="text-[10px] italic">{company.address}</div>}
+        {/* The branch's own address, as the other factory sheets print it — the
+            report is that branch's statement, so the company address only
+            stands in when the branch has none recorded. */}
+        {(branch.address || company.address) && (
+          <div className="text-[10px] italic">{branch.address || company.address}</div>
+        )}
         <div className="font-semibold">{branch.name}</div>
         <div className="mt-2 font-bold underline text-[13px]">
           Production &amp; Delivery Report {periodLabel(data.fromDate, data.toDate)}
@@ -193,8 +198,26 @@ function Report({ data }: { data: ProductionDeliveryReport }) {
           ))}
         </tbody>
         <tfoot>
+          {/* ── A subtotal per unit of measure ──
+              Adding a KG quantity to a Pcs quantity states nothing true, so
+              these are the quantity figures to read. They are also what the
+              Business Analysis sheet is cross-checked against — its columns are
+              per unit, and every figure here matches the row of the same name
+              there. */}
+          {uomTotals.map((u) => (
+            <tr key={u.uom} className="border-t border-black font-bold bg-sage-50">
+              <td className="border border-sage-400 px-1 text-left whitespace-nowrap" colSpan={3}>
+                Total ({u.uom})
+              </td>
+              {GROUPS.map((g) => (
+                <FragmentCells key={g.label} qty={u.totals[g.qty]} amt={u.totals[g.amt]} />
+              ))}
+            </tr>
+          ))}
           <tr className="border-t-2 border-black font-bold">
-            <td className="border border-sage-400 px-1" colSpan={3}></td>
+            <td className="border border-sage-400 px-1 text-left whitespace-nowrap" colSpan={3}>
+              Grand Total{uomTotals.length > 1 ? " (qty mixes units — read the per-unit rows above)" : ""}
+            </td>
             {GROUPS.map((g) => (
               <FragmentCells key={g.label} qty={totals[g.qty]} amt={totals[g.amt]} />
             ))}

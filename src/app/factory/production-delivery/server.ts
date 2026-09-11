@@ -26,6 +26,14 @@ export type ProductionDeliveryTotals = Omit<
   "sl" | "itemCode" | "itemName" | "uom" | "rate"
 >;
 
+/** One unit of measure's subtotal. A KG total and a Pcs total are different
+ *  quantities, so these — not the grand total — are the quantity figures to
+ *  read, and they are what lines up against the Business Analysis sheet. */
+export interface ProductionDeliveryUomTotals {
+  uom: string;
+  totals: ProductionDeliveryTotals;
+}
+
 export interface ProductionDeliveryReport {
   fromDate: string;
   toDate: string;
@@ -33,6 +41,8 @@ export interface ProductionDeliveryReport {
   branch: { name: string; address: string; vatNo: string };
   items: ProductionDeliveryRow[];
   totals: ProductionDeliveryTotals;
+  /** Subtotal per unit of measure, in print order. */
+  uomTotals: ProductionDeliveryUomTotals[];
 }
 
 /** Factory-only: the backend scopes the report to the session branch and 403s

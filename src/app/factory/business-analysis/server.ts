@@ -25,7 +25,16 @@ export interface BusinessAnalysisReport {
     rows: BusinessAnalysisRow[];
   };
   /** The stock statement proper. `inflowTotal` and `outflowTotal` are equal in
-   *  every quantity column and in money — that is the point of the sheet. */
+   *  every quantity column and in money — that is the point of the sheet.
+   *
+   *  Every row is valued on the same basis as the Production & Delivery report
+   *  (VAT-inclusive list rate, except sales at actual money and production at
+   *  its recorded rate), so the two cross-check line for line. The outflow block
+   *  carries a `Discount & Rate Variance` row that absorbs the difference the
+   *  two valuation bases create, rather than letting it inflate Closing
+   *  Balance. `Over` sits in the outflow block as a negative — it is stock found,
+   *  so it reduces what must have gone out — which is what makes `inflowTotal`
+   *  equal that report's "Total Stock". */
   finishGoods: {
     inflow: BusinessAnalysisRow[];
     inflowTotal: BusinessAnalysisRow;

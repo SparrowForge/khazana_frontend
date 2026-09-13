@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
@@ -9,11 +9,13 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Edit2 } from "lucide-react";
-import { fetchPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
+import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import { fetchPrices, fetchAllPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
+import type { ExportColumn } from "@/lib/export/reportExport";
 import toast from "react-hot-toast";
 
 /**
@@ -35,11 +37,39 @@ const vatInclusive = (
   return Math.round(price * (1 + vat / 100) * 100) / 100;
 };
 
+/** Category then item name — the order the backend lists prices in, applied
+ *  again to the item picker so the dropdown reads the same way as the table.
+ *  Uncategorised items sort last rather than first, matching Postgres' NULLS
+ *  LAST on the list query. */
+const byCategoryThenName = <T extends { itmCategory?: string; itmName?: string; itmCode?: string }>(a: T, b: T) => {
+  const catA = (a.itmCategory ?? "").trim();
+  const catB = (b.itmCategory ?? "").trim();
+  if (catA !== catB) {
+    if (!catA) return 1;
+    if (!catB) return -1;
+    return catA.localeCompare(catB);
+  }
+  return (a.itmName ?? a.itmCode ?? "").localeCompare(b.itmName ?? b.itmCode ?? "");
+};
+
+const exportColumns: ExportColumn<Price>[] = [
+  { header: "Category", value: (r) => r.item?.itmCategory ?? "-" },
+  { header: "Item Code", value: (r) => r.item?.itmCode ?? "-" },
+  { header: "Item Name", value: (r) => r.item?.itmName ?? "-" },
+  { header: "From", value: (r) => formatDate(r.priceFromDate) },
+  { header: "To", value: (r) => formatDate(r.priceToDate) },
+  { header: "Price", value: (r) => Number(r.priceListPrice ?? 0), numeric: true },
+  { header: "VAT%", value: (r) => Number(r.priceVatPercent ?? 0), numeric: true },
+  // Recomputed, never read off the row — t_Price stores no MRP (see vatInclusive).
+  { header: "MRP", value: (r) => vatInclusive(r.priceListPrice, r.priceVatPercent ?? 0), numeric: true },
+];
+
 type FormState = { priceItemOId: string; priceFromDate: string; priceToDate: string; priceListPrice: string; priceVatPercent: string; priceIsActive: string; };
 const emptyForm: FormState = { priceItemOId: "", priceFromDate: new Date().toISOString().split("T")[0], priceToDate: "2099-12-31", priceListPrice: "0", priceVatPercent: "0", priceIsActive: "1" };
 
 export default function PricesPage() {
   const [prices, setPrices] = useState<Price[]>([]);
+  const [allPrices, setAllPrices] = useState<Price[]>([]);
   const [items, setItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -59,7 +89,14 @@ export default function PricesPage() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [page, limit, refreshKey, setMeta]);
-  useEffect(() => { fetchItems().then(setItems).catch(() => {}); }, []);
+
+  // Full, unpaginated list backing Print/PDF/Excel — those export the whole
+  // price list, not just the page on screen. Kept off the page/limit effect
+  // (a page change doesn't alter the set) and re-run by hand after a save.
+  const loadAll = useCallback(() => { fetchAllPrices().then(setAllPrices).catch(() => {}); }, []);
+  useEffect(loadAll, [loadAll, refreshKey]);
+
+  useEffect(() => { fetchItems().then((rows) => setItems([...rows].sort(byCategoryThenName))).catch(() => {}); }, []);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (p: Price) => {
@@ -78,15 +115,23 @@ export default function PricesPage() {
       if (editing) await updatePrice(editing.id, payload);
       else await createPrice(payload);
       toast.success(editing ? "Updated" : "Created");
-      setModal(false); load();
+      setModal(false); load(); loadAll();
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
   return (
     <AppLayout>
       <PageHeader title="Price Setup" action={canAdd ? { label: "New Price", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
+      <div className="mb-4 flex justify-end">
+        <ReportExportButtons
+          rows={allPrices}
+          columns={exportColumns}
+          meta={{ title: "Price List", subtitle: `As at ${formatDate(new Date())}` }}
+        />
+      </div>
       <Table loading={loading} data={prices}
         columns={[
+          { key: "category", header: "Category", render: (r) => r.item?.itmCategory ?? "-" },
           { key: "item", header: "Item", render: (r) => `${r.item?.itmCode ?? ""} — ${r.item?.itmName ?? ""}` },
           { key: "priceFromDate", header: "From", render: (r) => formatDate(r.priceFromDate) },
           { key: "priceToDate", header: "To", render: (r) => formatDate(r.priceToDate) },

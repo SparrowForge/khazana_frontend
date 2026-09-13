@@ -10,7 +10,7 @@ export interface Price {
   priceListPrice?: number;
   priceVatPercent?: number;
   priceIsActive?: number;
-  item?: { itmCode?: string; itmName?: string };
+  item?: { itmCode?: string; itmName?: string; itmCategory?: string };
 }
 
 export interface PricePayload {
@@ -28,10 +28,27 @@ export interface AvailableItem {
   id: string;
   itmCode: string;
   itmName?: string;
+  itmCategory?: string;
 }
 
 export const fetchPrices = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Price>> =>
   api.get(`/pricing/prices?page=${page}&limit=${limit}`).then(unwrapPaginated<Price>);
+
+/** Every active price, for Print/PDF/Excel — those export the whole price list,
+ *  not the page on screen. Walked a page at a time because the list endpoint
+ *  caps `limit` at 100; the rows arrive already sorted by category then item
+ *  name, and paging in order preserves that. */
+export const fetchAllPrices = async (): Promise<Price[]> => {
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 50; // 5,000 rows — a guard, not an expected ceiling
+  const all: Price[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const { items, meta } = await fetchPrices({ page, limit: PAGE_SIZE });
+    all.push(...items);
+    if (page >= (meta?.totalPages ?? 1) || items.length === 0) break;
+  }
+  return all;
+};
 
 export const createPrice = (data: PricePayload) =>
   api.post<Price>("/pricing/prices", data).then((r) => r.data);

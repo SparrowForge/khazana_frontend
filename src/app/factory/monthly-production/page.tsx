@@ -82,9 +82,6 @@ export default function MonthlyProductionReportPage() {
       { header: "Name", value: (r) => r.itemName, width: 32 },
       { header: "UOM", value: (r) => r.uom, width: 10 },
       { header: "Rate (Incl. VAT)", value: (r) => r.rate, numeric: true },
-      // Kept numeric above (so Excel can still compute with it) and qualified
-      // here, rather than exporting a "~1866.67" string nothing can sum.
-      { header: "Rate Basis", value: (r) => (r.rateIsAverage ? "Average" : "Exact"), width: 11 },
       ...days.map((d) => ({
         header: label(d),
         value: (r: MonthlyProductionRow) => r.qtyByDate[d] ?? 0,
@@ -209,12 +206,11 @@ function Report({ data }: { data: MonthlyProductionReport }) {
                 <td className="border border-sage-300 px-1 text-left">
                   {r.itemName} {r.uom && <span className="text-gray-500">({r.uom})</span>}
                 </td>
-                {/* "~" marks a weighted average — the item was produced at
-                    more than one rate, so Rate x TotalQty need not land exactly
-                    on Amount. Amount is the money; Rate is the derived figure. */}
-                <td className="border border-sage-300 px-1">
-                  {r.rateIsAverage && <span className="text-gray-500">~</span>}{amt(r.rate)}
-                </td>
+                {/* Printed bare, marker and all annotation dropped by request:
+                    where an item was produced at more than one rate this is the
+                    weighted average, so Rate x TotalQty need not land exactly on
+                    Amount. Amount is the money; Rate is the derived figure. */}
+                <td className="border border-sage-300 px-1">{amt(r.rate)}</td>
                 {days.map((d) => (
                   <td key={d} className="border border-sage-300 px-1">{q(r.qtyByDate[d])}</td>
                 ))}
@@ -264,14 +260,6 @@ function Report({ data }: { data: MonthlyProductionReport }) {
           </tfoot>
         )}
       </table>
-
-      {/* Only shown when a row actually needs it, so the sheet stays clean. */}
-      {groups.some((g) => g.items.some((i) => i.rateIsAverage)) && (
-        <div className="mt-2 text-[9px] italic text-gray-600">
-          ~ Rate is a weighted average — the item was produced at more than one rate in this period,
-          so Rate × TotalQty may differ from Amount by a paisa. Amount is the actual value produced.
-        </div>
-      )}
 
       {/* ── Signatures ──
           Directly under the last row of data, with 2in of clear signing space

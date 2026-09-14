@@ -37,3 +37,7 @@ export const updateCostPrice = (id: string, data: Partial<CostPricePayload>) =>
 
 export const fetchItems = (): Promise<AvailableItem[]> =>
   api.get("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
+
+/** Hard delete of a cost price row — see deletePrice in ../prices/server. */
+export const deleteCostPrice = (id: string) =>
+  api.delete(`/pricing/cost-prices/${id}`).then((r) => r.data);

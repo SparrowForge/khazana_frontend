@@ -8,8 +8,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Edit2 } from "lucide-react";
-import { fetchCostPrices, createCostPrice, updateCostPrice, fetchItems, type CostPrice, type AvailableItem } from "./server";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+import { fetchCostPrices, createCostPrice, updateCostPrice, deleteCostPrice, fetchItems, type CostPrice, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -31,6 +31,7 @@ export default function CostPricesPage() {
   const { can } = usePermissions();
   const canAdd = can("Pricing", "add");
   const canEdit = can("Pricing", "edit");
+  const canDelete = can("Pricing", "delete");
 
   const load = () => {
     setLoading(true);
@@ -61,6 +62,18 @@ export default function CostPricesPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
+  // Hard delete, matching Price Setup — the row goes, and the item carries no
+  // cost price until a new one is entered.
+  const handleDelete = async (p: CostPrice) => {
+    const label = p.item?.itmName || p.item?.itmCode || "this cost price";
+    if (!confirm(`Delete the cost price for "${label}"?\n\nThe item will have no active cost price until a new one is set.`)) return;
+    try {
+      await deleteCostPrice(p.id);
+      toast.success("Deleted");
+      load();
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
+  };
+
   return (
     <AppLayout>
       <PageHeader title="Cost Price Setup" action={canAdd ? { label: "New Cost Price", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
@@ -70,7 +83,12 @@ export default function CostPricesPage() {
           { key: "priceFromDate", header: "From", render: (r) => formatDate(r.priceFromDate) },
           { key: "priceToDate", header: "To", render: (r) => formatDate(r.priceToDate) },
           { key: "priceListPrice", header: "Cost Price", render: (r) => `৳ ${formatCurrency(r.priceListPrice ?? 0)}`, className: "text-right" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => (
+            <div className="flex gap-2">
+              {canEdit && <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800" title="Edit"><Edit2 size={14} /></button>}
+              {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete"><Trash2 size={14} /></button>}
+            </div>
+          ) },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

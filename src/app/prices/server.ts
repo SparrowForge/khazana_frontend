@@ -68,3 +68,9 @@ export const fetchCurrentPrice = (itemId: string): Promise<Price | null> =>
     .get<Price | null | "">(`/pricing/prices/current?itemId=${encodeURIComponent(itemId)}`)
     .then((r) => (r.data && typeof r.data === "object" ? r.data : null))
     .catch(() => null);
+
+/** Hard delete of a price row. History is unaffected — sale lines keep their
+ *  own copy of the price charged — but the item is left unpriced until a new
+ *  price is set, so the caller confirms first. */
+export const deletePrice = (id: string) =>
+  api.delete(`/pricing/prices/${id}`).then((r) => r.data);

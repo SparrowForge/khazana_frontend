@@ -8,9 +8,9 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Edit2 } from "lucide-react";
+import { Plus, Edit2, Trash2 } from "lucide-react";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
-import { fetchPrices, fetchAllPrices, createPrice, updatePrice, fetchItems, type Price, type AvailableItem } from "./server";
+import { fetchPrices, fetchAllPrices, createPrice, updatePrice, deletePrice, fetchItems, type Price, type AvailableItem } from "./server";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -80,6 +80,7 @@ export default function PricesPage() {
   const { can } = usePermissions();
   const canAdd = can("Pricing", "add");
   const canEdit = can("Pricing", "edit");
+  const canDelete = can("Pricing", "delete");
 
   const load = () => {
     setLoading(true);
@@ -119,6 +120,20 @@ export default function PricesPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to save")); } finally { setSaving(false); }
   };
 
+  // Removes the row outright rather than deactivating it — a deactivated price
+  // is invisible here anyway, and leaving one behind would let getCurrentPrice
+  // pick up nothing while the list still looked empty for a different reason.
+  // The item sells unpriced until a new price is entered, hence the warning.
+  const handleDelete = async (p: Price) => {
+    const label = p.item?.itmName || p.item?.itmCode || "this price";
+    if (!confirm(`Delete the price for "${label}"?\n\nThe item will have no active price until a new one is set.`)) return;
+    try {
+      await deletePrice(p.id);
+      toast.success("Deleted");
+      load(); loadAll();
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to delete")); }
+  };
+
   return (
     <AppLayout>
       <PageHeader title="Price Setup" action={canAdd ? { label: "New Price", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
@@ -147,7 +162,12 @@ export default function PricesPage() {
             className: "text-right",
           },
           { key: "priceIsActive", header: "Active" },
-          { key: "actions", header: "", render: (r) => canEdit ? <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800"><Edit2 size={14} /></button> : null },
+          { key: "actions", header: "", render: (r) => (
+            <div className="flex gap-2">
+              {canEdit && <button onClick={() => openEdit(r)} className="text-primary-600 hover:text-primary-800" title="Edit"><Edit2 size={14} /></button>}
+              {canDelete && <button onClick={() => handleDelete(r)} className="text-red-400 hover:text-red-600" title="Delete"><Trash2 size={14} /></button>}
+            </div>
+          ) },
         ]}
       />
       {meta && <Pagination meta={meta} onPageChange={setPage} onLimitChange={setLimit} />}

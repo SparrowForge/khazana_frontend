@@ -32,6 +32,11 @@ const money = (n: number) => {
   return v === 0 ? "-" : formatCurrency(v);
 };
 
+/** Ruled but empty lines printed under the last item. The factory routinely
+ *  adds to a demand after the sheet is off the printer — without these the
+ *  addition gets written up the margin, or the whole sheet is re-run. */
+const BLANK_ROWS = 4;
+
 /** Print rules, mounted alongside the sheet by whichever page renders it. */
 export const DemandReportPrintStyles = () => (
   <style>{`
@@ -119,6 +124,20 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
               </td>
             </tr>
           )}
+          {/* Numbered on from the last printed item, so a hand-written line is
+              referred to the same way as a printed one. Taller than a data row
+              because it is written in by hand; empty cells collapse otherwise. */}
+          {Array.from({ length: BLANK_ROWS }, (_, i) => (
+            <tr key={`blank-${i}`}>
+              <td className="border border-black px-1 h-7 text-center text-gray-600">{items.length + i + 1}</td>
+              <td className="border border-black px-2" />
+              <td className="border border-black px-1" />
+              {branches.map((b) => (
+                <td key={b.id} className="border border-black px-1" />
+              ))}
+              <td className="border border-black px-1" />
+            </tr>
+          ))}
         </tbody>
         {items.length > 0 && (
           <tfoot>

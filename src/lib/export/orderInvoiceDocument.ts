@@ -18,6 +18,8 @@ export interface OrderInvoiceData {
   branchVatNo?: string;
   branchMobile?: string;
   orderDate: string | Date;
+  deliveryDate?: string | Date;
+  deliveryAddress?: string;
   serialNo: string;
   customerName: string;
   servedBy?: string;

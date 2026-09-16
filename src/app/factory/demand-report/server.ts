@@ -25,7 +25,7 @@ export interface DemandReport {
   toDate: string;
   company: { name: string; address: string };
   /** Who the demand was raised ON — the factory, normally the session branch. */
-  toBranch: { id: string; code: string; name: string };
+  toBranch: { id: string; code: string; name: string; address: string };
   /** Who raised it; `All Branches` when no single branch was picked. */
   fromBranch: { id: string; name: string };
   /** The demand round the run was filtered to ('First' | 'Second' | 'Special'),

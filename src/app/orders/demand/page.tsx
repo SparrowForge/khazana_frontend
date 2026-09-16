@@ -31,6 +31,10 @@ interface ItemEntry { qty: string; remarks: string; }
 
 const BLANK_ENTRY: ItemEntry = { qty: "", remarks: "" };
 
+/** Blank rows appended after the demanded items on the printed/exported
+ *  report — space to write in extra items by hand at the counter. */
+const REPORT_BLANK_ROWS = 4;
+
 /** Date `days` from today as `YYYY-MM-DD`. Stepped in UTC to match how the rest
  *  of the app keys dates (`toISOString().split("T")[0]`), so it can't land on
  *  the wrong day for a server in another timezone. */
@@ -241,9 +245,18 @@ export default function DemandOrderPage() {
 
   const reportColumns: ExportColumn<DemandOrderDetail>[] = [
     { header: "Item", value: (r) => itemName(r.itemId) },
-    { header: "Qty", value: (r) => r.qty, numeric: true },
-    { header: "Remarks", value: (r) => r.remarks ?? "-" },
+    { header: "Qty", value: (r) => (r.itemId ? r.qty : ""), numeric: true },
+    { header: "Remarks", value: (r) => (r.itemId ? r.remarks ?? "-" : "") },
   ];
+
+  /** The report's rows plus a handful of blank ones at the end — see
+   *  {@link REPORT_BLANK_ROWS}. */
+  const reportRows: DemandOrderDetail[] = report
+    ? [
+        ...(report.details ?? []),
+        ...Array.from({ length: REPORT_BLANK_ROWS }, (_, i) => ({ id: `blank-${i}`, itemId: "", qty: 0, remarks: "" })),
+      ]
+    : [];
 
   return (
     <AppLayout>
@@ -427,7 +440,7 @@ export default function DemandOrderPage() {
             </div>
             <div className="mb-3 flex justify-end">
               <ReportExportButtons
-                rows={report.details ?? []}
+                rows={reportRows}
                 columns={reportColumns}
                 meta={{
                   title: "Demand Order",
@@ -437,11 +450,11 @@ export default function DemandOrderPage() {
               />
             </div>
             <Table
-              data={report.details ?? []}
+              data={reportRows}
               columns={[
                 { key: "itemId", header: "Item", render: (r) => itemName(r.itemId) },
-                { key: "qty", header: "Qty", className: "text-right" },
-                { key: "remarks", header: "Remarks", render: (r) => r.remarks ?? "-" },
+                { key: "qty", header: "Qty", className: "text-right", render: (r) => (r.itemId ? String(r.qty) : "") },
+                { key: "remarks", header: "Remarks", render: (r) => (r.itemId ? r.remarks ?? "-" : "") },
               ]}
             />
           </>

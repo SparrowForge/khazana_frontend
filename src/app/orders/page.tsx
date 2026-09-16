@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
-import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet, Receipt } from "lucide-react";
 import {
   fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchCustomerBalance,
   fetchItems, fetchBranches, grossUpRate, exVatRate,
@@ -22,9 +22,11 @@ import { getErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   previewOrderInvoice, printOrderInvoice, exportOrderInvoicePdf,
-  type OrderInvoiceData, type OrderInvoiceLine,
+  type OrderInvoiceLine,
 } from "@/lib/export/orderInvoiceDocument";
+import { buildOrderInvoiceData } from "@/lib/invoice/orderInvoice";
 import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
+import { useRouter } from "next/navigation";
 
 /** `rateIncl` is what the operator types and reads: the VAT-INCLUSIVE unit
  *  rate. The order stores the ex-VAT unit price (the backend prices VAT on top
@@ -32,6 +34,7 @@ import { exportExcel, type ExportColumn } from "@/lib/export/reportExport";
 interface OrderLine { itemId: string; qty: string; rateIncl: string; vatPercentage?: number; }
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
@@ -160,7 +163,6 @@ export default function OrdersPage() {
         ? "-"
         : `${formatCurrency(Math.abs(previousDue))}${previousDue < 0 ? " (advance in hand)" : ""}`;
 
-  const itemName = (itemId?: string) => availableItems.find((it) => it.id === itemId)?.itmName ?? itemId ?? "-";
   const customerName = (clientId?: string) => customers.find((c) => c.id === clientId)?.name ?? clientId ?? "-";
 
   const handleSave = async () => {
@@ -246,53 +248,13 @@ export default function OrdersPage() {
     } catch (err) { toast.error(getErrorMessage(err, "Failed to delete order")); }
   };
 
-  // Builds the receipt-style invoice payload from a loaded order — same shape
-  // the POS terminal's printed invoice uses, minus paid/change which don't
-  // apply to an order (advance/due stand in for those instead).
-  const buildInvoiceData = (order: OrderRecord): OrderInvoiceData => {
-    const branch = branches.find((b) => b.id === order.branchId);
-    const grandTotal = order.totalPrice ?? 0;
-    const discPercent = order.discount ?? 0;
-    const items: OrderInvoiceLine[] = (order.details ?? []).map((d) => {
-      const item = availableItems.find((it) => it.id === d.itemId);
-      const itemVat = (d.qty * (d.unitPrice ?? 0)) * ((item?.vatPercentage ?? 0) / 100);
-      return {
-        itemName: itemName(d.itemId),
-        qty: d.qty,
-        rate: d.unitPrice ?? 0,
-        vat: itemVat,
-        total: d.qty * (d.unitPrice ?? 0),
-      };
-    });
-    const vatAmount = r2(items.reduce((s, i) => s + i.vat, 0));
-    // Discount applies to the VAT-inclusive gross — see the order form above.
-    const gross = r2(grandTotal + vatAmount);
-    const discAmount = Math.min(r2(gross * (discPercent / 100)), gross);
-    const totalPayable = r2(gross - discAmount);
-    const advance = order.advance ?? 0;
-    return {
-      branchName: branch?.branchName,
-      branchAddress: branch?.address,
-      branchVatNo: branch?.vatNo,
-      branchMobile: branch?.mobileNo,
-      orderDate: order.orderDate ?? new Date().toISOString(),
-      serialNo: order.serialNo ?? String(order.id),
-      customerName: customerName(order.clientId),
-      servedBy: order.createBy,
-      items,
-      totalAmount: grandTotal,
-      vatAmount,
-      discountPercent: discPercent,
-      discountAmount: discAmount,
-      totalPayable,
-      advance,
-      totalDue: totalPayable - advance,
-    };
-  };
+  const buildInvoiceData = (order: OrderRecord) =>
+    buildOrderInvoiceData(order, { items: availableItems, branches, customers });
 
   const handlePreviewInvoice = () => { if (report) previewOrderInvoice(buildInvoiceData(report)); };
   const handlePrintInvoice = () => { if (report) printOrderInvoice(buildInvoiceData(report)); };
   const handleDownloadPdf = () => { if (report) exportOrderInvoicePdf(buildInvoiceData(report)).catch(() => toast.error("Failed to export PDF")); };
+  const handleViewA4Invoice = () => { if (report) router.push(`/orders/invoice/${report.id}`); };
   const handleDownloadExcel = () => {
     if (!report) return;
     const inv = buildInvoiceData(report);
@@ -484,6 +446,7 @@ export default function OrdersPage() {
                   <div><span className="text-gray-500">Advance:</span> <span className="font-medium">৳ {formatCurrency(report.advance ?? 0)}</span></div>
                 </div>
                 <div className="mb-3 flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={handleViewA4Invoice}><Receipt size={14} /> A4 Invoice</Button>
                   <Button variant="secondary" size="sm" onClick={handlePreviewInvoice}><Eye size={14} /> Preview</Button>
                   <Button variant="secondary" size="sm" onClick={handlePrintInvoice}><Printer size={14} /> Print</Button>
                   <Button variant="secondary" size="sm" onClick={handleDownloadPdf}><FileText size={14} /> PDF</Button>

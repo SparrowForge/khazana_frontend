@@ -207,13 +207,7 @@ function Report({ data }: { data: BusinessAnalysisReport }) {
             </tr>
           ))}
         </tbody>
-      </table>
-      {!mainStore.available && (
-        <div className="mb-5 text-[9px] italic text-gray-600">
-          Main Store has no raw-purchase or indent records in this system, so these figures are zero
-          rather than measured.
-        </div>
-      )}
+      </table>      
 
       {/* ── Finish Goods: the statement proper ──
           Top block is everything the branch had or took in; bottom block is
@@ -238,15 +232,6 @@ function Report({ data }: { data: BusinessAnalysisReport }) {
           {fgRow(outflowTotal, { bold: true, rule: "double" })}
         </tbody>
       </table>
-
-      <div className="mt-1 text-[9px] italic text-gray-600">
-        Closing Balance is valued at the VAT-inclusive list rate, the same basis the Production &amp;
-        Delivery report uses — every row above matches that report line for line. Discount &amp; Rate
-        Variance is the value of goods that left for less than list rate (mostly sales discount, plus any
-        difference between the recorded production rate and the list rate); it is shown separately so it
-        does not inflate the value of stock still on the shelf.
-      </div>
-
       {/* ── Comments box, as the pad prints it ── */}
       <div className="mt-5">
         <div className="font-semibold mb-1">Comments: ({branch.name || "Factory"})</div>

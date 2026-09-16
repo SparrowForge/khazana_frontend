@@ -50,13 +50,17 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
   // Named only when the run was filtered to one round — an unfiltered sheet
   // covers every round, and heading it with a type would misstate what it holds.
   const orderTypeName = data.orderType ? demandTypeLabel(data.orderType) : "";
+  // The sheet is addressed to the demand-to branch, not the company at large —
+  // its own address prints here, falling back to the company address only if
+  // that branch has none on file.
+  const address = data.toBranch.address || company.address;
 
   return (
     <div id="report" className="bg-white text-black text-[10px] border border-sage-400 p-5 overflow-x-auto">
       {/* ── Letterhead, as on the printed form ── */}
       <div className="text-center">
         <div className="font-bold text-[17px]">{company.name}</div>
-        {company.address && <div className="text-[10px]">{company.address}</div>}
+        {address && <div className="text-[10px]">{address}</div>}
       </div>
 
       {/* The form said "Invoice"; this sheet says what it actually is. The date

@@ -343,10 +343,12 @@ export default function Sidebar({
         >
           {!collapsed && (
             <div className="min-w-0">
-              {/* Lettering in white so it reads on the dark sidebar; the mark's
-                  own red carries fine against it. */}
-              <Logo size={30} tone="light" />
-              <p className="text-sage-300 text-xs mt-0.5 truncate">{user?.branchName ?? "Branch"}</p>
+              {/* The logo artwork is baked-in red, so it needs a light chip
+                  behind it to read against the dark sidebar. */}
+              <div className="inline-flex bg-white rounded-md px-2 py-1">
+                <Logo size={24} tone="light" />
+              </div>
+              <p className="text-sage-300 text-xs mt-1 truncate">{user?.branchName ?? "Branch"}</p>
             </div>
           )}
           {isMobile ? (

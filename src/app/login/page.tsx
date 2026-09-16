@@ -310,7 +310,11 @@ export default function LoginPage() {
         />
 
         <div className="relative flex items-center gap-3">
-          <Logo size={38} tone="light" />
+          {/* The logo artwork is baked-in red, so it needs a light chip
+              behind it to read against the dark brand panel. */}
+          <div className="inline-flex bg-white rounded-md px-2.5 py-1.5">
+            <Logo size={30} tone="light" />
+          </div>
           <span className="h-6 w-px bg-white/20" />
           <span className="text-[11px] font-medium uppercase tracking-[0.28em] text-slate-300">
             Point of Sale

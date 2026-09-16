@@ -248,9 +248,7 @@ function Report({ data }: { data: BusinessAnalysisReport }) {
             ))}
           </tbody>
         </table>
-        <div className="mt-1 text-[9px] italic text-gray-600">
-          Shown for reference — both are already counted in the statement above, not in addition to it.
-        </div>
+        
       </div>
 
       {/* ── Signatures ── kept whole so the block never splits across sheets. */}

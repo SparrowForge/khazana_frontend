@@ -20,6 +20,20 @@ const fmtPct = (n: number | string) => {
   return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(2)));
 };
 
+/** A labelled delivery instruction on the sheet. Blank prints as a rule rather
+ *  than a dash: an order is often taken before the address or the note is
+ *  settled, and the paper travels with the goods. */
+function DeliveryField({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex items-end gap-2 text-[11px]">
+      <span className="text-gray-600 shrink-0">{label}:</span>
+      <span className={`flex-1 border-b border-dotted border-gray-500 min-h-[1.15em] ${value ? "font-medium" : ""}`}>
+        {value || ""}
+      </span>
+    </div>
+  );
+}
+
 export function OrderCorporateInvoice({ inv }: { inv: OrderInvoiceData }) {
   return (
     <div
@@ -47,18 +61,28 @@ export function OrderCorporateInvoice({ inv }: { inv: OrderInvoiceData }) {
       </div>
 
       {/* Deliver To + order meta */}
-      <div className="flex justify-between gap-8 mb-5">
+      <div className="flex justify-between gap-8 mb-3">
         <div className="flex-1">
           <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Deliver To</div>
           <div className="font-semibold">{inv.customerName}</div>
-          {inv.deliveryAddress && <div className="text-gray-600">{inv.deliveryAddress}</div>}
         </div>
         <div className="w-64">
           <div className="font-bold border-b border-sage-400 mb-1 pb-0.5">Order Details</div>
           <div className="flex justify-between"><span className="text-gray-600">Order No:</span><span className="font-semibold">{inv.serialNo}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">Order Date:</span><span>{formatInvoiceDate(String(inv.orderDate))}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">Delivery Date:</span><span>{inv.deliveryDate ? formatInvoiceDate(String(inv.deliveryDate)) : "—"}</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">Delivery Time:</span><span>{inv.deliveryTime || "—"}</span></div>
         </div>
+      </div>
+
+      {/* Delivery instructions. Full width rather than tucked under the
+          customer name — the driver reads these, and an address folded into a
+          third of the sheet wraps to four lines. An unfilled field prints a
+          rule to write on, so the paper works for an order taken before the
+          details were settled. */}
+      <div className="mb-5 space-y-1.5">
+        <DeliveryField label="Delivery Address" value={inv.deliveryAddress} />
+        <DeliveryField label="Remarks" value={inv.remarks} />
       </div>
 
       {/* Lines */}

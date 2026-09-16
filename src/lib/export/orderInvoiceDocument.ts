@@ -19,7 +19,10 @@ export interface OrderInvoiceData {
   branchMobile?: string;
   orderDate: string | Date;
   deliveryDate?: string | Date;
+  /** Already formatted for print ("02:30 PM"); blank when none was taken. */
+  deliveryTime?: string;
   deliveryAddress?: string;
+  remarks?: string;
   serialNo: string;
   customerName: string;
   servedBy?: string;
@@ -50,6 +53,25 @@ export function formatInvoiceDateTime(value: string | Date): string {
   const min = String(d.getMinutes()).padStart(2, "0");
   return `${dd}-${mm}-${yyyy} ${h}:${min} ${ampm}`;
 }
+
+/** Date-only fields (delivery date) read back with the UTC getters, not the
+ *  local ones {@link formatInvoiceDateTime} uses: they are stored as UTC
+ *  midnight, so a local reading west of Greenwich prints the day before. */
+export function formatInvoiceDateOnly(value: string | Date): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${String(d.getUTCDate()).padStart(2, "0")}-${months[d.getUTCMonth()]}-${d.getUTCFullYear()}`;
+}
+
+/** A labelled line on the thermal slip. An order often leaves a moment when it
+ *  was taken without one of these settled, so an empty value prints a rule to
+ *  write the answer on rather than a dash — the slip goes out with the goods
+ *  and the driver fills the gap in. */
+const slipField = (label: string, value?: string) =>
+  `<div class="field"><span class="field-label">${esc(label)}:</span>${
+    value ? `<span class="field-value">${esc(value)}</span>` : `<span class="field-rule"></span>`
+  }</div>`;
 
 function itemRowsHtml(items: OrderInvoiceLine[]) {
   return items
@@ -89,6 +111,12 @@ function buildOrderInvoiceDocument(data: OrderInvoiceData, autoPrint: boolean): 
     .item-row { display:flex; font-size:10px; margin-bottom:3px; }
     .col-head { display:flex; font-size:10px; font-weight:700; }
     .due { color:#c0392b; }
+    /* Delivery block: label above, answer under it. A flex row would squeeze a
+       wrapped address into a sliver of the 80mm slip. */
+    .field { font-size:10px; margin-bottom:3px; }
+    .field-label { font-weight:700; }
+    .field-value { display:block; word-wrap:break-word; overflow-wrap:anywhere; }
+    .field-rule { display:block; border-bottom:1px dotted #000; height:13px; }
   </style></head><body>
   <div class="receipt">
     <div class="center bold" style="font-size:14px; letter-spacing:2px;">KHAZANA MITHAI</div>
@@ -102,6 +130,11 @@ function buildOrderInvoiceDocument(data: OrderInvoiceData, autoPrint: boolean): 
     <div class="row small"><span>Date:</span><span>${esc(formatInvoiceDateTime(data.orderDate))}</span></div>
     <div class="row small"><span>Invoice:</span><span class="bold">${esc(data.serialNo)}</span></div>
     <div class="row small"><span>Customer:</span><span>${esc(data.customerName)}</span></div>
+    <div class="row small"><span>Delivery Date:</span><span>${esc(data.deliveryDate ? formatInvoiceDateOnly(data.deliveryDate) : "—")}</span></div>
+    <div class="dashed"></div>
+    ${slipField("Delivery Time", data.deliveryTime)}
+    ${slipField("Delivery Address", data.deliveryAddress)}
+    ${slipField("Remarks", data.remarks)}
     <div class="dashed"></div>
     <div class="col-head">
       <span class="flex-1">ITEM</span>
@@ -193,7 +226,23 @@ export async function exportOrderInvoicePdf(data: OrderInvoiceData): Promise<voi
   doc.text(`Date: ${formatInvoiceDateTime(data.orderDate)}`, 40, y);
   doc.text(`Invoice: ${data.serialNo}`, centerX, y, { align: "center" });
   doc.text(`Customer: ${data.customerName}`, rightX, y, { align: "right" });
-  y += 18;
+  y += 16;
+
+  // Delivery block — the same three fields the A4 and thermal documents carry,
+  // wrapped to the page so a long address doesn't run off the right margin.
+  const deliveryLines = [
+    `Delivery Date: ${data.deliveryDate ? formatInvoiceDateOnly(data.deliveryDate) : "—"}`,
+    `Delivery Time: ${data.deliveryTime || "—"}`,
+    `Delivery Address: ${data.deliveryAddress || "—"}`,
+    `Remarks: ${data.remarks || "—"}`,
+  ];
+  for (const line of deliveryLines) {
+    for (const wrapped of doc.splitTextToSize(line, pageWidth - 80) as string[]) {
+      doc.text(wrapped, 40, y);
+      y += 13;
+    }
+  }
+  y += 6;
 
   autoTable(doc, {
     startY: y,

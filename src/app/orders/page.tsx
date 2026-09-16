@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet, Receipt }
 import {
   fetchOrders, fetchOrder, createOrder, updateOrder, deleteOrder, fetchCustomers, fetchCustomerBalance,
   fetchItems, fetchBranches, grossUpRate, exVatRate,
+  deliveryTimeToIso, isoToDeliveryTime, formatDeliveryTime,
   type Order, type OrderRecord, type Customer, type AvailableItem, type BranchInfo,
 } from "./server";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
@@ -33,6 +34,19 @@ import { useRouter } from "next/navigation";
  *  of it), so the inclusive figure is split back out on save. */
 interface OrderLine { itemId: string; qty: string; rateIncl: string; vatPercentage?: number; }
 
+/** An empty order header. `deliveryTime` is a bare `HH:mm` here — the column
+ *  behind it is a timestamp, converted on save/load by the helpers in server.ts. */
+const blankForm = () => ({
+  clientId: "",
+  orderDate: new Date().toISOString().split("T")[0],
+  deliveryDate: "",
+  deliveryTime: "",
+  deliveryAddress: "",
+  remarks: "",
+  advance: "0",
+  discount: "0",
+});
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -43,7 +57,7 @@ export default function OrdersPage() {
   const [modal, setModal] = useState(false);
   const [editingId, setEditingId] = useState<number | string | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([{ itemId: "", qty: "1", rateIncl: "0" }]);
-  const [form, setForm] = useState({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
+  const [form, setForm] = useState(blankForm());
   const [saving, setSaving] = useState(false);
   const [customerModal, setCustomerModal] = useState(false);
   /** The picked customer's outstanding balance as it stands now, before this
@@ -173,6 +187,10 @@ export default function OrdersPage() {
     try {
       const payload = {
         ...form,
+        // The column is a timestamp; the field is a clock time. Dated off the
+        // delivery date so the stamp lands on the day the goods are due.
+        deliveryTime: deliveryTimeToIso(form.deliveryDate, form.deliveryTime),
+        remarks: form.remarks || undefined,
         advance: parseFloat(form.advance),
         discount: parseFloat(form.discount),
         totalPrice,
@@ -191,7 +209,7 @@ export default function OrdersPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ clientId: "", orderDate: new Date().toISOString().split("T")[0], deliveryDate: "", deliveryAddress: "", advance: "0", discount: "0" });
+    setForm(blankForm());
     setLines([{ itemId: "", qty: "1", rateIncl: "0" }]);
     setModal(true);
   };
@@ -204,7 +222,9 @@ export default function OrdersPage() {
         clientId: full.clientId ?? "",
         orderDate: full.orderDate ? full.orderDate.split("T")[0] : new Date().toISOString().split("T")[0],
         deliveryDate: full.deliveryDate ? full.deliveryDate.split("T")[0] : "",
+        deliveryTime: isoToDeliveryTime(full.deliveryTime),
         deliveryAddress: full.deliveryAddress ?? "",
+        remarks: full.remarks ?? "",
         advance: String(full.advance ?? 0),
         discount: String(full.discount ?? 0),
       });
@@ -340,7 +360,9 @@ export default function OrdersPage() {
           </div>
           <Input label="Order Date" type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} />
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
+          <Input label="Delivery Time" type="time" value={form.deliveryTime} onChange={(e) => setForm({ ...form, deliveryTime: e.target.value })} />
           <Input label="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />
+          <Input label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Delivery note printed on the order" />
           <Input label="Advance" type="number" value={form.advance} onChange={(e) => setForm({ ...form, advance: e.target.value })} />
           <Input label="Discount (%)" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
           {/* What this customer already owes on everything raised before this
@@ -442,7 +464,9 @@ export default function OrdersPage() {
                   <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{customerName(report.clientId)}</span></div>
                   <div><span className="text-gray-500">Order Date:</span> <span className="font-medium">{formatDate(report.orderDate)}</span></div>
                   <div><span className="text-gray-500">Delivery Date:</span> <span className="font-medium">{formatDate(report.deliveryDate)}</span></div>
+                  <div><span className="text-gray-500">Delivery Time:</span> <span className="font-medium">{formatDeliveryTime(report.deliveryTime) || "-"}</span></div>
                   <div><span className="text-gray-500">Delivery Address:</span> <span className="font-medium">{report.deliveryAddress || "-"}</span></div>
+                  <div><span className="text-gray-500">Remarks:</span> <span className="font-medium">{report.remarks || "-"}</span></div>
                   <div><span className="text-gray-500">Advance:</span> <span className="font-medium">৳ {formatCurrency(report.advance ?? 0)}</span></div>
                 </div>
                 <div className="mb-3 flex justify-end gap-2">

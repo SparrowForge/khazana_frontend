@@ -1,4 +1,4 @@
-import type { AvailableItem, BranchInfo, Customer, OrderRecord } from "@/app/orders/server";
+import { formatDeliveryTime, type AvailableItem, type BranchInfo, type Customer, type OrderRecord } from "@/app/orders/server";
 import type { OrderInvoiceData, OrderInvoiceLine } from "@/lib/export/orderInvoiceDocument";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -38,7 +38,9 @@ export function buildOrderInvoiceData(
     branchMobile: branch?.mobileNo,
     orderDate: order.orderDate ?? new Date().toISOString(),
     deliveryDate: order.deliveryDate,
+    deliveryTime: formatDeliveryTime(order.deliveryTime),
     deliveryAddress: order.deliveryAddress,
+    remarks: order.remarks,
     serialNo: order.serialNo ?? String(order.id),
     customerName: customer?.name ?? order.clientId ?? "-",
     servedBy: order.createBy,

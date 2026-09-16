@@ -247,8 +247,7 @@ function Report({ data }: { data: BusinessAnalysisReport }) {
               </tr>
             ))}
           </tbody>
-        </table>
-        
+        </table>        
       </div>
 
       {/* ── Signatures ── kept whole so the block never splits across sheets. */}

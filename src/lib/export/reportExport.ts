@@ -66,12 +66,17 @@ function buildReportDocument<T>(
     .join("");
 
   const body = rows
-    .map(
-      (row) =>
-        `<tr>${columns
-          .map((c) => `<td class="${c.numeric ? "num" : ""}">${esc(cell(c, row))}</td>`)
-          .join("")}</tr>`,
-    )
+    .map((row) => {
+      const values = columns.map((c) => String(cell(c, row)));
+      // A row with nothing in any column is a deliberate write-in line (the
+      // Demand Order appends four). Empty <td>s have no line box, so such a row
+      // came out a 2mm sliver — there, but far too thin to be seen or written
+      // on. Given its own class it keeps a full row's height on the paper.
+      const blank = values.every((v) => v.trim() === "");
+      return `<tr${blank ? ' class="blank"' : ""}>${columns
+        .map((c, i) => `<td class="${c.numeric ? "num" : ""}">${esc(values[i])}</td>`)
+        .join("")}</tr>`;
+    })
     .join("");
 
   const foot = meta.footer
@@ -106,6 +111,8 @@ function buildReportDocument<T>(
     th { background:#f1f1f1; font-weight:600; }
     td.num, th.num { text-align:right; }
     tfoot td { font-weight:700; background:#f7f7f7; }
+    /* Write-in rows — see the blank-row branch in buildReportDocument. */
+    tr.blank td { height:22px; }
     tr { break-inside: avoid; }
     thead { display: table-header-group; }
     @media print {
@@ -179,11 +186,19 @@ export async function exportPdf<T>(
     doc.setTextColor(0);
   }
 
+  const body = rows.map((row) => columns.map((c) => String(cell(c, row))));
+  // Same write-in rows the print document keeps open — autotable sizes a row to
+  // its text, so an all-empty one collapses to the cell padding alone.
+  const blankRows = new Set(body.map((r, i) => (r.every((v) => v.trim() === "") ? i : -1)).filter((i) => i >= 0));
+
   autoTable(doc, {
     startY: meta.subtitle ? 70 : 56,
     head: [columns.map((c) => c.header)],
-    body: rows.map((row) => columns.map((c) => String(cell(c, row)))),
+    body,
     foot: meta.footer ? [meta.footer.map((v) => String(v))] : undefined,
+    didParseCell: (d) => {
+      if (d.section === 'body' && blankRows.has(d.row.index)) d.cell.styles.minCellHeight = 16;
+    },
     styles: { fontSize: 8, cellPadding: 4 },
     headStyles: { fillColor: [51, 51, 51], textColor: 255, fontStyle: "bold" },
     footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: "bold" },

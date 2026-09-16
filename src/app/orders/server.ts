@@ -7,7 +7,12 @@ export interface Order {
   clientId?: string;
   orderDate?: string;
   deliveryDate?: string;
+  /** Time of day the order is to be delivered. Stored as a full timestamp, but
+   *  only its UTC clock time is meaningful — see {@link deliveryTimeToIso}. */
+  deliveryTime?: string;
   deliveryAddress?: string;
+  /** Free-text delivery note taken with the order; printed on both documents. */
+  remarks?: string;
   advance?: number;
   discount?: number;
   totalPrice?: number;
@@ -81,12 +86,39 @@ export interface OrderPayload {
   clientId: string;
   orderDate: string;
   deliveryDate?: string;
+  deliveryTime?: string;
   deliveryAddress?: string;
+  remarks?: string;
   advance?: number;
   discount?: number;
   totalPrice: number;
   items: { itemId: string; qty: number; unitPrice: number }[];
 }
+
+/** The form takes a delivery time as a bare `HH:mm`, but the column behind it
+ *  is a timestamp. Pinning it to UTC on the way out and reading it back with
+ *  the UTC getters keeps the clock time the counter typed exactly as typed —
+ *  parsed as local time it would shift by the server's offset and come back
+ *  hours adrift. Same UTC-keyed convention the rest of the app dates on. */
+export const deliveryTimeToIso = (date: string, time: string): string | undefined =>
+  time ? `${date || new Date().toISOString().split("T")[0]}T${time}:00.000Z` : undefined;
+
+/** Inverse of {@link deliveryTimeToIso}: the stored timestamp back to `HH:mm`. */
+export const isoToDeliveryTime = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+};
+
+/** `HH:mm` rendered the way the printed documents read it — "02:30 PM". */
+export const formatDeliveryTime = (iso?: string | null): string => {
+  const hhmm = isoToDeliveryTime(iso);
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+};
 
 export const fetchOrders = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Order>> =>
   api.get(`/orders?page=${page}&limit=${limit}`).then(unwrapPaginated<Order>);

@@ -61,22 +61,22 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
   const address = data.toBranch.address || company.address;
 
   return (
-    <div id="report" className="bg-white text-black text-[10px] border border-sage-400 p-5 overflow-x-auto">
+    <div id="report" className="bg-white text-black text-[12px] border border-sage-400 p-5 overflow-x-auto">
       {/* ── Letterhead, as on the printed form ── */}
       <div className="text-center">
-        <div className="font-bold text-[17px]">{company.name}</div>
-        {address && <div className="text-[10px]">{address}</div>}
+        <div className="font-bold text-[19px]">{company.name}</div>
+        {address && <div className="text-[12px]">{address}</div>}
       </div>
 
       {/* The form said "Invoice"; this sheet says what it actually is. The date
           sits on the right exactly where the paper form has its Date: field. */}
       <div className="flex items-end justify-between mt-2 mb-2">
         <div className="flex-1" />
-        <div className="font-semibold text-[13px] text-center">
+        <div className="font-semibold text-[15px] text-center">
           <div>Demand Report of {periodLabel(data.fromDate, data.toDate)}</div>
-          {orderTypeName && <div className="text-[11px] font-medium">{orderTypeName}</div>}
+          {orderTypeName && <div className="text-[17px] font-bold">{orderTypeName}</div>}
         </div>
-        <div className="flex-1 text-right text-[11px]">
+        <div className="flex-1 text-right text-[13px]">
           Date: <span className="font-medium">{formatDate(data.toDate)}</span>
         </div>
       </div>
@@ -84,7 +84,7 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
       {/* Rows are the items actually demanded, so an empty table means nothing
           matched — said out loud rather than left as a bare "No items found". */}
       {items.length === 0 && (
-        <div className="no-print mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <div className="no-print mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
           No demand orders were found for this date range
           {branches.length ? ` (${branches.map((b) => b.code || b.name).join(", ")})` : ""}. Check the From/To
           dates against the demand order dates, and the Order Type filter.
@@ -112,9 +112,9 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
               <td className="border border-black px-2 whitespace-nowrap">{r.itemName}</td>
               <td className="border border-black px-1 text-right">{money(r.rate)}</td>
               {branches.map((b) => (
-                <td key={b.id} className="border border-black px-1 text-right">{q(r.qtyByBranch[b.id])}</td>
+                <td key={b.id} className="border border-black px-1 text-center font-bold">{q(r.qtyByBranch[b.id])}</td>
               ))}
-              <td className="border border-black px-1 text-right font-medium">{q(r.totalQty)}</td>
+              <td className="border border-black px-1 text-center font-bold">{q(r.totalQty)}</td>
             </tr>
           ))}
           {items.length === 0 && (
@@ -144,9 +144,9 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
             <tr className="font-bold">
               <td className="border border-black px-1" colSpan={3}>Total</td>
               {branches.map((b) => (
-                <td key={b.id} className="border border-black px-1 text-right">{q(totals.qtyByBranch[b.id])}</td>
+                <td key={b.id} className="border border-black px-1 text-center">{q(totals.qtyByBranch[b.id])}</td>
               ))}
-              <td className="border border-black px-1 text-right">{q(totals.totalQty)}</td>
+              <td className="border border-black px-1 text-center">{q(totals.totalQty)}</td>
             </tr>
           </tfoot>
         )}

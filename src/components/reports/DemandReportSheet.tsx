@@ -27,10 +27,17 @@ const q = (n: number | undefined) => {
   const v = Math.round(Number(n ?? 0) * 100) / 100;
   return v === 0 ? "" : String(v);
 };
+// Whole-taka rates print without the .00 — the column is only read for the
+// figure. A rate that really carries paisa (1,050.01) keeps its decimals.
 const money = (n: number) => {
   const v = Math.round(Number(n ?? 0) * 100) / 100;
-  return v === 0 ? "-" : formatCurrency(v);
+  return v === 0 ? "-" : formatCurrency(v).replace(/\.00$/, "");
 };
+
+/** The item column is set in Microsoft JhengHei, per the factory's request.
+ *  The fallbacks matter: the face ships with Windows, so a sheet opened on a
+ *  phone or a Mac would otherwise fall back to whatever the browser chose. */
+const ITEM_FONT = { fontFamily: '"Microsoft JhengHei", "Microsoft JhengHei UI", sans-serif' };
 
 /** Ruled but empty lines printed under the last item. The factory routinely
  *  adds to a demand after the sheet is off the printer — without these the
@@ -64,7 +71,7 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
     <div id="report" className="bg-white text-black text-[12px] border border-sage-400 p-5 overflow-x-auto">
       {/* ── Letterhead, as on the printed form ── */}
       <div className="text-center">
-        <div className="font-bold text-[19px]">{company.name}</div>
+        <div className="font-bold text-[26px]">{company.name}</div>
         {address && <div className="text-[12px]">{address}</div>}
       </div>
 
@@ -72,7 +79,7 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
           sits on the right exactly where the paper form has its Date: field. */}
       <div className="flex items-end justify-between mt-2 mb-2">
         <div className="flex-1" />
-        <div className="font-semibold text-[15px] text-center">
+        <div className="font-semibold text-[19px] text-center">
           <div>Demand Report of {periodLabel(data.fromDate, data.toDate)}</div>
           {orderTypeName && <div className="text-[17px] font-bold">{orderTypeName}</div>}
         </div>
@@ -95,7 +102,7 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
         <thead>
           <tr className="font-semibold text-center">
             <th className="border border-black px-1 py-1 w-8">SL</th>
-            <th className="border border-black px-2 py-1 text-left">Item Name</th>
+            <th className="border border-black px-2 py-1 text-left" style={ITEM_FONT}>Item Name</th>
             <th className="border border-black px-1 py-1 w-16">Rate</th>
             {branches.map((b) => (
               <th key={b.id} className="border border-black px-1 py-1 w-16 whitespace-nowrap">
@@ -109,7 +116,7 @@ export default function DemandReportSheet({ data }: { data: DemandReport }) {
           {items.map((r) => (
             <tr key={r.itemCode}>
               <td className="border border-black px-1 text-center text-gray-600">{r.sl}</td>
-              <td className="border border-black px-2 whitespace-nowrap">{r.itemName}</td>
+              <td className="border border-black px-2 whitespace-nowrap" style={ITEM_FONT}>{r.itemName}</td>
               <td className="border border-black px-1 text-right">{money(r.rate)}</td>
               {branches.map((b) => (
                 <td key={b.id} className="border border-black px-1 text-center font-bold">{q(r.qtyByBranch[b.id])}</td>

@@ -6,6 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, MULTI_PAY_MODE, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
@@ -235,10 +236,11 @@ export default function PosPage() {
    *  selected straight away — the cashier opened the dialog to bill this
    *  person, so picking them again by hand would be busywork.
    *
-   *  The picker only carries the first 100 customers by name, so a new one can
-   *  sort outside it. It is appended locally in that case, rather than being
-   *  created and then not selectable — which would read as the dialog having
-   *  done nothing. */
+   *  The refetch can still come back without them (a long customer book is
+   *  capped at 500 rows, and the connection may have dropped between saving and
+   *  re-reading), so the returned record is appended locally in that case —
+   *  better than creating a customer who then isn't selectable, which would
+   *  read as the dialog having done nothing. */
   const handleCustomerCreated = async (created: {
     id: string | number; code?: string; name?: string; mobile?: string;
   }) => {
@@ -1285,12 +1287,13 @@ export default function PosPage() {
                 discounted. Every option is a row from the Customer table — the
                 walk-in is one of them, so there is no synthetic blank entry. */}
             <div className="flex flex-col gap-1">
-              <Select
-                label="Customer"
+              {/* No placeholder: the walk-in row is the default, so there is
+                  nothing a blank option would mean. */}
+              <CustomerSelect
+                customers={customers}
                 value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                searchable
-                options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                onChange={setCustomerId}
+                placeholder=""
                 error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
               />
               {/* Registering the customer at the till is what unblocks a

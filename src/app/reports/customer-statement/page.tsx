@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import ReportFilter from "@/components/reports/ReportFilter";
-import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
   fetchCustomers,
@@ -89,11 +89,12 @@ export default function CustomerStatementPage() {
   return (
     <AppLayout>
       <PageHeader title="Customer Statement" />
+      {/* The picker is keyed by code, not id: the statement route takes
+          customerCode. Searching it still matches the contact no. */}
       <ReportFilter fromDate={from} toDate={to} onFromDate={setFrom} onToDate={setTo} onRun={runReport} loading={loading}
         extra={
-          <Select label="Customer" value={customerCode} onChange={(e) => setCustomerCode(e.target.value)}
-            placeholder="All customers" options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
-            className="w-56" />
+          <CustomerSelect customers={customers} valueBy="code" value={customerCode}
+            onChange={setCustomerCode} placeholder="All customers" className="w-56" />
         }
       />
       <div className="mb-3 flex justify-end">

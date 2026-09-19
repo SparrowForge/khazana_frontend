@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import { Plus } from "lucide-react";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { fetchPayments, createPayment, fetchCustomers, type Payment, type Customer } from "./server";
@@ -85,8 +86,8 @@ export default function CustomerPaymentsPage() {
       />
       <Modal open={modal} onClose={() => setModal(false)} title="New Money Receipt">
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Customer *" value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-            placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
+          <CustomerSelect label="Customer *" customers={customers}
+            value={form.customerId} onChange={(customerId) => setForm({ ...form, customerId })} />
           <Input label="Date" type="date" value={form.receiveDate} onChange={(e) => setForm({ ...form, receiveDate: e.target.value })} />
           <Input label="Amount *" type="number" min="0" value={form.receiveAmount} onChange={(e) => setForm({ ...form, receiveAmount: e.target.value })} />
           <Select label="Payment Type" value={form.tType}

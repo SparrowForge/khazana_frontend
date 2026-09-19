@@ -26,9 +26,24 @@ export interface VatCreditSalePayload {
 export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
+/** Customer options for the VAT credit invoice header. Keyed by code, which is
+ *  what CSVMaster stores (the uuid migration is still pending). */
+export interface VatCreditCustomer {
+  id: number;
+  code: string;
+  name: string;
+  /** Contact no — searchable in the picker, and shown on the row there. */
+  mobile?: string;
+  address?: string;
+}
+
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: { id: number; code: string; name: string }[] } | { id: number; code: string; name: string }[]>("/customers?limit=100")
-    .then(unwrapList<{ id: number; code: string; name: string }>);
+  api.get<{ data: VatCreditCustomer[] } | VatCreditCustomer[]>("/customers/options")
+    .then(unwrapList<VatCreditCustomer>);
 
 const VAT_RATE = 0.15; // flat rate the VAT pages apply
 

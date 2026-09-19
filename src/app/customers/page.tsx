@@ -25,7 +25,7 @@ const emptyForm = { code: "", name: "", mobile: "", address: "", email: "", defa
 const exportColumns: ExportColumn<Customer>[] = [
   { header: "Code", value: (r) => r.code },
   { header: "Name", value: (r) => r.name },
-  { header: "Mobile", value: (r) => r.mobile ?? "-" },
+  { header: "Contact No", value: (r) => r.mobile ?? "-" },
   { header: "Address", value: (r) => r.address ?? "-" },
   { header: "Default Discount (%)", value: (r) => String(Number(r.defaultDiscount ?? 0) || 0) },
 ];
@@ -35,6 +35,8 @@ export default function CustomersPage() {
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  /** What was actually sent to the server — `search` a beat behind. */
+  const [deferredSearch, setDeferredSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -47,12 +49,19 @@ export default function CustomersPage() {
 
   const load = () => {
     setLoading(true);
-    fetchCustomers({ page, limit })
+    fetchCustomers({ page, limit, search: deferredSearch })
       .then(({ items, meta }) => { setCustomers(items); setMeta(meta); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
-  useEffect(load, [page, limit, refreshKey, setMeta]);
+  // The search runs on the server, so it finds a customer by contact no
+  // wherever they sit in the book rather than only on the page on screen.
+  // Held back a beat so a typed number is one request, not eleven.
+  useEffect(() => {
+    const t = setTimeout(() => setDeferredSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(load, [page, limit, deferredSearch, refreshKey, setMeta]);
 
   // Full, unpaginated list backing Print/Excel/PDF — those need every matching
   // row, not just the page currently on screen.
@@ -65,7 +74,7 @@ export default function CustomersPage() {
 
   const handleSave = async () => {
     // Code is allocated by the backend on create, so it is not asked for here.
-    if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
+    if (!form.name || !form.mobile) { toast.error("Name and contact no are required"); return; }
     // A percent, so it has to be one — the backend rejects anything outside 0-100.
     const defaultDiscount = Math.min(Math.max(parseFloat(form.defaultDiscount || "0") || 0, 0), 100);
     setSaving(true);
@@ -91,25 +100,26 @@ export default function CustomersPage() {
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.mobile ?? "").includes(search);
 
-  const filtered = customers.filter(matchesSearch);
+  // The listed page comes back already filtered; the export list is the whole
+  // book held client-side, so it is narrowed here to the same search.
   const exportRows = allCustomers.filter(matchesSearch);
 
   return (
     <AppLayout>
       <PageHeader title="Customers" action={canAdd ? { label: "New Customer", onClick: openCreate, icon: <Plus size={16} /> } : undefined} />
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-        <Input placeholder="Search by code, name, or mobile..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder="Search by contact no, code, or name..." value={search} onChange={(e) => handleSearch(e.target.value)} className="max-w-xs" />
         <ReportExportButtons
           rows={exportRows}
           columns={exportColumns}
           meta={{ title: "Customer List", subtitle: `As at ${formatDate(new Date())}` }}
         />
       </div>
-      <Table loading={loading} data={filtered}
+      <Table loading={loading} data={customers}
         columns={[
           { key: "code", header: "Code" },
           { key: "name", header: "Name" },
-          { key: "mobile", header: "Mobile" },
+          { key: "mobile", header: "Contact No" },
           { key: "address", header: "Address" },
           { key: "defaultDiscount", header: "Discount %", render: (r) => String(Number(r.defaultDiscount ?? 0) || 0) },
           { key: "actions", header: "", render: (r) => (
@@ -128,7 +138,10 @@ export default function CustomersPage() {
               C-nnnn, and on edit the code is the record's identifier. */}
           <Input label="Code" value={form.code} placeholder="Auto-generated" disabled readOnly />
           <Input label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input label="Mobile *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
+          {/* Unique across customers — the backend rejects a number another
+              customer already holds, naming who has it. It is the handle the
+              counter searches by, so it cannot be shared. */}
+          <Input label="Contact No *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="col-span-2" />
           {/* Standing discount for this customer. A credit sale raised for them

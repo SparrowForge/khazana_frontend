@@ -6,11 +6,11 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import ItemQuickAddModal from "@/components/catalog/ItemQuickAddModal";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
-import { fetchItems, fetchCustomers, createVatCreditSale, type AvailableItem } from "./server";
+import { fetchItems, fetchCustomers, createVatCreditSale, type AvailableItem, type VatCreditCustomer } from "./server";
 import { formatCurrency } from "@/lib/utils";
 import { SaleItem } from "@/types";
 import { getErrorMessage } from "@/lib/api";
@@ -24,7 +24,7 @@ export default function VatCreditSalePage() {
   const router = useRouter();
   const [items, setItems] = useState<SaleItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
-  const [customers, setCustomers] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [customers, setCustomers] = useState<VatCreditCustomer[]>([]);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [clientCode, setClientCode] = useState("");
@@ -98,12 +98,12 @@ export default function VatCreditSalePage() {
               <Input label="Invoice No" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Auto-generated" />
               <Input label="Invoice Date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
               <div className="flex flex-col gap-1">
-                <Select
-                  label="Customer"
+                {/* Keyed by code: CSVMaster stores ClientCode, not the uuid. */}
+                <CustomerSelect
+                  customers={customers}
+                  valueBy="code"
                   value={clientCode}
-                  onChange={(e) => setClientCode(e.target.value)}
-                  placeholder="Select customer..."
-                  options={customers.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                  onChange={setClientCode}
                 />
                 {canAddCustomer && (
                   <button

@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { posProductsApi, posSalesApi, posBanksApi, posCustomersApi, POS_PAY_MODES, MULTI_PAY_MODE, type PosProduct, type PosBank, type PosCustomer } from "@/lib/services/pos.service";
@@ -677,12 +678,11 @@ export default function PosSaleEditPage() {
 
             {/* Every option is a Customer row — the walk-in included — so there
                 is no synthetic blank entry. */}
-            <Select
-              label="Customer"
+            <CustomerSelect
+              customers={customers}
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              searchable
-              options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+              onChange={setCustomerId}
+              placeholder=""
               error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
             />
 

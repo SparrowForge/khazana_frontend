@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
 import ProductionQuickEntryModal from "@/components/catalog/ProductionQuickEntryModal";
@@ -308,12 +309,10 @@ export default function CreditSalePage() {
               <Input label="Invoice No" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Auto-generated" />
               <Input label="Invoice Date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
               <div className="flex flex-col gap-1">
-                <Select
-                  label="Customer"
+                <CustomerSelect
+                  customers={customers}
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  placeholder="Select customer..."
-                  options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                  onChange={setCustomerId}
                 />
                 {canAddCustomer && (
                   <button

@@ -5,6 +5,8 @@ export interface Customer {
   id: number;
   code: string;
   name: string;
+  /** Contact no — searchable in the report's customer filter. */
+  mobile?: string;
 }
 
 export interface StatementRow {
@@ -32,8 +34,12 @@ const EMPTY_STATEMENT: CustomerStatement = {
   totals: { debit: 0, credit: 0, closingBalance: 0 },
 };
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=100").then(unwrapList<Customer>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers/options").then(unwrapList<Customer>);
 
 export const fetchCustomerStatement = (from: string, to: string, customerCode: string) =>
   api

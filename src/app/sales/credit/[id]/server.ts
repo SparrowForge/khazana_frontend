@@ -88,8 +88,12 @@ export const fetchItems = async (): Promise<AvailableItem[]> => {
   return all;
 };
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: CreditCustomer[] } | CreditCustomer[]>("/customers?limit=100").then(unwrapList<CreditCustomer>);
+  api.get<{ data: CreditCustomer[] } | CreditCustomer[]>("/customers/options").then(unwrapList<CreditCustomer>);
 
 /** Orders offered in the PO picker, scoped to the invoice's customer and to
  *  orders not yet billed. The invoice's own PO won't be in here (its credit

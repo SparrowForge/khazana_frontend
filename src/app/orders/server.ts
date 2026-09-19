@@ -135,8 +135,12 @@ export const updateOrder = (id: number | string, data: OrderPayload) =>
 export const deleteOrder = (id: number | string) =>
   api.delete(`/orders/${id}`).then((r) => r.data);
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = (): Promise<Customer[]> =>
-  api.get("/customers?limit=100").then(unwrapList<Customer>);
+  api.get("/customers/options").then(unwrapList<Customer>);
 
 /** What the customer already owes, before this order — invoiced sales less
  *  every receipt and every advance already taken from them. Shown on the entry

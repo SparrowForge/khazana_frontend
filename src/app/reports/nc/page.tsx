@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import Button from "@/components/ui/Button";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import { useAuthStore } from "@/store/auth.store";
@@ -108,12 +109,11 @@ export default function NCReportPage() {
           options={branches.map((b) => ({ value: String(b.id), label: b.branchName }))}
           className="w-48"
         />
-        <Select
-          label="Customer"
+        <CustomerSelect
+          customers={customers}
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          onChange={setCustomerId}
           placeholder="All customers"
-          options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
           className="w-56"
         />
         <Button onClick={runReport} loading={loading} className="mb-0.5">Run Report</Button>

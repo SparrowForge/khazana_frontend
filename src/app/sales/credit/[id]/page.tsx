@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import ProductionQuickEntryModal from "@/components/catalog/ProductionQuickEntryModal";
 import {
@@ -243,12 +244,10 @@ export default function CreditSaleEditPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Invoice No" value={invoiceNo} disabled readOnly />
                 <Input label="Invoice Date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
-                <Select
-                  label="Customer"
+                <CustomerSelect
+                  customers={customers}
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  placeholder="Select customer..."
-                  options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                  onChange={setCustomerId}
                 />
                 {/* Same customer-driven order picker as the create form. A PO
                     already on the invoice that isn't in the fetched orders

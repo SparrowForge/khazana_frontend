@@ -25,6 +25,9 @@ export interface Customer {
   id: string;
   code: string;
   name: string;
+  /** Contact no — searchable in the picker, and shown on the row there. */
+  mobile?: string;
+  address?: string;
 }
 
 
@@ -34,5 +37,9 @@ export const fetchPayments = () =>
 export const createPayment = (data: PaymentPayload) =>
   api.post<Payment>("/customers/payments", data).then((r) => r.data);
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: Customer[] } | Customer[]>("/customers?limit=100").then(unwrapList<Customer>);
+  api.get<{ data: Customer[] } | Customer[]>("/customers/options").then(unwrapList<Customer>);

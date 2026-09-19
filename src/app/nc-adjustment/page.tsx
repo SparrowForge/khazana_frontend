@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import SaleItemsTable from "@/components/sales/SaleItemsTable";
 import CustomerQuickAddModal from "@/components/customers/CustomerQuickAddModal";
 import { fetchItems, fetchCustomers, createNcAdjustment, type AvailableItem, type NcCustomer } from "./server";
@@ -97,12 +97,11 @@ export default function NCAdjustmentPage() {
               <Input label="NC Code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Auto-generated" />
               <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
               <div className="flex flex-col gap-1">
-                <Select
+                <CustomerSelect
                   label="Customer *"
+                  customers={customers}
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  placeholder="Select customer..."
-                  options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                  onChange={setCustomerId}
                   error={missingCustomer ? "Customer is required" : undefined}
                 />
                 {canAddCustomer && (

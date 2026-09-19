@@ -39,8 +39,12 @@ export interface NcPayload {
 export const fetchItems = () =>
   api.get<{ data: AvailableItem[] } | AvailableItem[]>("/inventory/items?limit=100&isActive=Y").then(unwrapList<AvailableItem>);
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: NcCustomer[] } | NcCustomer[]>("/customers?limit=100").then(unwrapList<NcCustomer>);
+  api.get<{ data: NcCustomer[] } | NcCustomer[]>("/customers/options").then(unwrapList<NcCustomer>);
 
 /** Backend t_NCMstr + details (item joined) returned by GET /nc-adjustment/:id. */
 export interface NcDetail {

@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import Pagination from "@/components/ui/Pagination";
 import { Plus, Trash2, Edit2, Eye, Printer, FileText, FileSpreadsheet, Receipt } from "lucide-react";
 import {
@@ -343,11 +344,11 @@ export default function OrdersPage() {
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Order" : "New Order"} size="lg">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="flex flex-col gap-1">
-            <Select label="Customer *" value={form.clientId} onChange={(e) => {
-              const clientId = e.target.value;
-              const customer = customers.find((c) => c.id === clientId);
-              setForm({ ...form, clientId, deliveryAddress: customer?.address ?? "" });
-            }} placeholder="Select customer..." options={customers.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
+            <CustomerSelect label="Customer *" customers={customers} value={form.clientId}
+              onChange={(clientId) => {
+                const customer = customers.find((c) => c.id === clientId);
+                setForm({ ...form, clientId, deliveryAddress: customer?.address ?? "" });
+              }} />
             {canAddCustomer && (
               <button
                 type="button"

@@ -7,11 +7,13 @@ import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import CustomerSelect from "@/components/customers/CustomerSelect";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import {
-  searchItems, fetchVehicleChallans, fetchVehicleChallan,
+  searchItems, fetchVehicleChallans, fetchVehicleChallan, fetchCustomers,
   createVehicleChallan, updateVehicleChallan, deleteVehicleChallan,
   type AvailableItem, type VehicleChallanRecord, type VehicleChallanGroup,
+  type ChallanCustomer,
 } from "./server";
 import { fetchSettings, type Settings } from "@/app/admin/settings/server";
 import { usePagination } from "@/hooks/usePagination";
@@ -106,6 +108,15 @@ export default function VehicleChallanPage() {
   const [editingSerial, setEditingSerial] = useState<string | null>(null);
   const [serialNo, setSerialNo] = useState("");
   const [header, setHeader] = useState(emptyHeader);
+  /** Registered customers, for the picker that fills the header. Loaded once —
+   *  the challan screen is opened far more often than the customer book
+   *  changes. */
+  const [customers, setCustomers] = useState<ChallanCustomer[]>([]);
+  /** Who was picked on THIS challan, held only to keep the field showing them.
+   *  Nothing is saved: the record has no customer link, by design. Reopening a
+   *  saved challan therefore shows the picker empty and the typed fields
+   *  filled, which is the truth about what is on file. */
+  const [pickedCustomer, setPickedCustomer] = useState("");
   const [challanDate, setChallanDate] = useState(new Date().toISOString().split("T")[0]);
   const [lines, setLines] = useState<ChallanLine[]>([{ ...BLANK_LINE }]);
   /** Catalogue suggestions for whichever description box is being typed in.
@@ -120,6 +131,22 @@ export default function VehicleChallanPage() {
   const [report, setReport] = useState<VehicleChallanGroup | null>(null);
 
   const setField = (patch: Partial<typeof emptyHeader>) => setHeader((prev) => ({ ...prev, ...patch }));
+
+  /** Picking a registered customer fills the three fields that head the printed
+   *  sheet, so a regular need not be retyped — and typed over afterwards if this
+   *  delivery goes somewhere else. Blank clears nothing: the operator may have
+   *  picked by mistake, and silently emptying what they typed would be worse
+   *  than leaving it. */
+  const applyCustomer = (id: string) => {
+    setPickedCustomer(id);
+    const customer = customers.find((c) => String(c.id) === id);
+    if (!customer) return;
+    setField({
+      customerName: customer.name,
+      customerAddress: customer.address ?? "",
+      contactNo: customer.mobile ?? "",
+    });
+  };
 
   /** The lines that will actually be saved: a description and a qty > 0. */
   const validLines = useMemo(
@@ -171,6 +198,13 @@ export default function VehicleChallanPage() {
     fetchSettings().then(setSettings).catch(() => {});
   }, []);
 
+  // The customer book, for the header picker. Swallowed on failure like the
+  // letterhead: the whole header can still be typed, which is how this screen
+  // worked before the picker existed.
+  useEffect(() => {
+    fetchCustomers().then(setCustomers).catch(() => {});
+  }, []);
+
   /** Debounced type-ahead. Only the box being typed in drives it, so opening the
    *  form costs nothing and a long catalogue is never pulled down whole. */
   useEffect(() => {
@@ -196,6 +230,7 @@ export default function VehicleChallanPage() {
     setEditingSerial(null);
     setSerialNo("");
     setHeader(emptyHeader);
+    setPickedCustomer("");
     setChallanDate(new Date().toISOString().split("T")[0]);
     setLines([{ ...BLANK_LINE }]);
     setModal(true);
@@ -206,6 +241,7 @@ export default function VehicleChallanPage() {
       const full = await fetchVehicleChallan(record.serialNo);
       setEditingSerial(full.serialNo);
       setSerialNo(full.serialNo);
+      setPickedCustomer("");
       setHeader({
         customerName: full.customerName ?? "",
         customerAddress: full.customerAddress ?? "",
@@ -441,8 +477,19 @@ export default function VehicleChallanPage() {
         <div className="grid grid-cols-2 gap-4 mb-5">
           {editingSerial && <Input label="Challan No" value={serialNo} disabled readOnly />}
           <Input label="Date" type="date" value={challanDate} onChange={(e) => setChallanDate(e.target.value)} />
-          {/* Typed by hand: a challan can be made out to a party that has no
-              Customer record. These three head the printed sheet. */}
+          {/* Optional shortcut: search the customer book by contact no, code or
+              name and the three fields below fill themselves. It stays a
+              shortcut — the fields are still typed by hand for a party that has
+              no Customer record, which is why nothing here is required and no
+              link is saved. */}
+          <CustomerSelect
+            label="Pick a Registered Customer"
+            customers={customers}
+            value={pickedCustomer}
+            onChange={applyCustomer}
+            className="col-span-2"
+          />
+          {/* These three head the printed sheet. */}
           <Input
             label="Customer Name"
             placeholder="Mr. Kabir"

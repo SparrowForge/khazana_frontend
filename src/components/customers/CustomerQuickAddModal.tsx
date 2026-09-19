@@ -28,7 +28,7 @@ export default function CustomerQuickAddModal({ open, onClose, onCreated }: Prop
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.mobile.trim()) {
-      toast.error("Name and mobile are required");
+      toast.error("Name and contact no are required");
       return;
     }
     setSaving(true);
@@ -58,7 +58,10 @@ export default function CustomerQuickAddModal({ open, onClose, onCreated }: Prop
         <Input label="Code" value="" placeholder="Auto-generated" disabled readOnly />
         <Input label="Name *" value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <Input label="Mobile *" value={form.mobile}
+        {/* Unique across customers: saving a number someone else already has
+            comes back as an error naming them, so the operator can pick that
+            customer instead of creating a second record for one person. */}
+        <Input label="Contact No *" value={form.mobile}
           onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
         <Input label="Email" type="email" value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })} />

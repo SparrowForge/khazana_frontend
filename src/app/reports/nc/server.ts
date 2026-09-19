@@ -6,6 +6,8 @@ export interface NCReportCustomer {
   id: string;
   code: string;
   name: string;
+  /** Contact no — searchable in the report's customer filter. */
+  mobile?: string;
 }
 
 export interface NCReportRow {
@@ -31,8 +33,12 @@ export interface NCReport {
   totals: { qty: number; amount: number };
 }
 
+/** Customers for the picker: /customers/options is flat and un-capped, unlike
+ *  the paginated /customers, which stops at 100 rows — a customer past the
+ *  hundredth by name could not be billed at all. Carries the contact no, which
+ *  the picker searches alongside the code and the name. */
 export const fetchCustomers = () =>
-  api.get<{ data: NCReportCustomer[] } | NCReportCustomer[]>("/customers?limit=100").then(unwrapList<NCReportCustomer>);
+  api.get<{ data: NCReportCustomer[] } | NCReportCustomer[]>("/customers/options").then(unwrapList<NCReportCustomer>);
 
 // Date range [fromDate, toDate] (inclusive). `branchId` omitted aggregates every
 // branch; `customerId` omitted covers every customer. Filtering by customer only

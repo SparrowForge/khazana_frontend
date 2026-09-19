@@ -10,6 +10,14 @@ export interface SelectOption {
   /** `disabled` greys an option out but keeps it listed, so a choice that is
    *  currently unavailable (e.g. an out-of-stock item) still shows why. */
   disabled?: boolean;
+  /** Extra text the search box matches on, over and above the label — details
+   *  worth finding a row by but not worth crowding the closed control with.
+   *  A customer is searched by contact no this way. */
+  search?: string;
+  /** Second line under the label in the open list. The contact no and address
+   *  of a customer go here: enough to tell two people of the same name apart
+   *  while choosing, without lengthening the row once it is chosen. */
+  hint?: string;
 }
 
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value" | "size"> {
@@ -139,7 +147,11 @@ function SearchableSelect({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    // Matched against the label plus whatever the caller made searchable —
+    // a customer's contact no is found this way without being in the label.
+    return options.filter((o) =>
+      `${o.label} ${o.search ?? ""} ${o.hint ?? ""}`.toLowerCase().includes(q),
+    );
   }, [options, query]);
 
   const measure = useCallback(() => {
@@ -304,7 +316,12 @@ function SearchableSelect({
                 )}
               >
                 <Check size={13} className={cn("shrink-0", isSelected ? "text-primary-700" : "opacity-0")} />
-                <span className="truncate">{opt.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{opt.label}</span>
+                  {opt.hint && (
+                    <span className="block truncate text-xs text-gray-400">{opt.hint}</span>
+                  )}
+                </span>
               </button>
             );
           })

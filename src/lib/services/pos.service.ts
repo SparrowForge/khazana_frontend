@@ -192,20 +192,29 @@ export interface PosCustomer {
   id: string;
   code: string;
   name: string;
+  /** Contact no. The till's picker searches on it alongside the code and the
+   *  name — it is usually all a customer at the counter can give. */
   mobile?: string | null;
+  address?: string | null;
   /** The counter customer the till defaults to. A discount may not be given to
    *  this one — see the discount guard on the POS screens. */
   isWalkIn?: boolean;
 }
 export const posCustomersApi = {
+  /** The whole customer book for the till's picker, and for the offline cache
+   *  behind it. /customers/options rather than the paginated /customers, which
+   *  caps at 100 rows: a regular past the hundredth by name could not be billed
+   *  at the counter, and — worse — a till that had cached that short list would
+   *  keep failing to find them with no connection to blame. */
   getAll: () =>
-    api.get("/customers?page=1&limit=100").then((r) => {
-      const rows = unwrapList<{ id: string; code?: string; name?: string; mobile?: string | null; isWalkIn?: boolean }>(r);
+    api.get("/customers/options").then((r) => {
+      const rows = unwrapList<{ id: string; code?: string; name?: string; mobile?: string | null; address?: string | null; isWalkIn?: boolean }>(r);
       return rows.map((c) => ({
         id: String(c.id),
         code: c.code ?? "",
         name: c.name ?? "",
         mobile: c.mobile ?? null,
+        address: c.address ?? null,
         isWalkIn: c.isWalkIn ?? false,
       }));
     }),

@@ -24,11 +24,20 @@ export interface CustomerPayload {
   defaultDiscount?: number;
 }
 
-export const fetchCustomers = ({ page = 1, limit = 10 } = {}): Promise<Paginated<Customer>> =>
-  api.get(`/customers?page=${page}&limit=${limit}`).then(unwrapPaginated<Customer>);
+/** `search` matches code, name or contact no, and is applied by the server
+ *  before paging — filtering the fetched page instead would only ever search
+ *  the rows already on screen. */
+export const fetchCustomers = ({ page = 1, limit = 10, search = "" } = {}): Promise<Paginated<Customer>> => {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search.trim()) qs.set("search", search.trim());
+  return api.get(`/customers?${qs}`).then(unwrapPaginated<Customer>);
+};
 
+/** The whole customer book, for the exports and for any picker that wants it.
+ *  Not `/customers?limit=500`: that route is paginated and caps limit at 100,
+ *  so the larger page size was rejected and the exports came back empty. */
 export const fetchAllCustomers = (limit = 500): Promise<Customer[]> =>
-  api.get(`/customers?limit=${limit}`).then(unwrapList<Customer>);
+  api.get(`/customers/options?limit=${limit}`).then(unwrapList<Customer>);
 
 export const createCustomer = (data: CustomerPayload) => {
   // The code is allocated server-side; the form's field is display-only and

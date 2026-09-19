@@ -101,6 +101,22 @@ export interface VehicleChallanGroup {
  *  walking every page up front would be work done for nothing. The server caps
  *  the page; a short list is all a picker needs.
  */
+/** A customer offered in the challan's picker. The challan itself stores no
+ *  link to the Customer table — picking one only fills the typed header fields
+ *  below it, which is what the printed sheet carries. */
+export interface ChallanCustomer {
+  id: string;
+  code: string;
+  name: string;
+  mobile?: string;
+  address?: string;
+}
+
+/** Flat and un-capped, unlike the paginated /customers, which stops at 100. */
+export const fetchCustomers = () =>
+  api.get<{ data: ChallanCustomer[] } | ChallanCustomer[]>("/customers/options")
+    .then(unwrapList<ChallanCustomer>);
+
 export const searchItems = (term: string, limit = 20): Promise<AvailableItem[]> => {
   const params = new URLSearchParams({ page: "1", limit: String(limit) });
   const q = term.trim();

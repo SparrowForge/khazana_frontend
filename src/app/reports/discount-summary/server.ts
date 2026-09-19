@@ -8,9 +8,14 @@ export interface DiscountSummaryRow {
   /** The discount as a rate. Stored on credit invoices, derived from the money elsewhere. */
   discountPercent: number;
   discount: number;
-  /** Discount authoriser's phone (counter sales) or the customer's mobile (credit). */
+  /** Who the discount was given to: the name typed at the till for a walk-in,
+   *  the customer the sale was billed to, or — on a sale discounted before
+   *  either existed — the typed authoriser. */
+  customerName: string;
+  /** Their contact no, resolved in the same order. */
   contactNo: string;
-  /** Discount authoriser (counter sales) or the customer/remark (credit). */
+  /** A note written about the discount. Credit invoices only; a counter sale
+   *  has no field for one, so it is blank there. */
   remarks: string;
   outlet: string;
 }

@@ -37,6 +37,7 @@ const branchLine = (name: string) => (!name || name === "All Branches" ? name : 
 const exportColumns: ExportColumn<DiscountSummaryRow>[] = [
   { header: "Date", value: (r) => formatDate(r.date) },
   { header: "Invoice No", value: (r) => r.invoiceNo, width: 22 },
+  { header: "Customer Name", value: (r) => r.customerName, width: 28 },
   { header: "Amount", value: (r) => r.amount, numeric: true },
   { header: "Discount(%)", value: (r) => r.discountPercent, numeric: true },
   { header: "Discount", value: (r) => r.discount, numeric: true },
@@ -156,6 +157,7 @@ function Report({ data }: { data: DiscountSummary }) {
             <th className="border border-gray-400 px-1 py-1 text-left">Sl No.</th>
             <th className="border border-gray-400 px-1 py-1 text-left">Date</th>
             <th className="border border-gray-400 px-1 py-1 text-left">Invoice No</th>
+            <th className="border border-gray-400 px-1 py-1 text-left">Customer Name</th>
             <th className="border border-gray-400 px-1 py-1 text-right">Amount</th>
             <th className="border border-gray-400 px-1 py-1 text-right">Discount(%)</th>
             <th className="border border-gray-400 px-1 py-1 text-right">Discount</th>
@@ -169,6 +171,7 @@ function Report({ data }: { data: DiscountSummary }) {
               <td className="border-x border-sage-400 px-1">{i + 1}</td>
               <td className="border-x border-sage-400 px-1 whitespace-nowrap">{formatDate(r.date)}</td>
               <td className="border-x border-sage-400 px-1 whitespace-nowrap">{r.invoiceNo}</td>
+              <td className="border-x border-sage-400 px-1">{r.customerName}</td>
               <td className="border-x border-sage-400 px-1 text-right">{amt(r.amount)}</td>
               <td className="border-x border-sage-400 px-1 text-right">{pct(r.discountPercent)}</td>
               <td className="border-x border-sage-400 px-1 text-right">{amt(r.discount)}</td>
@@ -178,7 +181,7 @@ function Report({ data }: { data: DiscountSummary }) {
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={8}>
+              <td className="border border-sage-300 px-2 py-3 text-center text-gray-500" colSpan={9}>
                 No discounted invoices found for the selected filters.
               </td>
             </tr>
@@ -187,7 +190,7 @@ function Report({ data }: { data: DiscountSummary }) {
         {items.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-black font-bold">
-              <td className="border border-sage-400 px-1" colSpan={3}>Total ({items.length} invoices)</td>
+              <td className="border border-sage-400 px-1" colSpan={4}>Total ({items.length} invoices)</td>
               <td className="border border-sage-400 px-1 text-right">{amt(totals.amount)}</td>
               <td className="border border-sage-400 px-1"></td>
               <td className="border border-sage-400 px-1 text-right">{amt(totals.discount)}</td>

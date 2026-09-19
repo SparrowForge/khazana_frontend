@@ -59,6 +59,10 @@ export interface PosSale {
   customerCode?: string | null;
   customerName?: string | null;
   customerMobile?: string | null;
+  /** Who a walk-in sale was for, typed at the till. Null on a sale billed to a
+   *  real customer, and on a walk-in nobody named. */
+  guestName?: string | null;
+  guestContact?: string | null;
   /** Last 4 digits of the card, on a Card sale only. */
   cardNo?: string | null;
   discountRemarks?: string | null;
@@ -97,6 +101,18 @@ export interface SalePaymentPayload {
   transactionRef?: string;
 }
 
+/**
+ * Who a counter sale was for, in the same order the reports resolve it:
+ *
+ *   1. the name typed at the till for a walk-in — only ever written when the
+ *      sale has no real customer, so where it exists it is the only answer;
+ *   2. the customer the sale was billed to;
+ *   3. 'POS' — a walk-in nobody named, which is most of the counter's trade and
+ *      a real answer rather than missing data.
+ */
+export const posSaleCustomerName = (sale: Pick<PosSale, "guestName" | "customerName">): string =>
+  (sale.guestName ?? "").trim() || (sale.customerName ?? "").trim() || "POS";
+
 export interface CreatePosSalePayload {
   items: { itemId: string; qty: number }[];
   paidAmount: number;
@@ -108,10 +124,17 @@ export interface CreatePosSalePayload {
   discountType?: 'fixed' | 'percentage';
   discountValue?: number;
   /** Customer UUID this sale is billed to. Omitted for a walk-in, which is the
-   *  default at the till — but MANDATORY once a discount is applied: the server
-   *  rejects a discounted walk-in, and stamps the customer's name and mobile
-   *  onto the discount audit the reports read. */
+   *  default at the till. A discounted sale must name SOMEBODY — either this or
+   *  the typed guest pair below; the server rejects one with neither, and
+   *  stamps whichever was given onto the discount audit the reports read. */
   customerId?: string;
+  /** Who a walk-in sale is for, typed at the till: the buyer has no Customer
+   *  record and the queue at the counter is no place to create one. Ignored by
+   *  the server when `customerId` names a real customer. Both fields together
+   *  are what allow a WALK-IN bill to be discounted — the discount audit asks
+   *  who the discount went to, and this answers it. */
+  guestName?: string;
+  guestContact?: string;
   /** Last 4 digits of the card — sent only when salesType is 'Card'. */
   cardNo?: string;
   /** Mandatory reason for an edit (update only) → SoMstr_ModifyRemarks. */
@@ -138,6 +161,12 @@ export interface OfflineSalePayload {
   discountValue?: number;
   /** Customer UUID captured at sale time; absent for a walk-in. */
   customerId?: string;
+  /** Who a walk-in sale was for, typed at the till before the connection
+   *  dropped. Uploaded so a queued sale syncs with the name it was rung up
+   *  under — including a discounted one, which could not have been taken
+   *  without it. */
+  guestName?: string;
+  guestContact?: string;
   /** Last 4 digits of the card, captured at sale time. */
   cardNo?: string;
   /** Split payment captured at the till while offline. */

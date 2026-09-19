@@ -59,6 +59,11 @@ interface HeldOrder {
   /** Empty string is the walk-in customer — what a held order resumes to unless
    *  one was picked, exactly as a fresh terminal starts. */
   customerId: string;
+  /** The walk-in's typed name and contact no, parked with the bill. A held
+   *  order that was discounted cannot be resumed without them: the discount
+   *  would no longer be allowed. */
+  guestName?: string;
+  guestContact?: string;
   cardNo: string;
   /** The tender rows when the bill was held on Multiple. Absent on a
    *  single-payment hold, and on every order parked before splits existed. */
@@ -126,6 +131,14 @@ export default function PosPage() {
    *  the code (C-nnnn) is allocated server-side. */
   const [customerModal, setCustomerModal] = useState(false);
   const canAddCustomer = can("Customers", "add");
+  /** Who the walk-in in front of the cashier is. Most counter trade has no
+   *  Customer record and will not stand at the till while one is created, so
+   *  the name and number are simply typed onto the bill. Kept in state (not
+   *  cleared) when a registered customer is picked, so switching back and forth
+   *  does not throw away what was already typed — only what is SENT depends on
+   *  which of the two the sale ends up naming. */
+  const [guestName, setGuestName] = useState("");
+  const [guestContact, setGuestContact] = useState("");
   /** Last 4 digits of the card, on a Card payment. Never more — the last four
    *  is all that may be kept, and all the settlement slip needs to match. */
   const [cardNo, setCardNo] = useState("");
@@ -531,13 +544,22 @@ export default function PosPage() {
 
   /** The picked customer — the walk-in row unless the cashier chose someone. */
   const selectedCustomer = customers.find((c) => c.id === customerId);
-  /** A discount has to be given to somebody. The walk-in customer is nobody, so
-   *  the bill can't be discounted until a real one is named — the same rule the
-   *  server applies, checked here so the cashier is told before they hit
-   *  Generate. Tests the walk-in FLAG, not merely whether a customer is set:
-   *  the till now always has one set. */
-  const needsCustomerForDiscount =
-    discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
+  /** Whether this bill is going to the counter rather than to a named customer.
+   *  Tests the walk-in FLAG, not merely whether a customer is set: the till
+   *  always has one set. */
+  const isWalkInSale = !customerId || !!selectedCustomer?.isWalkIn;
+  /** The typed pair, as it will be sent — trimmed, and only for a walk-in. A
+   *  registered customer already answers the question these fields ask. */
+  const typedName = isWalkInSale ? guestName.trim() : "";
+  const typedContact = isWalkInSale ? guestContact.trim() : "";
+  /** A discount has to be given to somebody, and 'the counter' is not somebody:
+   *  the Daily Final Report and the Discount Log exist to say who each discount
+   *  went to. A walk-in answers that with a typed name AND number — half an
+   *  identity is not an audit trail — and a picked customer answers it by
+   *  existing. Same rule as the server, checked here so the cashier is told
+   *  before they hit Generate. */
+  const needsNameForDiscount =
+    discountAmount > 0 && isWalkInSale && !(typedName && typedContact);
 
   const isSplitMode = payMode === MULTI_PAY_MODE;
   const splitTotal = r2(splits.reduce((sum, t) => sum + t.amount, 0));
@@ -563,6 +585,9 @@ export default function PosPage() {
     // Back to the counter customer, not to blank: the till starts every sale on
     // the walk-in row, and the load effect only fills an empty picker on mount.
     setCustomerId(customers.find((c) => c.isWalkIn)?.id ?? "");
+    // The next person at the counter is a different person.
+    setGuestName("");
+    setGuestContact("");
     setCardNo("");
     setSplits([]);
     setSplitRows([]);
@@ -580,6 +605,8 @@ export default function PosPage() {
       discountType,
       discountValue,
       customerId,
+      guestName,
+      guestContact,
       cardNo,
       splits: splitRows.length ? splitRows : undefined,
     };
@@ -604,6 +631,8 @@ export default function PosPage() {
           discountType,
           discountValue,
           customerId,
+          guestName,
+          guestContact,
           cardNo,
         });
       }
@@ -617,6 +646,10 @@ export default function PosPage() {
     // An order parked before the picker existed has no customer — it resumes on
     // the walk-in customer, the same place a fresh sale starts.
     setCustomerId(held.customerId || customers.find((c) => c.isWalkIn)?.id || "");
+    // Blank on an order parked before these fields existed, which is right:
+    // nobody was named on it.
+    setGuestName(held.guestName ?? "");
+    setGuestContact(held.guestContact ?? "");
     setCardNo(held.cardNo ?? "");
     const heldSplits = held.splits ?? [];
     setSplitRows(heldSplits);
@@ -662,6 +695,10 @@ export default function PosPage() {
       discountType: discVal > 0 ? discountType : undefined,
       discountValue: discVal > 0 ? discVal : undefined,
       customerId: customerId || undefined,
+      // Queued with the sale, so it syncs under the name it was rung up under —
+      // and so a discounted walk-in is still explicable when it lands.
+      guestName: typedName || undefined,
+      guestContact: typedContact || undefined,
       cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
       // A bill split at the till while offline syncs as a split, rather than
       // collapsing to whichever single mode happened to be selected.
@@ -713,8 +750,8 @@ export default function PosPage() {
     // measure — buildPayments checks the tenders against the payable instead.
     if (!isSplitMode && paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (discountExceedsTotal) { toast.error("Discount exceeds total"); return; }
-    if (needsCustomerForDiscount) {
-      toast.error("Select a customer — a discount cannot be given to a walk-in");
+    if (needsNameForDiscount) {
+      toast.error("A discount needs a name — enter the customer name and contact no, or pick a customer");
       return;
     }
     if (payMode === "Card" && cardNo.trim() && cardNo.trim().length !== 4) {
@@ -755,6 +792,10 @@ export default function PosPage() {
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
         customerId: customerId || undefined,
+        // Only for a walk-in: a registered customer is named by their record,
+        // and the server drops a typed name sent alongside one anyway.
+        guestName: typedName || undefined,
+        guestContact: typedContact || undefined,
         cardNo: payMode === "Card" ? (cardNo.trim() || undefined) : undefined,
         payments: isSplitMode && splits.length ? splits : undefined,
       });
@@ -1174,13 +1215,11 @@ export default function PosPage() {
                   </p>
                 )}
 
-                {/* A discount has to be given to somebody. The name and phone
-                    number that used to be typed here are now the picked
-                    customer's, taken from their record — so this says what is
-                    missing and points at the field that fixes it. */}
-                {needsCustomerForDiscount && (
+                {/* A discount has to be given to somebody. Says which of the
+                    two ways of naming them is missing, and both are below. */}
+                {needsNameForDiscount && (
                   <p className="mt-2 rounded-md border border-red-300 bg-red-50 px-2.5 py-1.5 text-xs text-red-600">
-                    Select a customer below — a discount cannot be given to a walk-in.
+                    A discount needs a name — fill in the customer name and contact no below, or pick a registered customer.
                   </p>
                 )}
               </div>
@@ -1283,9 +1322,11 @@ export default function PosPage() {
 
             {/* Who the bill is for. The counter customer is preselected and
                 covers most of the counter's trade; picking a real customer names
-                the sale on the reports, and is required before it can be
-                discounted. Every option is a row from the Customer table — the
-                walk-in is one of them, so there is no synthetic blank entry. */}
+                the sale on the reports and carries their record onto it. A
+                walk-in is named by typing below instead, which is the usual case
+                at a counter and is all a discount needs. Every option here is a
+                row from the Customer table — the walk-in is one of them, so
+                there is no synthetic blank entry. */}
             <div className="flex flex-col gap-1">
               {/* No placeholder: the walk-in row is the default, so there is
                   nothing a blank option would mean. */}
@@ -1294,11 +1335,11 @@ export default function PosPage() {
                 value={customerId}
                 onChange={setCustomerId}
                 placeholder=""
-                error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
               />
-              {/* Registering the customer at the till is what unblocks a
-                  discount for someone who walked in without a record. Needs the
-                  server to allocate the code, so it is offline-disabled. */}
+              {/* For a buyer worth keeping on file — a regular, or somebody
+                  whose ledger matters. A one-off discount does not need this:
+                  typing the name below is enough. Needs the server to allocate
+                  the code, so it is offline-disabled. */}
               {canAddCustomer && (
                 <button
                   type="button"
@@ -1312,18 +1353,43 @@ export default function PosPage() {
               )}
             </div>
 
-            {selectedCustomer && (
-              <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
-                <p className="text-gray-500">
-                  Name: <span className="font-medium text-gray-800">{selectedCustomer.name}</span>
+            {/* A walk-in is typed, a registered customer is read back. Never
+                both on screen at once: two name fields on one bill invite the
+                cashier to fill in the wrong one. */}
+            {isWalkInSale ? (
+              <div className="space-y-2 rounded-md border border-sage-300 bg-sage-50 px-3 py-2.5">
+                <p className="text-xs text-gray-500">
+                  Walk-in customer — optional, and what lets this bill be discounted.
                 </p>
-                <p className="text-gray-500">
-                  Contact No:{" "}
-                  <span className="font-medium text-gray-800">
-                    {selectedCustomer.mobile || "— not on file —"}
-                  </span>
-                </p>
+                <Input
+                  label="Customer Name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Mr. Rahman"
+                  error={needsNameForDiscount && !typedName ? "Required for a discount" : undefined}
+                />
+                <Input
+                  label="Contact No"
+                  value={guestContact}
+                  onChange={(e) => setGuestContact(e.target.value)}
+                  placeholder="01711-000000"
+                  error={needsNameForDiscount && !typedContact ? "Required for a discount" : undefined}
+                />
               </div>
+            ) : (
+              selectedCustomer && (
+                <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
+                  <p className="text-gray-500">
+                    Name: <span className="font-medium text-gray-800">{selectedCustomer.name}</span>
+                  </p>
+                  <p className="text-gray-500">
+                    Contact No:{" "}
+                    <span className="font-medium text-gray-800">
+                      {selectedCustomer.mobile || "— not on file —"}
+                    </span>
+                  </p>
+                </div>
+              )
             )}
 
             <Input
@@ -1362,7 +1428,7 @@ export default function PosPage() {
                 size="lg"
                 onClick={handleGenerateBill}
                 loading={submitting}
-                disabled={!cart.length || paid < payableAmount || discountExceedsTotal || needsCustomerForDiscount}
+                disabled={!cart.length || paid < payableAmount || discountExceedsTotal || needsNameForDiscount}
               >
                 {isOnline ? "Generate Bill" : "Save Offline Bill"}
               </Button>

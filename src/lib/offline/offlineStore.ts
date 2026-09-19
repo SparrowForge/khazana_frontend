@@ -69,14 +69,16 @@ export interface OfflineOrder {
    *  every order queued before splits existed, which is why the server treats a
    *  missing list as "one tender of `salesType`". */
   payments?: { method: string; amount: number; bankId?: string; cardNo?: string; transactionRef?: string }[];
+  /** Who a walk-in sale was rung up for at the till. Uploaded with the order:
+   *  a queued sale must sync under the name it was taken under, and a discounted
+   *  walk-in could not have been rung up without these two at all. */
+  guestName?: string;
+  guestContact?: string;
   /** @deprecated Only on orders queued before the customer picker existed. Still
    *  uploaded so those sales sync with the discount audit they were rung up
-   *  under — the server falls back to them when an order names no customer. */
+   *  under — the server falls back to them when an order names nobody. */
   discountRemarks?: string;
   discountContact?: string;
-  /** @deprecated Only on orders queued before the customer picker existed. Not
-   *  uploaded any more: the column it fed is gone. */
-  guestName?: string;
   // ── Client-only ──
   display: OfflineDisplay;
 }
@@ -228,17 +230,19 @@ export function toSyncPayload(o: OfflineOrder) {
     ...(o.discountType ? { discountType: o.discountType } : {}),
     ...(o.discountValue ? { discountValue: o.discountValue } : {}),
     ...(o.customerId ? { customerId: o.customerId } : {}),
+    // Who a walk-in sale was rung up for. Sent whenever it was taken, including
+    // by an order queued before the picker existed — the server reads it the
+    // same way either way.
+    ...(o.guestName ? { guestName: o.guestName } : {}),
+    ...(o.guestContact ? { guestContact: o.guestContact } : {}),
     ...(o.cardNo ? { cardNo: o.cardNo } : {}),
     // The split, when the bill was settled more than one way. Omitted entirely
     // for a single-payment sale, which is what makes the server synthesise one
     // tender from salesType instead.
     ...(o.payments?.length ? { payments: o.payments } : {}),
     // Only ever present on an order queued before the customer picker existed;
-    // the server falls back to them when the order names no customer.
+    // the server falls back to them when the order names nobody at all.
     ...(o.discountRemarks ? { discountRemarks: o.discountRemarks } : {}),
     ...(o.discountContact ? { discountContact: o.discountContact } : {}),
-    // guestName is deliberately NOT sent: the column it was written to is gone,
-    // and the server ignores it. The field stays on the type only because old
-    // queued orders still carry it.
   };
 }

@@ -64,6 +64,11 @@ export default function PosSaleEditPage() {
    *  not touch it does not turn a named customer back into a walk-in. Empty is
    *  the walk-in case, which a discounted sale is not allowed to be. */
   const [customerId, setCustomerId] = useState("");
+  /** Who the walk-in on this bill was, as typed at the till. Editable here for
+   *  the same reason everything else on the sale is: a name taken in a hurry at
+   *  the counter is the thing most likely to need correcting afterwards. */
+  const [guestName, setGuestName] = useState("");
+  const [guestContact, setGuestContact] = useState("");
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
   /** Last 4 digits of the card, on a Card sale. */
   const [cardNo, setCardNo] = useState("");
@@ -100,6 +105,10 @@ export default function PosSaleEditPage() {
         // non-discounted sale would be demoted to a walk-in by an unrelated
         // edit if this only ran inside the branch below.
         setCustomerId(sale.customerId ?? "");
+        // Null on a sale billed to a real customer, which is exactly when these
+        // fields are hidden below.
+        setGuestName(sale.guestName ?? "");
+        setGuestContact(sale.guestContact ?? "");
         setCardNo(sale.cardNo ?? "");
         // Only a genuine split is loaded as one: a single-tender sale keeps the
         // ordinary Pay Mode panel, exactly as it did before splits existed.
@@ -272,12 +281,16 @@ export default function PosSaleEditPage() {
     discountType === "fixed" ? discVal > discountableGross && discountableGross > 0 : discVal > 100;
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
+  /** Whether the bill goes to the counter rather than to a named customer.
+   *  Tests the walk-in FLAG, not just whether a customer is set. */
+  const isWalkInSale = !customerId || !!selectedCustomer?.isWalkIn;
+  const typedName = isWalkInSale ? guestName.trim() : "";
+  const typedContact = isWalkInSale ? guestContact.trim() : "";
   /** Same rule as the till: a discount has to be given to somebody, so an edit
-   *  that leaves one applied has to name the customer it went to — and the
-   *  walk-in customer is nobody, which is why this tests the flag rather than
-   *  just whether a customer is set. */
-  const needsCustomerForDiscount =
-    discountAmount > 0 && (!customerId || !!selectedCustomer?.isWalkIn);
+   *  that leaves one applied has to say who it went to — a picked customer, or
+   *  the walk-in's typed name AND contact no. */
+  const needsNameForDiscount =
+    discountAmount > 0 && isWalkInSale && !(typedName && typedContact);
 
   const isSplitMode = salesType === MULTI_PAY_MODE;
   const splitTotal = Math.round(splits.reduce((sum, t) => sum + t.amount, 0) * 100) / 100;
@@ -302,8 +315,8 @@ export default function PosSaleEditPage() {
     // measure — buildPayments checks the tenders against the payable instead.
     if (!isSplitMode && paid < payableAmount) { toast.error("Paid amount is less than payable"); return; }
     if (!modifyReason.trim()) { toast.error("Modify Reason is required"); return; }
-    if (needsCustomerForDiscount) {
-      toast.error("Select a customer — a discount cannot be given to a walk-in");
+    if (needsNameForDiscount) {
+      toast.error("A discount needs a name — enter the customer name and contact no, or pick a customer");
       return;
     }
     if (isSplitMode && !splits.length) {
@@ -331,6 +344,11 @@ export default function PosSaleEditPage() {
         discountType: discVal > 0 ? discountType : undefined,
         discountValue: discVal > 0 ? discVal : undefined,
         customerId: customerId || undefined,
+        // Sent even when blank is meant: an edit RESTATES the sale, so leaving
+        // these out would keep whatever the sale was saved with, and picking a
+        // registered customer would leave a contradictory typed name behind.
+        guestName: typedName || undefined,
+        guestContact: typedContact || undefined,
         cardNo: salesType === "Card" ? (cardNo.trim() || undefined) : undefined,
         payments: isSplitMode && splits.length ? splits : undefined,
         modifyRemarks: modifyReason.trim(),
@@ -577,12 +595,11 @@ export default function PosSaleEditPage() {
                   </p>
                 )}
 
-                {/* The discount's name and contact number are the picked
-                    customer's, read off their record — so this says what is
-                    missing rather than asking for it to be typed again. */}
-                {needsCustomerForDiscount && (
+                {/* Says which of the two ways of naming the recipient is
+                    missing; both are below. */}
+                {needsNameForDiscount && (
                   <p className="mt-2 rounded-md border border-red-300 bg-red-50 px-2.5 py-1.5 text-xs text-red-600">
-                    Select a customer below — a discount cannot be given to a walk-in.
+                    A discount needs a name — fill in the customer name and contact no below, or pick a registered customer.
                   </p>
                 )}
               </div>
@@ -683,10 +700,30 @@ export default function PosSaleEditPage() {
               value={customerId}
               onChange={setCustomerId}
               placeholder=""
-              error={needsCustomerForDiscount ? "A discounted sale needs a customer" : undefined}
             />
 
-            {selectedCustomer && (
+            {isWalkInSale ? (
+              <div className="space-y-2 rounded-md border border-sage-300 bg-sage-50 px-3 py-2.5">
+                <p className="text-xs text-gray-500">
+                  Walk-in customer — optional, and what lets this bill be discounted.
+                </p>
+                <Input
+                  label="Customer Name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Mr. Rahman"
+                  error={needsNameForDiscount && !typedName ? "Required for a discount" : undefined}
+                />
+                <Input
+                  label="Contact No"
+                  value={guestContact}
+                  onChange={(e) => setGuestContact(e.target.value)}
+                  placeholder="01711-000000"
+                  error={needsNameForDiscount && !typedContact ? "Required for a discount" : undefined}
+                />
+              </div>
+            ) : (
+              selectedCustomer && (
               <div className="rounded-md border border-sage-300 bg-sage-50 px-3 py-2 text-xs space-y-0.5">
                 <p className="text-gray-500">
                   Name: <span className="font-medium text-gray-800">{selectedCustomer.name}</span>
@@ -698,6 +735,7 @@ export default function PosSaleEditPage() {
                   </span>
                 </p>
               </div>
+              )
             )}
 
             {/* The cashier who rang the sale, stamped from their session at the
@@ -730,7 +768,7 @@ export default function PosSaleEditPage() {
                 (isSplitMode && (!splits.length || splitOutOfDate)) ||
                 discountExceedsTotal ||
                 !modifyReason.trim() ||
-                needsCustomerForDiscount
+                needsNameForDiscount
               }
             >
               Save Changes

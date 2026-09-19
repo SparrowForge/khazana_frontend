@@ -6,7 +6,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
-import { posSalesApi, type PosSale } from "@/lib/services/pos.service";
+import { posSalesApi, posSaleCustomerName, type PosSale } from "@/lib/services/pos.service";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Edit2, Trash2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
@@ -30,6 +30,9 @@ function formatDT(iso: string) {
 const exportColumns: ExportColumn<PosSale>[] = [
   { header: "Date & Time", value: (r) => formatDT(r.dateTime) },
   { header: "Invoice No", value: (r) => r.invoiceNo },
+  // Who the sale was for: the name typed at the till for a walk-in, else the
+  // customer it was billed to, else 'POS'.
+  { header: "Customer", value: (r) => posSaleCustomerName(r) },
   { header: "Type", value: (r) => r.salesType },
   { header: "Total", value: (r) => Number(r.totalAmount), numeric: true },
   { header: "VAT", value: (r) => Number(r.vatAmount), numeric: true },
@@ -92,7 +95,7 @@ export default function PosSalesListPage() {
           meta={{
             title: "POS Sales",
             subtitle: `${formatDate(fromDate)} → ${formatDate(toDate)}`,
-            footer: ["", "", "Total", "", "", payableTotal.toFixed(2), ""],
+            footer: ["", "", "", "Total", "", "", payableTotal.toFixed(2), ""],
           }}
         />
       </div>
@@ -107,6 +110,7 @@ export default function PosSalesListPage() {
               <tr className="bg-sage-100 text-gray-500 text-xs uppercase tracking-wide">
                 <th className="px-5 py-3 text-left font-medium">Date & Time</th>
                 <th className="px-5 py-3 text-left font-medium">Invoice No</th>
+                <th className="px-5 py-3 text-left font-medium">Customer</th>
                 <th className="px-5 py-3 text-left font-medium">Type</th>
                 <th className="px-5 py-3 text-right font-medium">Total</th>
                 <th className="px-5 py-3 text-right font-medium">VAT</th>
@@ -120,6 +124,7 @@ export default function PosSalesListPage() {
                 <tr key={s.id} className="hover:bg-sage-100 transition-colors">
                   <td className="px-5 py-3 text-gray-600">{formatDT(s.dateTime)}</td>
                   <td className="px-5 py-3 font-mono font-bold text-primary-700">{s.invoiceNo}</td>
+                  <td className="px-5 py-3 text-gray-600">{posSaleCustomerName(s)}</td>
                   <td className="px-5 py-3 text-gray-600">{s.salesType}</td>
                   <td className="px-5 py-3 text-right text-gray-700">৳{Number(s.totalAmount).toFixed(2)}</td>
                   <td className="px-5 py-3 text-right text-gray-500">৳{Number(s.vatAmount).toFixed(2)}</td>
